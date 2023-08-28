@@ -1,0 +1,7 @@
+[package]
+name = "ibis_interactive"
+description = "Use mouse and keyboard to control ibis synhesizer"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
