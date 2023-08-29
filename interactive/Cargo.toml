@@ -5,3 +5,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+sdl2 = "0.35"
+cpal = "0.15"
+
+[[example]]
+name = "hello"
