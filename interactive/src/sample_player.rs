@@ -4,12 +4,12 @@ use cpal::{
 };
 use std::sync::{mpsc, Arc, RwLock};
 
-struct OutputStreamCore {
+struct SamplePlayerCore {
     device: Device,
     config: StreamConfig,
 }
 
-impl OutputStreamCore {
+impl SamplePlayerCore {
     fn new() -> anyhow::Result<Self> {
         let host = cpal::default_host();
         log::info!("cpal host: {}", host.id().name());
@@ -30,8 +30,8 @@ impl OutputStreamCore {
     }
 }
 
-pub struct OutputStream<T> {
-    core: OutputStreamCore,
+pub struct SamplePlayer<T> {
+    core: SamplePlayerCore,
     #[allow(unused)]
     stream: Stream,
     sender: mpsc::Sender<T>,
@@ -48,13 +48,13 @@ pub struct OutputStream<T> {
     downsample: u32,
 }
 
-impl<T: SizedSample + Send + 'static> OutputStream<T> {
+impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
     fn new_with_downsample(downsample: u32) -> anyhow::Result<Self> {
         assert!(downsample > 0, "downsample must be positive");
         let (sender, receiver) = mpsc::channel::<T>();
         let sink_cursor = Arc::new(RwLock::new(0));
         let sink_cursor_for_cpal_thread = Arc::clone(&sink_cursor);
-        let core = OutputStreamCore::new()?;
+        let core = SamplePlayerCore::new()?;
         let channels = core.config.channels;
         let stream = core.device.build_output_stream(
             &core.config,

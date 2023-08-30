@@ -9,6 +9,7 @@ anyhow = "1.0"
 cpal = "0.15"
 log = "0.4"
 sdl2 = "0.35"
+rand = "0.8"
 
 [[example]]
 name = "hello"

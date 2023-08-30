@@ -1,4 +1,9 @@
-use ibis_interactive::{sample_player::OutputStream, window::Window};
+use ibis_interactive::{
+    modules::{Oscillator, Waveform},
+    signal::Trigger,
+    signal_player::SignalPlayer,
+    window::Window,
+};
 
 fn main() -> anyhow::Result<()> {
     let window = Window {
@@ -6,7 +11,16 @@ fn main() -> anyhow::Result<()> {
         width_px: 960,
         height_px: 720,
     };
-    let stream: OutputStream<f32> = OutputStream::new()?;
-    println!("Sample Rate Hz: {}", stream.sample_rate_hz());
-    window.run(|| {})
+    let mut player = SignalPlayer::new()?;
+    let signal = Oscillator {
+        waveform: Waveform::Saw.into(),
+        frequency_hz: 440.0.into(),
+        pulse_width_01: 0.0.into(),
+        reset_trigger: Trigger::never(),
+        reset_offset_01: 0.0.into(),
+    }
+    .signal();
+    window.run(|| {
+        player.send_signal(&mut signal.map(|x| x as f32));
+    })
 }
