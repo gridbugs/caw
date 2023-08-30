@@ -1,4 +1,5 @@
 use anyhow::anyhow;
+use sdl2::pixels::Color;
 use std::{
     thread,
     time::{Duration, Instant},
@@ -25,7 +26,7 @@ impl Window {
             .target_texture()
             .present_vsync()
             .build()?;
-        canvas.set_draw_color(sdl2::pixels::Color::RGB(0, 0, 0));
+        canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         canvas.present();
         let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
