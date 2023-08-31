@@ -107,6 +107,36 @@ impl From<f64> for Sf64 {
     }
 }
 
+impl From<f32> for Sf32 {
+    fn from(value: f32) -> Self {
+        const_(value)
+    }
+}
+
+impl From<Sf32> for Sf64 {
+    fn from(value: Sf32) -> Self {
+        value.map(|x| x as f64)
+    }
+}
+
+impl From<Sf64> for Sf32 {
+    fn from(value: Sf64) -> Self {
+        value.map(|x| x as f32)
+    }
+}
+
+impl From<f64> for Sf32 {
+    fn from(value: f64) -> Self {
+        const_(value as f32)
+    }
+}
+
+impl From<f32> for Sf64 {
+    fn from(value: f32) -> Self {
+        const_(value as f64)
+    }
+}
+
 impl Signal<bool> {
     /// Treat `self` as a trigger without performing any gate-to-trigger conversion.
     pub fn to_trigger_raw(&self) -> Trigger {
@@ -144,14 +174,36 @@ impl Trigger {
     }
 }
 
+impl From<Trigger> for Signal<bool> {
+    fn from(value: Trigger) -> Self {
+        value.to_signal()
+    }
+}
+
 pub struct Gate(Sbool);
 
 impl Gate {
+    pub fn never() -> Self {
+        Self(const_(false))
+    }
+
     pub fn sample(&mut self, ctx: &SignalCtx) -> bool {
         self.0.sample(ctx)
     }
 
     pub fn to_signal(&self) -> Sbool {
         self.0.clone()
+    }
+}
+
+impl From<Signal<bool>> for Gate {
+    fn from(value: Signal<bool>) -> Self {
+        value.to_gate()
+    }
+}
+
+impl From<Gate> for Signal<bool> {
+    fn from(value: Gate) -> Self {
+        value.to_signal()
     }
 }

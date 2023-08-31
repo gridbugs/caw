@@ -58,4 +58,60 @@ impl Oscillator {
             }
         })
     }
+
+    pub fn builder(
+        waveform: impl Into<Signal<Waveform>>,
+        frequency_hz: impl Into<Sf64>,
+    ) -> OscillatorBuilder {
+        OscillatorBuilder::new(waveform, frequency_hz)
+    }
+}
+
+pub struct OscillatorBuilder {
+    waveform: Signal<Waveform>,
+    frequency_hz: Sf64,
+    pulse_width_01: Option<Sf64>,
+    reset_trigger: Option<Trigger>,
+    reset_offset_01: Option<Sf64>,
+}
+
+impl OscillatorBuilder {
+    pub fn new(waveform: impl Into<Signal<Waveform>>, frequency_hz: impl Into<Sf64>) -> Self {
+        Self {
+            waveform: waveform.into(),
+            frequency_hz: frequency_hz.into(),
+            pulse_width_01: None,
+            reset_trigger: None,
+            reset_offset_01: None,
+        }
+    }
+
+    pub fn pulse_width_01(mut self, pulse_width_01: impl Into<Sf64>) -> Self {
+        self.pulse_width_01 = Some(pulse_width_01.into());
+        self
+    }
+
+    pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+        self.reset_trigger = Some(reset_trigger.into());
+        self
+    }
+
+    pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+        self.reset_offset_01 = Some(reset_offset_01.into());
+        self
+    }
+
+    pub fn build(self) -> Oscillator {
+        Oscillator {
+            waveform: self.waveform,
+            frequency_hz: self.frequency_hz,
+            pulse_width_01: self.pulse_width_01.unwrap_or_else(|| const_(0.5)),
+            reset_trigger: self.reset_trigger.unwrap_or_else(|| Trigger::never()),
+            reset_offset_01: self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+        }
+    }
+
+    pub fn signal(self) -> Sf64 {
+        self.build().signal()
+    }
 }

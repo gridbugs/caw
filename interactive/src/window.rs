@@ -29,6 +29,8 @@ impl Window {
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
         canvas.present();
+        // Skip this many frames to prevent choppy audio on startup.
+        let mut warmup_frames = 15;
         let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
         'running: loop {
             let frame_start = Instant::now();
@@ -39,7 +41,11 @@ impl Window {
                     _ => println!("{:?}", event),
                 }
             }
-            f();
+            if warmup_frames > 0 {
+                warmup_frames -= 1;
+            } else {
+                f();
+            }
             let since_frame_start = frame_start.elapsed();
             if let Some(until_next_frame) = FRAME_DURATION.checked_sub(since_frame_start) {
                 thread::sleep(until_next_frame);
