@@ -5,8 +5,10 @@ use ibis_interactive::{
 
 fn main() -> anyhow::Result<()> {
     let window = Window::builder()
-        .stable(false)
-        .line_width(2)
+        .scale(0.5)
+        .stable(true)
+        .spread(2)
+        .line_width(4)
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();

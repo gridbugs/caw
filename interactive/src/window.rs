@@ -219,23 +219,48 @@ impl VisualizationState {
         self.queue.push(sample);
     }
 
-    fn stable_start_index(&self, min_width: usize) -> usize {
-        match self.zero_cross_index {
-            None => 0,
-            Some(zero_cross_index) => {
-                if self.queue.len() - zero_cross_index < min_width {
-                    0
-                } else {
-                    zero_cross_index
-                }
+    fn stable_start_index(&self, min_width: usize) -> Option<usize> {
+        self.zero_cross_index.and_then(|zero_cross_index| {
+            if self.queue.len() - zero_cross_index < min_width {
+                None
+            } else {
+                Some(zero_cross_index)
             }
-        }
+        })
     }
 }
 
 #[derive(Default)]
 struct Scratch {
     coords: Vec<Coord>,
+}
+
+impl Scratch {
+    fn update_coords(
+        &mut self,
+        samples: &[f32],
+        width_px: u32,
+        height_px: u32,
+        stride: usize,
+        scale: f32,
+        spread: usize,
+    ) {
+        self.coords.clear();
+        let height_px = height_px as f32;
+        let y_px_mid = height_px * 0.5;
+        let sample_mult = scale * height_px * 0.25;
+        for x_px in 0..(width_px as usize / spread) {
+            let sample_index = x_px * stride;
+            if let Some(sample) = samples.get(sample_index) {
+                let y_px = y_px_mid - (sample * sample_mult);
+                let coord = Coord {
+                    x: (x_px * spread) as i32,
+                    y: y_px as i32,
+                };
+                self.coords.push(coord);
+            }
+        }
+    }
 }
 
 fn render_visualization(
@@ -252,29 +277,31 @@ fn render_visualization(
     background: Color,
     line_width: u32,
 ) -> anyhow::Result<()> {
-    if visualization_state.queue.is_empty() {
-        return Ok(());
-    }
-    scratch.coords.clear();
-    let sample_start_index = if stable {
-        visualization_state.stable_start_index((width_px as usize * stride) / spread)
-    } else {
-        0
-    };
-    let height_px = height_px as f32;
-    let y_px_mid = height_px * 0.5;
-    let sample_mult = scale * height_px * 0.25;
-    for x_px in 0..(width_px as usize / spread) {
-        let sample_index = sample_start_index + (x_px * stride);
-        if let Some(sample) = visualization_state.queue.get(sample_index) {
-            let y_px = y_px_mid - (sample * sample_mult);
-            let coord = Coord {
-                x: (x_px * spread) as i32,
-                y: y_px as i32,
-            };
-            scratch.coords.push(coord);
+    if stable {
+        if let Some(sample_start_index) =
+            visualization_state.stable_start_index((width_px as usize * stride) / spread)
+        {
+            scratch.update_coords(
+                &visualization_state.queue[sample_start_index..],
+                width_px,
+                height_px,
+                stride,
+                scale,
+                spread,
+            );
         }
-    }
+    } else {
+        if !visualization_state.queue.is_empty() {
+            scratch.update_coords(
+                &visualization_state.queue,
+                width_px,
+                height_px,
+                stride,
+                scale,
+                spread,
+            );
+        }
+    };
     canvas.set_draw_color(background);
     canvas.clear();
     canvas.set_draw_color(foreground);
