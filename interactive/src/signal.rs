@@ -1,4 +1,4 @@
-use std::{cell::RefCell, rc::Rc};
+use std::{cell::RefCell, ops::Add, rc::Rc};
 
 /// Information about the current state of playback that will be passed to every signal each frame
 pub struct SignalCtx {
@@ -86,9 +86,16 @@ impl<T: Clone + 'static> Signal<T> {
         self.0.borrow_mut().sample(ctx)
     }
 
-    pub fn map<U: Clone + 'static, F: FnMut(T) -> U + 'static>(&self, mut f: F) -> Signal<U> {
-        let mut signal = self.clone();
-        Signal::from_fn(move |ctx| f(signal.sample(ctx)))
+    pub fn map<U: Clone + 'static, F: FnMut(T) -> U + 'static>(mut self, mut f: F) -> Signal<U> {
+        Signal::from_fn(move |ctx| f(self.sample(ctx)))
+    }
+
+    pub fn both<U: Clone + 'static>(mut self, mut other: Signal<U>) -> Signal<(T, U)> {
+        Signal::from_fn(move |ctx| {
+            let t = self.sample(ctx);
+            let u = other.sample(ctx);
+            (t, u)
+        })
     }
 }
 
@@ -205,5 +212,16 @@ impl From<Signal<bool>> for Gate {
 impl From<Gate> for Signal<bool> {
     fn from(value: Gate) -> Self {
         value.to_signal()
+    }
+}
+
+impl<T> Add for Signal<T>
+where
+    T: Add + Clone + 'static,
+    <T as Add>::Output: Clone,
+{
+    type Output = Signal<<T as Add>::Output>;
+    fn add(self, rhs: Self) -> Self::Output {
+        self.both(rhs).map(|(lhs, rhs)| lhs + rhs)
     }
 }

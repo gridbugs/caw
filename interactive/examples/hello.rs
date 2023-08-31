@@ -1,20 +1,19 @@
 use ibis_interactive::{
-    modules::{Oscillator, Waveform},
-    signal_player::SignalPlayer,
-    window::Window,
+    oscillator::{Oscillator, Waveform},
+    window::{Rgb24, Window},
 };
 
 fn main() -> anyhow::Result<()> {
-    let window = Window {
-        title: "hello".to_string(),
-        width_px: 960,
-        height_px: 720,
-    };
-    let mut player = SignalPlayer::new()?;
-    let mut signal = Oscillator::builder(Waveform::Pulse, 120.0)
-        .pulse_width_01(0.2)
-        .signal();
-    window.run(|| {
-        player.send_signal(&mut signal);
-    })
+    let window = Window::builder()
+        .stable(false)
+        .line_width(2)
+        .background(Rgb24::new(0, 31, 0))
+        .foreground(Rgb24::new(0, 255, 0))
+        .build();
+    let mut signal = Oscillator::builder(Waveform::Saw, 60.0).signal()
+        + Oscillator::builder(Waveform::Saw, 60.5).signal()
+        + Oscillator::builder(Waveform::Saw, 60.0)
+            .reset_offset_01(0.5)
+            .signal();
+    window.play(&mut signal)
 }

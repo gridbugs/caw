@@ -32,7 +32,11 @@ impl SignalPlayer {
         })
     }
 
-    pub fn send_signal<T: Clone + ToF32 + 'static>(&mut self, buffered_signal: &mut Signal<T>) {
+    pub fn send_signal_with_callback<T: Clone + ToF32 + 'static, F: FnMut(f32)>(
+        &mut self,
+        buffered_signal: &mut Signal<T>,
+        mut f: F,
+    ) {
         let sample_rate_hz = self.sample_player.sample_rate_hz();
         self.sample_player.play_stream(|| {
             let ctx = SignalCtx {
@@ -40,8 +44,13 @@ impl SignalPlayer {
                 sample_rate_hz: sample_rate_hz as f64,
             };
             let sample = buffered_signal.sample(&ctx).to_f32();
+            f(sample);
             self.sample_index += 1;
             sample
         });
+    }
+
+    pub fn send_signal<T: Clone + ToF32 + 'static>(&mut self, buffered_signal: &mut Signal<T>) {
+        self.send_signal_with_callback(buffered_signal, |_| ());
     }
 }

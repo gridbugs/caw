@@ -10,6 +10,8 @@ cpal = "0.15"
 log = "0.4"
 sdl2 = "0.35"
 rand = "0.8"
+rgb_int = "0.1"
+line_2d = "0.5"
 
 [[example]]
 name = "hello"

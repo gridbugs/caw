@@ -110,7 +110,7 @@ impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
 
     pub fn play_stream<S: FnMut() -> T>(&mut self, mut stream: S) {
         // only send data once per channel
-        for _ in 0..(self.samples_behind() / self.core.config.channels as u64) {
+        for _ in 0..(self.samples_behind()) {
             self.play_sample(stream())
         }
     }
