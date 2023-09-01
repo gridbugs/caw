@@ -90,12 +90,26 @@ impl<T: Clone + 'static> Signal<T> {
         Signal::from_fn(move |ctx| f(self.sample(ctx)))
     }
 
+    pub fn map_ctx<U: Clone + 'static, F: FnMut(T, &SignalCtx) -> U + 'static>(
+        mut self,
+        mut f: F,
+    ) -> Signal<U> {
+        Signal::from_fn(move |ctx| f(self.sample(ctx), ctx))
+    }
+
     pub fn both<U: Clone + 'static>(mut self, mut other: Signal<U>) -> Signal<(T, U)> {
         Signal::from_fn(move |ctx| {
             let t = self.sample(ctx);
             let u = other.sample(ctx);
             (t, u)
         })
+    }
+
+    pub fn filter<F: Filter<Input = T> + 'static>(self, mut filter: F) -> Signal<F::Output>
+    where
+        F::Output: Clone + 'static,
+    {
+        self.map_ctx(move |x, ctx| filter.run(x, ctx))
     }
 }
 
@@ -221,7 +235,15 @@ where
     <T as Add>::Output: Clone,
 {
     type Output = Signal<<T as Add>::Output>;
+
     fn add(self, rhs: Self) -> Self::Output {
         self.both(rhs).map(|(lhs, rhs)| lhs + rhs)
     }
+}
+
+pub trait Filter {
+    type Input;
+    type Output;
+
+    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output;
 }

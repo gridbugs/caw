@@ -1,3 +1,4 @@
+pub mod filters;
 pub mod oscillator;
 pub mod sample_player;
 pub mod signal;
