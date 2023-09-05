@@ -1,4 +1,43 @@
-use std::{cell::RefCell, ops::Add, rc::Rc};
+use std::{cell::RefCell, rc::Rc};
+
+#[derive(Debug, Clone, Copy, PartialEq)]
+pub struct Freq {
+    hz: f64,
+}
+
+impl Freq {
+    pub fn from_hz(hz: f64) -> Self {
+        Self { hz }
+    }
+
+    pub fn from_s(s: f64) -> Self {
+        Self::from_hz(1.0 / s)
+    }
+
+    pub fn hz(&self) -> f64 {
+        self.hz
+    }
+
+    pub fn s(&self) -> f64 {
+        self.hz() / 1.0
+    }
+}
+
+pub fn freq_hz(hz: f64) -> Freq {
+    Freq::from_hz(hz)
+}
+
+pub fn freq_s(s: f64) -> Freq {
+    Freq::from_s(s)
+}
+
+pub fn sfreq_hz(hz: impl Into<Sf64>) -> Sfreq {
+    hz.into().map(freq_hz)
+}
+
+pub fn sfreq_s(s: impl Into<Sf64>) -> Sfreq {
+    s.into().map(freq_s)
+}
 
 /// Information about the current state of playback that will be passed to every signal each frame
 pub struct SignalCtx {
@@ -86,33 +125,51 @@ impl<T: Clone + 'static> Signal<T> {
         self.0.borrow_mut().sample(ctx)
     }
 
-    pub fn map<U: Clone + 'static, F: FnMut(T) -> U + 'static>(mut self, mut f: F) -> Signal<U> {
-        Signal::from_fn(move |ctx| f(self.sample(ctx)))
+    pub fn map<U: Clone + 'static, F: FnMut(T) -> U + 'static>(&self, mut f: F) -> Signal<U> {
+        let mut signal = self.clone();
+        Signal::from_fn(move |ctx| f(signal.sample(ctx)))
     }
 
     pub fn map_ctx<U: Clone + 'static, F: FnMut(T, &SignalCtx) -> U + 'static>(
-        mut self,
+        &self,
         mut f: F,
     ) -> Signal<U> {
-        Signal::from_fn(move |ctx| f(self.sample(ctx), ctx))
+        let mut signal = self.clone();
+        Signal::from_fn(move |ctx| f(signal.sample(ctx), ctx))
     }
 
-    pub fn both<U: Clone + 'static>(mut self, mut other: Signal<U>) -> Signal<(T, U)> {
+    pub fn both<U: Clone + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
+        let mut signal = self.clone();
+        let mut other = other.clone();
         Signal::from_fn(move |ctx| {
-            let t = self.sample(ctx);
+            let t = signal.sample(ctx);
             let u = other.sample(ctx);
             (t, u)
         })
     }
 
-    pub fn filter<F: Filter<Input = T> + 'static>(self, mut filter: F) -> Signal<F::Output>
+    pub fn filter<F: Filter<Input = T> + 'static>(&self, mut filter: F) -> Signal<F::Output>
     where
         F::Output: Clone + 'static,
     {
         self.map_ctx(move |x, ctx| filter.run(x, ctx))
     }
+
+    pub fn debug<F: FnMut(T) + 'static>(&self, mut f: F) -> Self {
+        self.map(move |x| {
+            f(x.clone());
+            x
+        })
+    }
 }
 
+impl<T: Clone + std::fmt::Debug + 'static> Signal<T> {
+    pub fn debug_print(&self) -> Self {
+        self.debug(|x| println!("{:?}", x))
+    }
+}
+
+pub type Sfreq = Signal<Freq>;
 pub type Sf64 = Signal<f64>;
 pub type Sf32 = Signal<f32>;
 pub type Sbool = Signal<bool>;
@@ -120,6 +177,12 @@ pub type Su8 = Signal<u8>;
 
 pub fn const_<T: Clone + 'static>(value: T) -> Signal<T> {
     Signal::from_fn(move |_| value.clone())
+}
+
+impl From<Freq> for Sfreq {
+    fn from(value: Freq) -> Self {
+        const_(value)
+    }
 }
 
 impl From<f64> for Sf64 {
@@ -180,6 +243,27 @@ impl Signal<bool> {
     }
 }
 
+impl Signal<f64> {
+    /// The function f(x) = exp(k * (x - a)) - b
+    /// ...where a and b are chosen so that f(0) = 0 and f(1) = 1.
+    /// The k parameter controls how sharp the curve is.
+    /// It approaches a linear function as k approaches 0.
+    /// k = 0 is special cased as a linear function for convenience.
+    pub fn exp_01(&self, k: f64) -> Self {
+        if k == 0.0 {
+            self.clone()
+        } else {
+            let b = 1.0 / k.exp_m1();
+            let a = -b.ln() / k;
+            self.map(move |x| (k * (x - a)).exp() - b)
+        }
+    }
+
+    pub fn signed_to_01(&self) -> Self {
+        (self + 1.0) / 2.0
+    }
+}
+
 pub struct Trigger(Sbool);
 
 impl Trigger {
@@ -192,6 +276,14 @@ impl Trigger {
 
     pub fn to_signal(&self) -> Sbool {
         self.0.clone()
+    }
+
+    pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {
+        self.to_signal().debug(f).to_trigger_raw()
+    }
+
+    pub fn debug_print(&self) -> Self {
+        self.to_signal().debug_print().to_trigger_raw()
     }
 }
 
@@ -215,6 +307,14 @@ impl Gate {
     pub fn to_signal(&self) -> Sbool {
         self.0.clone()
     }
+
+    pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {
+        self.to_signal().debug(f).to_gate()
+    }
+
+    pub fn debug_print(&self) -> Self {
+        self.to_signal().debug_print().to_gate()
+    }
 }
 
 impl From<Signal<bool>> for Gate {
@@ -226,18 +326,6 @@ impl From<Signal<bool>> for Gate {
 impl From<Gate> for Signal<bool> {
     fn from(value: Gate) -> Self {
         value.to_signal()
-    }
-}
-
-impl<T> Add for Signal<T>
-where
-    T: Add + Clone + 'static,
-    <T as Add>::Output: Clone,
-{
-    type Output = Signal<<T as Add>::Output>;
-
-    fn add(self, rhs: Self) -> Self::Output {
-        self.both(rhs).map(|(lhs, rhs)| lhs + rhs)
     }
 }
 

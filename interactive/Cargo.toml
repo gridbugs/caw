@@ -14,4 +14,7 @@ rgb_int = "0.1"
 line_2d = "0.5"
 
 [[example]]
-name = "hello"
+name = "drone"
+
+[[example]]
+name = "periodic_gate"

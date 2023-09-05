@@ -263,12 +263,25 @@ mod biquad_filter {
 
 pub struct LowPassButterworth(biquad_filter::butterworth::State);
 
+/// Included for consistency with `LowPassChebyshev`
+pub struct LowPassButterworthBuilder(LowPassButterworth);
+
+impl LowPassButterworthBuilder {
+    pub fn build(self) -> LowPassButterworth {
+        self.0
+    }
+}
+
 impl LowPassButterworth {
     pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
         LowPassButterworth(biquad_filter::butterworth::State {
             half_power_frequency_hz: cutoff_hz.into(),
             buffer: biquad_filter::Buffer::new(1),
         })
+    }
+
+    pub fn builder(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
+        LowPassButterworthBuilder(Self::new(cutoff_hz))
     }
 }
 
@@ -283,12 +296,25 @@ impl Filter for LowPassButterworth {
 
 pub struct HighPassButterworth(biquad_filter::butterworth::State);
 
+/// Included for consistency with `HighPassChebyshev`
+pub struct HighPassButterworthBuilder(HighPassButterworth);
+
+impl HighPassButterworthBuilder {
+    pub fn build(self) -> HighPassButterworth {
+        self.0
+    }
+}
+
 impl HighPassButterworth {
     pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
         Self(biquad_filter::butterworth::State {
             half_power_frequency_hz: cutoff_hz.into(),
             buffer: biquad_filter::Buffer::new(1),
         })
+    }
+
+    pub fn builder(cutoff_hz: impl Into<Sf64>) -> HighPassButterworthBuilder {
+        HighPassButterworthBuilder(Self::new(cutoff_hz))
     }
 }
 
@@ -423,16 +449,16 @@ pub struct Saturate {
     pub min: Sf64,
 }
 
-impl Saturate {
-    pub fn builder() -> SaturateBuilder {
-        SaturateBuilder::new()
-    }
-}
-
 pub struct SaturateBuilder {
     scale: Option<Sf64>,
     max: Option<Sf64>,
     min: Option<Sf64>,
+}
+
+impl Saturate {
+    pub fn builder() -> SaturateBuilder {
+        SaturateBuilder::new()
+    }
 }
 
 impl SaturateBuilder {
