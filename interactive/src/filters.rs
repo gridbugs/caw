@@ -185,7 +185,7 @@ mod biquad_filter {
                 U::update_entries(&mut self.buffer, cutoff_sample_rate_ratio, epsilon);
                 let output_scaled = P::apply(&mut self.buffer, sample);
                 let scale_factor = (1.0 - (-epsilon).exp()) / 2.0;
-                output_scaled
+                output_scaled / scale_factor
             }
         }
 
