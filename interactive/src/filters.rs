@@ -588,7 +588,6 @@ mod moog_ladder_low_pass_filter {
         }
 
         fn set_resonance(&mut self, resonance: f64) {
-            // this maps resonance = 0->1 to K = 0 -> 4
             self.resonance = resonance;
             self.k = resonance * 4.0;
         }
