@@ -572,7 +572,6 @@ mod moog_ladder_low_pass_filter {
         alpha0: f64,
         q: f64,
         saturation: f64,
-        oberheim_coefs: [f64; 5],
         cutoff_hz: f64,
         resonance: f64,
         sample_rate_hz: f64,
@@ -614,12 +613,6 @@ mod moog_ladder_low_pass_filter {
             self.gamma =
                 feedforward_coeff * feedforward_coeff * feedforward_coeff * feedforward_coeff;
             self.alpha0 = 1.0 / (1.0 + (self.k * self.gamma));
-            // Oberheim variations / LPF4 (TODO: remove these)
-            self.oberheim_coefs[0] = 0.0;
-            self.oberheim_coefs[1] = 0.0;
-            self.oberheim_coefs[2] = 0.0;
-            self.oberheim_coefs[3] = 0.0;
-            self.oberheim_coefs[4] = 1.0;
         }
 
         fn process_sample(&mut self, mut sample: f64) -> f64 {
@@ -635,13 +628,7 @@ mod moog_ladder_low_pass_filter {
             let stage2 = self.lpf2.tick(stage1);
             let stage3 = self.lpf3.tick(stage2);
             let stage4 = self.lpf4.tick(stage3);
-            // Oberheim variations
-            let output = self.oberheim_coefs[0] * u
-                + self.oberheim_coefs[1] * stage1
-                + self.oberheim_coefs[2] * stage2
-                + self.oberheim_coefs[3] * stage3
-                + self.oberheim_coefs[4] * stage4;
-            output
+            stage4
         }
     }
 
