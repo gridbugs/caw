@@ -1,6 +1,6 @@
 use crate::{
     oscillator::{Oscillator, Waveform},
-    signal::{const_, Gate, Sf64, Sfreq},
+    signal::{const_, sfreq_hz, sfreq_s, Gate, Sf64, Sfreq},
 };
 
 pub struct PeriodicGate {
@@ -46,8 +46,16 @@ impl PeriodicGate {
         }
     }
 
-    pub fn builder(frequency: impl Into<Sfreq>) -> PeriodicGateBuilder {
-        PeriodicGateBuilder::new(frequency)
+    pub fn builder(freq: impl Into<Sfreq>) -> PeriodicGateBuilder {
+        PeriodicGateBuilder::new(freq)
+    }
+
+    pub fn builder_hz(freq_hz: impl Into<Sf64>) -> PeriodicGateBuilder {
+        Self::builder(sfreq_hz(freq_hz))
+    }
+
+    pub fn builder_s(freq_s: impl Into<Sf64>) -> PeriodicGateBuilder {
+        Self::builder(sfreq_s(freq_s))
     }
 
     pub fn gate(self) -> Gate {

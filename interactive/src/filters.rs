@@ -185,7 +185,7 @@ mod biquad_filter {
                 U::update_entries(&mut self.buffer, cutoff_sample_rate_ratio, epsilon);
                 let output_scaled = P::apply(&mut self.buffer, sample);
                 let scale_factor = (1.0 - (-epsilon).exp()) / 2.0;
-                output_scaled / scale_factor
+                output_scaled
             }
         }
 
@@ -488,7 +488,7 @@ impl SaturateBuilder {
     pub fn threshold(mut self, threshold: impl Into<Sf64>) -> Self {
         let threshold = threshold.into();
         self.max = Some(threshold.clone());
-        self.min = Some(threshold);
+        self.min = Some(threshold * -1.0);
         self
     }
 

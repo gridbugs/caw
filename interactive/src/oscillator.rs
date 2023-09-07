@@ -1,4 +1,4 @@
-use crate::signal::{const_, sfreq_hz, Sf64, Sfreq, Signal, Trigger};
+use crate::signal::{const_, sfreq_hz, sfreq_s, Sf64, Sfreq, Signal, Trigger};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::f64::consts::PI;
 
@@ -83,9 +83,16 @@ impl Oscillator {
 
     pub fn builder_hz(
         waveform: impl Into<Signal<Waveform>>,
-        frequency_hz: impl Into<Sf64>,
+        freq_hz: impl Into<Sf64>,
     ) -> OscillatorBuilder {
-        Self::builder(waveform, sfreq_hz(frequency_hz))
+        Self::builder(waveform, sfreq_hz(freq_hz))
+    }
+
+    pub fn builder_s(
+        waveform: impl Into<Signal<Waveform>>,
+        freq_s: impl Into<Sf64>,
+    ) -> OscillatorBuilder {
+        Self::builder(waveform, sfreq_s(freq_s))
     }
 
     pub fn signal(mut self) -> Sf64 {

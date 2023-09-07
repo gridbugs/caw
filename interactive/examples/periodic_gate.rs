@@ -3,7 +3,7 @@ use ibis_interactive::{
     envelope::AdsrLinear01,
     filters::*,
     oscillator::{Oscillator, Waveform},
-    signal::{freq_hz, freq_s, Sf64},
+    signal::Sf64,
     window::{Rgb24, Window},
 };
 
@@ -21,14 +21,23 @@ fn run(signal: Sf64) -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let gate = PeriodicGate::builder(freq_s(0.2)).build_gate();
-    let osc = Oscillator::builder(Waveform::Pulse, freq_hz(40.0))
-        .pulse_width_01(0.1)
+    let gate = PeriodicGate::builder_s(0.5).build_gate();
+    let osc = Oscillator::builder_hz(Waveform::Saw, 80.0).build_signal();
+    let env = AdsrLinear01::builder(gate.clone())
+        .attack_s(0.01)
+        .decay_s(0.2)
+        .sustain_01(0.5)
+        .release_s(0.01)
         .build_signal();
-    let env = AdsrLinear01::builder(gate).release_s(0.1).build_signal();
+    let volume_env = AdsrLinear01::builder(gate).build_signal();
     let signal = osc
-        .filter(LowPassButterworth::builder(&env * 4000.0 + 200.0).build())
-        .filter(Saturate::builder().scale(2.0).min(-1.0).max(2.0).build())
-        * env;
+        .filter(
+            LowPassChebyshev::builder(&env * 5000.0 + 1000.0)
+                .resonance(40.0)
+                .build(),
+        )
+        //.filter(HighPassChebyshev::builder(0.0).resonance(10.0).build())
+        .filter(Saturate::builder().scale(1.0).threshold(2.0).build())
+        * volume_env;
     run(signal)
 }

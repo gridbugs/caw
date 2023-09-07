@@ -264,6 +264,7 @@ impl Signal<f64> {
     }
 }
 
+#[derive(Clone)]
 pub struct Trigger(Sbool);
 
 impl Trigger {
@@ -293,6 +294,7 @@ impl From<Trigger> for Signal<bool> {
     }
 }
 
+#[derive(Clone)]
 pub struct Gate(Sbool);
 
 impl Gate {
