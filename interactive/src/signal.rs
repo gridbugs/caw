@@ -279,6 +279,10 @@ impl Trigger {
         self.0.clone()
     }
 
+    pub fn to_gate(&self) -> Gate {
+        self.0.to_gate()
+    }
+
     pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {
         self.to_signal().debug(f).to_trigger_raw()
     }
@@ -308,6 +312,10 @@ impl Gate {
 
     pub fn to_signal(&self) -> Sbool {
         self.0.clone()
+    }
+
+    pub fn to_trigger_rising_edge(&self) -> Trigger {
+        self.0.to_trigger_rising_edge()
     }
 
     pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {
