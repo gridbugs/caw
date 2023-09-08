@@ -14,8 +14,7 @@ fn run(signal: Sf64) -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let mut signal = signal * 0.1;
-    window.play(&mut signal)
+    window.play(signal * 0.1)
 }
 
 fn main() -> anyhow::Result<()> {

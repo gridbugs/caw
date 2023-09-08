@@ -122,7 +122,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn play<T: Clone + ToF32 + 'static>(
+    pub fn play_mut<T: Clone + ToF32 + 'static>(
         &self,
         buffered_signal: &mut Signal<T>,
     ) -> anyhow::Result<()> {
@@ -185,6 +185,13 @@ impl Window {
         Ok(())
     }
 
+    pub fn play<T: Clone + ToF32 + 'static>(
+        &self,
+        mut buffered_signal: Signal<T>,
+    ) -> anyhow::Result<()> {
+        self.play_mut(&mut buffered_signal)
+    }
+
     pub fn builder() -> WindowBuilder {
         WindowBuilder::new()
     }
@@ -211,7 +218,7 @@ impl VisualizationState {
     fn add_sample(&mut self, sample: f32) {
         if self.zero_cross_index.is_none() {
             if let Some(&last) = self.queue.last() {
-                if (sample > 0.0) && (last < 0.0) {
+                if (sample <= 0.0) && (last > 0.0) {
                     self.zero_cross_index = Some(self.queue.len());
                 }
             }
@@ -219,12 +226,23 @@ impl VisualizationState {
         self.queue.push(sample);
     }
 
+    // returns a sample index that can be used to plot the sample such that it crosses 0 in the
+    // middle of the screen
     fn stable_start_index(&self, min_width: usize) -> Option<usize> {
         self.zero_cross_index.and_then(|zero_cross_index| {
-            if self.queue.len() - zero_cross_index < min_width {
+            if self.queue.len() - zero_cross_index < (min_width / 2) {
                 None
             } else {
-                Some(zero_cross_index)
+                if zero_cross_index >= min_width / 2 {
+                    Some(zero_cross_index - (min_width / 2))
+                } else {
+                    for i in (min_width / 2)..(self.queue.len() - (min_width / 2)) {
+                        if self.queue[i] <= 0.0 && self.queue[i - 1] > 0.0 {
+                            return Some(i - (min_width / 2));
+                        }
+                    }
+                    None
+                }
             }
         })
     }

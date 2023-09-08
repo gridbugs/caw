@@ -9,15 +9,14 @@ use ibis_interactive::{
 
 fn run(signal: Sf64) -> anyhow::Result<()> {
     let window = Window::builder()
-        .scale(5.0)
-        .stable(false)
+        .scale(2.0)
+        .stable(true)
         .spread(2)
         .line_width(4)
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let mut signal = signal * 0.1;
-    window.play(&mut signal)
+    window.play(signal * 0.5)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -35,7 +34,7 @@ fn main() -> anyhow::Result<()> {
     let signal = osc
         .filter(LowPassButterworth::builder(100.0).build())
         .filter(
-            LowPassMoogLadder::builder(&env * (lfo * 8000.0 + 500.0) + 100.0)
+            LowPassMoogLadder::builder(env * (lfo * 8000.0 + 500.0) + 100.0)
                 .resonance(8.0)
                 .build(),
         )
