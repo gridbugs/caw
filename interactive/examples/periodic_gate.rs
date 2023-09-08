@@ -21,27 +21,25 @@ fn run(signal: Sf64) -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let gate = PeriodicGate::builder_s(0.2).duty_01(0.90).build_gate();
-    let lfo = Oscillator::builder_s(Waveform::Sine, 16.0)
+    let gate = PeriodicGate::builder_s(0.1).duty_01(0.10).build_gate();
+    let lfo = Oscillator::builder_s(Waveform::Sine, 8.0)
         .reset_offset_01(-0.25)
         .build_signal()
         .signed_to_01();
-    let osc = Oscillator::builder_hz(Waveform::Saw, 120.0).build_signal();
+    let osc = Oscillator::builder_hz(Waveform::Pulse, 120.0).build_signal();
     let env = AdsrLinear01::builder(gate.clone())
-        .attack_s(0.0)
-        .decay_s(0.3)
-        .sustain_01(0.0)
-        .release_s(0.0)
+        .release_s(0.1)
         .build_signal()
         .exp_01(5.0);
-    let volume_env = AdsrLinear01::builder(gate).release_s(0.2).build_signal();
+    let volume_env = AdsrLinear01::builder(gate).release_s(0.1).build_signal();
     let signal = osc
+        .filter(LowPassButterworth::builder(100.0).build())
         .filter(
-            LowPassMoogLadder::builder(&env * (lfo * 5000.0 + 500.0) + 100.0)
-                .resonance(4.0)
+            LowPassMoogLadder::builder(&env * (lfo * 8000.0 + 500.0) + 100.0)
+                .resonance(8.0)
                 .build(),
         )
-        .filter(Saturate::builder().scale(2.0).threshold(2.0).build())
+        .filter(HighPassButterworth::builder(100.0).build())
         * volume_env;
     run(signal)
 }
