@@ -580,6 +580,7 @@ mod moog_ladder_low_pass_filter {
     impl OberheimVariationMoogState {
         fn new() -> Self {
             let mut s = Self::default();
+            s.sample_rate_hz = 44100.0;
             s.saturation = 1.0;
             s.q = 3.0;
             s.set_cutoff_hz(1000.0);
@@ -682,10 +683,14 @@ mod moog_ladder_low_pass_filter {
         type Output = f64;
 
         fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-            self.state.sample_rate_hz = ctx.sample_rate_hz;
             let cutoff_hz = self.cutoff_hz.sample(ctx);
             let resonance = self.resonance.sample(ctx);
-            if cutoff_hz != self.state.cutoff_hz {
+            if self.state.sample_rate_hz == ctx.sample_rate_hz {
+                if cutoff_hz != self.state.cutoff_hz {
+                    self.state.set_cutoff_hz(cutoff_hz);
+                }
+            } else {
+                self.state.sample_rate_hz = ctx.sample_rate_hz;
                 self.state.set_cutoff_hz(cutoff_hz);
             }
             if resonance != self.state.resonance {
