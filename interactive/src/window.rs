@@ -1,4 +1,5 @@
 use crate::{
+    input::{Input, InputState, Keyboard, Mouse},
     signal::Signal,
     signal_player::{SignalPlayer, ToF32},
 };
@@ -104,21 +105,23 @@ impl WindowBuilder {
             line_width: self.line_width.unwrap_or(1),
             foreground: self.foreground.unwrap_or_else(|| Rgb24::new_grey(255)),
             background: self.background.unwrap_or_else(|| Rgb24::new_grey(0)),
+            input_state: InputState::new(),
         }
     }
 }
 
 pub struct Window {
-    pub title: String,
-    pub width_px: u32,
-    pub height_px: u32,
-    pub stable: bool,
-    pub stride: usize,
-    pub scale: f32,
-    pub spread: usize,
-    pub line_width: u32,
-    pub foreground: Rgb24,
-    pub background: Rgb24,
+    title: String,
+    width_px: u32,
+    height_px: u32,
+    stable: bool,
+    stride: usize,
+    scale: f32,
+    spread: usize,
+    line_width: u32,
+    foreground: Rgb24,
+    background: Rgb24,
+    input_state: InputState,
 }
 
 impl Window {
@@ -151,13 +154,32 @@ impl Window {
                 use sdl2::event::Event;
                 match event {
                     Event::Quit { .. } => break 'running,
+                    Event::KeyDown {
+                        scancode: Some(scancode),
+                        repeat: false,
+                        ..
+                    } => self.input_state.set_key(scancode, true),
+                    Event::KeyUp {
+                        scancode: Some(scancode),
+                        repeat: false,
+                        ..
+                    } => self.input_state.set_key(scancode, false),
+                    Event::MouseMotion { x, y, .. } => self.input_state.set_mouse_position(
+                        x as f64 / self.width_px as f64,
+                        y as f64 / self.height_px as f64,
+                    ),
+                    Event::MouseButtonDown { mouse_btn, .. } => {
+                        self.input_state.set_mouse_button(mouse_btn, true)
+                    }
+                    Event::MouseButtonUp { mouse_btn, .. } => {
+                        self.input_state.set_mouse_button(mouse_btn, false)
+                    }
                     _ => (),
                 }
             }
             if warmup_frames > 0 {
                 warmup_frames -= 1;
             } else {
-                visualization_state.clear();
                 signal_player.send_signal_with_callback(buffered_signal, |sample| {
                     visualization_state.add_sample(sample);
                 });
@@ -165,7 +187,7 @@ impl Window {
             render_visualization(
                 &mut canvas,
                 &mut scratch,
-                &visualization_state,
+                &mut visualization_state,
                 self.width_px,
                 self.height_px,
                 self.stable,
@@ -195,6 +217,18 @@ impl Window {
     pub fn builder() -> WindowBuilder {
         WindowBuilder::new()
     }
+
+    pub fn input(&self) -> Input {
+        self.input_state.input()
+    }
+
+    pub fn keyboard(&self) -> Keyboard {
+        self.input_state.keyboard()
+    }
+
+    pub fn mouse(&self) -> Mouse {
+        self.input_state.mouse()
+    }
 }
 
 struct VisualizationState {
@@ -218,7 +252,7 @@ impl VisualizationState {
     fn add_sample(&mut self, sample: f32) {
         if self.zero_cross_index.is_none() {
             if let Some(&last) = self.queue.last() {
-                if (sample <= 0.0) && (last > 0.0) {
+                if (sample <= 0.0) && (last >= 0.0) {
                     self.zero_cross_index = Some(self.queue.len());
                 }
             }
@@ -237,7 +271,7 @@ impl VisualizationState {
                     Some(zero_cross_index - (min_width / 2))
                 } else {
                     for i in (min_width / 2)..(self.queue.len() - (min_width / 2)) {
-                        if self.queue[i] <= 0.0 && self.queue[i - 1] > 0.0 {
+                        if self.queue[i] <= 0.0 && self.queue[i - 1] >= 0.0 {
                             return Some(i - (min_width / 2));
                         }
                     }
@@ -251,6 +285,7 @@ impl VisualizationState {
 #[derive(Default)]
 struct Scratch {
     coords: Vec<Coord>,
+    mean_y: i32,
 }
 
 impl Scratch {
@@ -263,6 +298,7 @@ impl Scratch {
         scale: f32,
         spread: usize,
     ) {
+        let mut total_y = 0;
         self.coords.clear();
         let height_px = height_px as f32;
         let y_px_mid = height_px * 0.5;
@@ -276,15 +312,17 @@ impl Scratch {
                     y: y_px as i32,
                 };
                 self.coords.push(coord);
+                total_y += coord.y;
             }
         }
+        self.mean_y = total_y / self.coords.len() as i32;
     }
 }
 
 fn render_visualization(
     canvas: &mut Canvas<Sdl2Window>,
     scratch: &mut Scratch,
-    visualization_state: &VisualizationState,
+    visualization_state: &mut VisualizationState,
     width_px: u32,
     height_px: u32,
     stable: bool,
@@ -295,21 +333,30 @@ fn render_visualization(
     background: Color,
     line_width: u32,
 ) -> anyhow::Result<()> {
-    if stable {
-        if let Some(sample_start_index) =
-            visualization_state.stable_start_index((width_px as usize * stride) / spread)
-        {
-            scratch.update_coords(
-                &visualization_state.queue[sample_start_index..],
-                width_px,
-                height_px,
-                stride,
-                scale,
-                spread,
-            );
-        }
-    } else {
-        if !visualization_state.queue.is_empty() {
+    if visualization_state.queue.len() >= width_px as usize {
+        if stable {
+            if let Some(sample_start_index) =
+                visualization_state.stable_start_index((width_px as usize * stride) / spread)
+            {
+                scratch.update_coords(
+                    &visualization_state.queue[sample_start_index..],
+                    width_px,
+                    height_px,
+                    stride,
+                    scale,
+                    spread,
+                );
+            } else {
+                scratch.update_coords(
+                    &visualization_state.queue,
+                    width_px,
+                    height_px,
+                    stride,
+                    scale,
+                    spread,
+                );
+            }
+        } else {
             scratch.update_coords(
                 &visualization_state.queue,
                 width_px,
@@ -318,8 +365,9 @@ fn render_visualization(
                 scale,
                 spread,
             );
-        }
-    };
+        };
+        visualization_state.clear();
+    }
     canvas.set_draw_color(background);
     canvas.clear();
     canvas.set_draw_color(foreground);

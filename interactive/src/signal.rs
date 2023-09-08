@@ -161,6 +161,21 @@ impl<T: Clone + 'static> Signal<T> {
             x
         })
     }
+
+    /// Force the evaluation of a signal, inoring its value. Use when laziness would otherwise
+    /// prevent the evaluation of a signal. When using `mul_lazy` with an amp envelope that is
+    /// different from (say) a filter envelope, the filter envelope will need to be forced so that
+    /// the internal state of the envelope generator is updated even when the amp envelope goes to
+    /// zero. This doesn't defeat the point of `mul_lazy` as it still avoids evaluating filters and
+    /// oscillators which are the most expensive parts of most synth patches.
+    pub fn force<U, SL: SignalLike<U> + Clone + 'static>(&self, other: &SL) -> Self {
+        let mut other = other.clone();
+        let mut signal = self.clone();
+        Signal::from_fn(move |ctx| {
+            let _ = other.sample(ctx);
+            signal.sample(ctx)
+        })
+    }
 }
 
 impl<T: Clone + std::fmt::Debug + 'static> Signal<T> {
@@ -262,6 +277,21 @@ impl Signal<f64> {
     pub fn signed_to_01(&self) -> Self {
         (self + 1.0) / 2.0
     }
+
+    /// Evaluate `by`, and then only evaluate `self` and multiply it by the value of `by` if `by`
+    /// is non-zero. Otherwise just return 0.
+    pub fn mul_lazy(&self, by: &Self) -> Self {
+        let mut signal = self.clone();
+        let mut by = by.clone();
+        Signal::from_fn(move |ctx| {
+            let by = by.sample(ctx);
+            if by == 0.0 {
+                0.0
+            } else {
+                signal.sample(ctx) * by
+            }
+        })
+    }
 }
 
 #[derive(Clone)]
@@ -325,6 +355,10 @@ impl Gate {
     pub fn debug_print(&self) -> Self {
         self.to_signal().debug_print().to_gate()
     }
+
+    pub fn from_fn<F: FnMut(&SignalCtx) -> bool + 'static>(f: F) -> Self {
+        Self(Signal::new(raw_fn(f)))
+    }
 }
 
 impl From<Signal<bool>> for Gate {
@@ -344,4 +378,34 @@ pub trait Filter {
     type Output;
 
     fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output;
+}
+
+pub fn sum(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
+    let mut out = const_(0.0);
+    for signal in signals {
+        out = out + signal;
+    }
+    out
+}
+
+pub trait SignalLike<T> {
+    fn sample(&mut self, ctx: &SignalCtx) -> T;
+}
+
+impl<T: Clone + 'static> SignalLike<T> for Signal<T> {
+    fn sample(&mut self, ctx: &SignalCtx) -> T {
+        Signal::sample(self, ctx)
+    }
+}
+
+impl SignalLike<bool> for Trigger {
+    fn sample(&mut self, ctx: &SignalCtx) -> bool {
+        Trigger::sample(self, ctx)
+    }
+}
+
+impl SignalLike<bool> for Gate {
+    fn sample(&mut self, ctx: &SignalCtx) -> bool {
+        Gate::sample(self, ctx)
+    }
 }

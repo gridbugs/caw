@@ -39,6 +39,6 @@ fn main() -> anyhow::Result<()> {
                 .build(),
         )
         .filter(HighPassButterworth::builder(100.0).build())
-        * volume_env;
+        .mul_lazy(&volume_env);
     run(signal)
 }

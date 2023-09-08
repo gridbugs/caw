@@ -21,3 +21,6 @@ name = "drone"
 
 [[example]]
 name = "periodic_gate"
+
+[[example]]
+name = "keyboard_and_mouse"
