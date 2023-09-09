@@ -134,6 +134,7 @@ impl Window {
         let window = video_subsystem
             .window(self.title.as_str(), self.width_px, self.height_px)
             .position_centered()
+            .input_grabbed()
             .build()?;
         let mut canvas = window
             .into_canvas()

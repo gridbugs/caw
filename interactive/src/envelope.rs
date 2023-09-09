@@ -17,9 +17,9 @@ pub struct AdsrLinear01Builder {
 }
 
 impl AdsrLinear01Builder {
-    pub fn new(gate: Gate) -> Self {
+    pub fn new(gate: impl Into<Gate>) -> Self {
         Self {
-            gate,
+            gate: gate.into(),
             attack_s: None,
             decay_s: None,
             sustain_01: None,
@@ -64,14 +64,14 @@ impl AdsrLinear01Builder {
 
 impl AdsrLinear01 {
     pub fn new(
-        gate: Gate,
+        gate: impl Into<Gate>,
         attack_s: impl Into<Sf64>,
         decay_s: impl Into<Sf64>,
         sustain_01: impl Into<Sf64>,
         release_s: impl Into<Sf64>,
     ) -> Self {
         Self {
-            gate,
+            gate: gate.into(),
             attack_s: attack_s.into(),
             decay_s: decay_s.into(),
             sustain_01: sustain_01.into(),
@@ -79,7 +79,7 @@ impl AdsrLinear01 {
         }
     }
 
-    pub fn builder(gate: Gate) -> AdsrLinear01Builder {
+    pub fn builder(gate: impl Into<Gate>) -> AdsrLinear01Builder {
         AdsrLinear01Builder::new(gate)
     }
 

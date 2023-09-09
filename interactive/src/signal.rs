@@ -161,21 +161,6 @@ impl<T: Clone + 'static> Signal<T> {
             x
         })
     }
-
-    /// Force the evaluation of a signal, inoring its value. Use when laziness would otherwise
-    /// prevent the evaluation of a signal. When using `mul_lazy` with an amp envelope that is
-    /// different from (say) a filter envelope, the filter envelope will need to be forced so that
-    /// the internal state of the envelope generator is updated even when the amp envelope goes to
-    /// zero. This doesn't defeat the point of `mul_lazy` as it still avoids evaluating filters and
-    /// oscillators which are the most expensive parts of most synth patches.
-    pub fn force<U, SL: SignalLike<U> + Clone + 'static>(&self, other: &SL) -> Self {
-        let mut other = other.clone();
-        let mut signal = self.clone();
-        Signal::from_fn(move |ctx| {
-            let _ = other.sample(ctx);
-            signal.sample(ctx)
-        })
-    }
 }
 
 impl<T: Clone + std::fmt::Debug + 'static> Signal<T> {
@@ -290,6 +275,34 @@ impl Signal<f64> {
             } else {
                 signal.sample(ctx) * by
             }
+        })
+    }
+
+    /// If `self` evaluates to a non-zero value then `other` will be evaluated and ignored. If
+    /// `self` evaluates to zero then keep evaluating `other` until it too evaluates to zero, then
+    /// stop evaluating `other` until `self` becomes non-zero. This is for the situation where you
+    /// have an envelope generator used for scaling volume with `mul_lazy` and have a separate
+    /// envelope generator used for effects (such as a low-pass filter) with a longer release than
+    /// the volume envelope. The use of `mul_lazy` would prevent the effect envelope generator from
+    /// completing its release if the volume envelope release completes first. This creates a
+    /// problem when the released key is pressed a second time, the effect envelope generator will
+    /// be at a non-zero state, so the full effect of its attack will be lost.
+    pub fn force_lazy<SL: SignalLike<f64> + Clone + 'static>(&self, other: &SL) -> Self {
+        let mut other = other.clone();
+        let mut signal = self.clone();
+        let mut stopped = false;
+        Signal::from_fn(move |ctx| {
+            let signal_value = signal.sample(ctx);
+            if signal_value == 0.0 {
+                if !stopped {
+                    let other_value = other.sample(ctx);
+                    stopped = other_value == 0.0;
+                }
+            } else {
+                let _ = other.sample(ctx);
+                stopped = false;
+            }
+            signal_value
         })
     }
 }
@@ -407,5 +420,23 @@ impl SignalLike<bool> for Trigger {
 impl SignalLike<bool> for Gate {
     fn sample(&mut self, ctx: &SignalCtx) -> bool {
         Gate::sample(self, ctx)
+    }
+}
+
+impl<T: Clone + 'static> From<&Signal<T>> for Signal<T> {
+    fn from(value: &Signal<T>) -> Self {
+        value.clone()
+    }
+}
+
+impl From<&Gate> for Gate {
+    fn from(value: &Gate) -> Self {
+        value.clone()
+    }
+}
+
+impl From<&Trigger> for Trigger {
+    fn from(value: &Trigger) -> Self {
+        value.clone()
     }
 }

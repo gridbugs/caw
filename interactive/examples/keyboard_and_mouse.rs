@@ -4,7 +4,7 @@ use ibis_interactive::{
     input::{Input, Key},
     music::{self, Note, NoteName},
     oscillator::{Oscillator, Waveform},
-    signal::{Gate, Sf64},
+    signal::{const_, Gate, Sf64},
     window::{Rgb24, Window},
 };
 
@@ -50,24 +50,23 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
 }
 
 fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
-    let oscillator = Oscillator::builder_hz(Waveform::Saw, freq_hz).build_signal()
-        + Oscillator::builder_hz(Waveform::Saw, freq_hz * 1.01).build_signal()
-        + Oscillator::builder_hz(Waveform::Pulse, freq_hz * 2.0).build_signal() * 0.3
-        + Oscillator::builder_hz(Waveform::Pulse, freq_hz * 2.004).build_signal() * 0.3
-        + Oscillator::builder_hz(Waveform::Pulse, freq_hz * 2.003).build_signal() * 0.3
-        + Oscillator::builder_hz(Waveform::Saw, freq_hz)
+    let vibrato_hz = Oscillator::builder_s(Waveform::Saw, 0.1).build_signal() * (freq_hz * 0.02);
+    let freq_hz = const_(freq_hz) + vibrato_hz;
+    let oscillator = Oscillator::builder_hz(Waveform::Saw, &freq_hz).build_signal()
+        + Oscillator::builder_hz(Waveform::Saw, &freq_hz * 1.01).build_signal()
+        + Oscillator::builder_hz(Waveform::Pulse, &freq_hz * 2.0).build_signal() * 0.3
+        + Oscillator::builder_hz(Waveform::Pulse, &freq_hz * 2.004).build_signal() * 0.3
+        + Oscillator::builder_hz(Waveform::Pulse, &freq_hz * 2.003).build_signal() * 0.3
+        + Oscillator::builder_hz(Waveform::Saw, &freq_hz)
             .reset_offset_01(0.5)
             .build_signal();
-    let amp_env = AdsrLinear01::builder(gate.clone())
-        .release_s(0.5)
-        .build_signal();
-    let filter_env = AdsrLinear01::builder(gate.clone())
-        .attack_s(0.05)
+    let amp_env = AdsrLinear01::builder(&gate).release_s(0.5).build_signal();
+    let filter_env = AdsrLinear01::builder(&gate)
+        .attack_s(0.5)
         .decay_s(0.1)
         .sustain_01(0.6)
         .release_s(0.5)
-        .build_signal()
-        .exp_01(1.0);
+        .build_signal();
     oscillator
         .filter(
             LowPassMoogLadder::builder(&filter_env * 12000.0 * effect_x)
@@ -75,7 +74,7 @@ fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf6
                 .build(),
         )
         .mul_lazy(&amp_env)
-        .force(&filter_env)
+        .force_lazy(&filter_env)
 }
 
 fn voice(input: Input) -> Sf64 {
