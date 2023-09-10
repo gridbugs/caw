@@ -197,6 +197,18 @@ impl From<f32> for Sf32 {
     }
 }
 
+impl From<&f64> for Sf64 {
+    fn from(value: &f64) -> Self {
+        const_(*value)
+    }
+}
+
+impl From<&f32> for Sf32 {
+    fn from(value: &f32) -> Self {
+        const_(*value)
+    }
+}
+
 impl From<Sf32> for Sf64 {
     fn from(value: Sf32) -> Self {
         value.map(|x| x as f64)
@@ -218,6 +230,18 @@ impl From<f64> for Sf32 {
 impl From<f32> for Sf64 {
     fn from(value: f32) -> Self {
         const_(value as f64)
+    }
+}
+
+impl From<&f64> for Sf32 {
+    fn from(value: &f64) -> Self {
+        const_(*value as f32)
+    }
+}
+
+impl From<&f32> for Sf64 {
+    fn from(value: &f32) -> Self {
+        const_(*value as f64)
     }
 }
 
