@@ -12,6 +12,11 @@ sdl2 = "0.35"
 rand = "0.8"
 rgb_int = "0.1"
 line_2d = "0.5"
+midly = "0.5"
+midir = "0.9"
+
+[dev-dependencies]
+clap = { version = "4.4", features = ["derive"] }
 
 [[example]]
 name = "saw"
@@ -24,3 +29,6 @@ name = "periodic_gate"
 
 [[example]]
 name = "keyboard_and_mouse"
+
+[[example]]
+name = "midi"
