@@ -121,12 +121,12 @@ impl<T: Clone + 'static> Signal<T> {
         Self::new(raw_fn(f))
     }
 
-    pub fn sample(&mut self, ctx: &SignalCtx) -> T {
+    pub fn sample(&self, ctx: &SignalCtx) -> T {
         self.0.borrow_mut().sample(ctx)
     }
 
     pub fn map<U: Clone + 'static, F: FnMut(T) -> U + 'static>(&self, mut f: F) -> Signal<U> {
-        let mut signal = self.clone();
+        let signal = self.clone();
         Signal::from_fn(move |ctx| f(signal.sample(ctx)))
     }
 
@@ -134,13 +134,13 @@ impl<T: Clone + 'static> Signal<T> {
         &self,
         mut f: F,
     ) -> Signal<U> {
-        let mut signal = self.clone();
+        let signal = self.clone();
         Signal::from_fn(move |ctx| f(signal.sample(ctx), ctx))
     }
 
     pub fn both<U: Clone + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
-        let mut signal = self.clone();
-        let mut other = other.clone();
+        let signal = self.clone();
+        let other = other.clone();
         Signal::from_fn(move |ctx| {
             let t = signal.sample(ctx);
             let u = other.sample(ctx);
@@ -253,7 +253,7 @@ impl Signal<bool> {
 
     pub fn to_trigger_rising_edge(&self) -> Trigger {
         let mut previous = false;
-        let mut signal = self.clone();
+        let signal = self.clone();
         Trigger(Signal::from_fn(move |ctx| {
             let sample = signal.sample(ctx);
             let trigger_sample = sample && !previous;
@@ -290,8 +290,8 @@ impl Signal<f64> {
     /// Evaluate `by`, and then only evaluate `self` and multiply it by the value of `by` if `by`
     /// is non-zero. Otherwise just return 0.
     pub fn mul_lazy(&self, by: &Self) -> Self {
-        let mut signal = self.clone();
-        let mut by = by.clone();
+        let signal = self.clone();
+        let by = by.clone();
         Signal::from_fn(move |ctx| {
             let by = by.sample(ctx);
             if by == 0.0 {
@@ -312,8 +312,8 @@ impl Signal<f64> {
     /// problem when the released key is pressed a second time, the effect envelope generator will
     /// be at a non-zero state, so the full effect of its attack will be lost.
     pub fn force_lazy<SL: SignalLike<f64> + Clone + 'static>(&self, other: &SL) -> Self {
-        let mut other = other.clone();
-        let mut signal = self.clone();
+        let other = other.clone();
+        let signal = self.clone();
         let mut stopped = false;
         Signal::from_fn(move |ctx| {
             let signal_value = signal.sample(ctx);
@@ -338,7 +338,7 @@ impl Trigger {
     pub fn never() -> Self {
         Self(const_(false))
     }
-    pub fn sample(&mut self, ctx: &SignalCtx) -> bool {
+    pub fn sample(&self, ctx: &SignalCtx) -> bool {
         self.0.sample(ctx)
     }
 
@@ -373,7 +373,7 @@ impl Gate {
         Self(const_(false))
     }
 
-    pub fn sample(&mut self, ctx: &SignalCtx) -> bool {
+    pub fn sample(&self, ctx: &SignalCtx) -> bool {
         self.0.sample(ctx)
     }
 
@@ -426,23 +426,23 @@ pub fn sum(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
 }
 
 pub trait SignalLike<T> {
-    fn sample(&mut self, ctx: &SignalCtx) -> T;
+    fn sample(&self, ctx: &SignalCtx) -> T;
 }
 
 impl<T: Clone + 'static> SignalLike<T> for Signal<T> {
-    fn sample(&mut self, ctx: &SignalCtx) -> T {
+    fn sample(&self, ctx: &SignalCtx) -> T {
         Signal::sample(self, ctx)
     }
 }
 
 impl SignalLike<bool> for Trigger {
-    fn sample(&mut self, ctx: &SignalCtx) -> bool {
+    fn sample(&self, ctx: &SignalCtx) -> bool {
         Trigger::sample(self, ctx)
     }
 }
 
 impl SignalLike<bool> for Gate {
-    fn sample(&mut self, ctx: &SignalCtx) -> bool {
+    fn sample(&self, ctx: &SignalCtx) -> bool {
         Gate::sample(self, ctx)
     }
 }

@@ -83,7 +83,7 @@ impl AdsrLinear01 {
         AdsrLinear01Builder::new(gate)
     }
 
-    pub fn signal(mut self) -> Sf64 {
+    pub fn signal(self) -> Sf64 {
         let mut current_value = 0.0;
         let mut crossed_threshold = false;
         Signal::from_fn(move |ctx| {

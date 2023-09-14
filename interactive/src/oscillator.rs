@@ -95,7 +95,7 @@ impl Oscillator {
         Self::builder(waveform, sfreq_s(freq_s))
     }
 
-    pub fn signal(mut self) -> Sf64 {
+    pub fn signal(self) -> Sf64 {
         let mut state_opt = None;
         Signal::from_fn(move |ctx| {
             let state = match state_opt {

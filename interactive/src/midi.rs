@@ -130,7 +130,7 @@ impl MidiTrack {
             voices: Vec<Option<Voice>>,
             controllers: Vec<u7>,
             pitch_bend: u14,
-        };
+        }
         let state = Rc::new(RefCell::new(State {
             current_time_us: 0.0,
             next_index: 0,
@@ -150,7 +150,7 @@ impl MidiTrack {
             .map(|i| {
                 let note_index = Signal::from_fn({
                     let state = Rc::clone(&state);
-                    let mut effectful_signal = effectful_signal.clone();
+                    let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
                         let state = state.borrow();
@@ -162,7 +162,7 @@ impl MidiTrack {
                 });
                 let velocity = Signal::from_fn({
                     let state = Rc::clone(&state);
-                    let mut effectful_signal = effectful_signal.clone();
+                    let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
                         let state = state.borrow();
@@ -174,7 +174,7 @@ impl MidiTrack {
                 });
                 let gate = Gate::from_fn({
                     let state = Rc::clone(&state);
-                    let mut effectful_signal = effectful_signal.clone();
+                    let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
                         let state = state.borrow();
@@ -193,7 +193,7 @@ impl MidiTrack {
                 .map(|i| {
                     Signal::from_fn({
                         let state = Rc::clone(&state);
-                        let mut effectful_signal = effectful_signal.clone();
+                        let effectful_signal = effectful_signal.clone();
                         move |ctx| {
                             effectful_signal.sample(ctx);
                             let state = state.borrow();
@@ -205,7 +205,7 @@ impl MidiTrack {
         };
         let pitch_bend = Signal::from_fn({
             let state = Rc::clone(&state);
-            let mut effectful_signal = effectful_signal.clone();
+            let effectful_signal = effectful_signal.clone();
             move |ctx| {
                 effectful_signal.sample(ctx);
                 let state = state.borrow();
@@ -309,7 +309,7 @@ impl MidiPlayerRaw {
             voices: Vec<Option<Voice>>,
             controllers: Vec<u7>,
             pitch_bend: u14,
-        };
+        }
         let state = Rc::new(RefCell::new(State {
             voices: (0..polyphony).map(|_| None).collect(),
             controllers: (0..128).map(|_| u7::new(0)).collect(),
@@ -338,7 +338,7 @@ impl MidiPlayerRaw {
             .map(|i| {
                 let note_index = Signal::from_fn({
                     let state = Rc::clone(&state);
-                    let mut effectful_signal = effectful_signal.clone();
+                    let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
                         let state = state.borrow();
@@ -350,7 +350,7 @@ impl MidiPlayerRaw {
                 });
                 let velocity = Signal::from_fn({
                     let state = Rc::clone(&state);
-                    let mut effectful_signal = effectful_signal.clone();
+                    let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
                         let state = state.borrow();
@@ -362,7 +362,7 @@ impl MidiPlayerRaw {
                 });
                 let gate = Gate::from_fn({
                     let state = Rc::clone(&state);
-                    let mut effectful_signal = effectful_signal.clone();
+                    let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
                         let state = state.borrow();
@@ -381,7 +381,7 @@ impl MidiPlayerRaw {
                 .map(|i| {
                     Signal::from_fn({
                         let state = Rc::clone(&state);
-                        let mut effectful_signal = effectful_signal.clone();
+                        let effectful_signal = effectful_signal.clone();
                         move |ctx| {
                             effectful_signal.sample(ctx);
                             let state = state.borrow();
@@ -393,7 +393,7 @@ impl MidiPlayerRaw {
         };
         let pitch_bend = Signal::from_fn({
             let state = Rc::clone(&state);
-            let mut effectful_signal = effectful_signal.clone();
+            let effectful_signal = effectful_signal.clone();
             move |ctx| {
                 effectful_signal.sample(ctx);
                 let state = state.borrow();
