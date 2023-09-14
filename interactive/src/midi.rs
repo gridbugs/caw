@@ -240,8 +240,7 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        let state = state.borrow();
-                        state.voices[i]
+                        state.borrow().voices[i]
                             .as_ref()
                             .map(|v| v.note_index)
                             .unwrap_or(u7::new(0))
@@ -252,8 +251,7 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        let state = state.borrow();
-                        state.voices[i]
+                        state.borrow().voices[i]
                             .as_ref()
                             .map(|v| v.velocity)
                             .unwrap_or(u7::new(0))
@@ -264,8 +262,10 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        let state = state.borrow();
-                        state.voices[i].as_ref().map(|v| v.gate).unwrap_or(false)
+                        state.borrow().voices[i]
+                            .as_ref()
+                            .map(|v| v.gate)
+                            .unwrap_or(false)
                     }
                 });
                 MidiVoiceRaw {
@@ -283,8 +283,7 @@ impl MidiPlayerRaw {
                         let effectful_signal = effectful_signal.clone();
                         move |ctx| {
                             effectful_signal.sample(ctx);
-                            let state = state.borrow();
-                            state.controllers[i]
+                            state.borrow().controllers[i]
                         }
                     })
                 })
@@ -295,8 +294,7 @@ impl MidiPlayerRaw {
             let effectful_signal = effectful_signal.clone();
             move |ctx| {
                 effectful_signal.sample(ctx);
-                let state = state.borrow();
-                state.pitch_bend
+                state.borrow().pitch_bend
             }
         });
         MidiPlayerRaw {
