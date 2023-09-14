@@ -6,7 +6,7 @@ pub struct Freq {
 }
 
 impl Freq {
-    pub fn from_hz(hz: f64) -> Self {
+    pub const fn from_hz(hz: f64) -> Self {
         Self { hz }
     }
 
@@ -14,7 +14,7 @@ impl Freq {
         Self::from_hz(1.0 / s)
     }
 
-    pub fn hz(&self) -> f64 {
+    pub const fn hz(&self) -> f64 {
         self.hz
     }
 
@@ -23,7 +23,7 @@ impl Freq {
     }
 }
 
-pub fn freq_hz(hz: f64) -> Freq {
+pub const fn freq_hz(hz: f64) -> Freq {
     Freq::from_hz(hz)
 }
 

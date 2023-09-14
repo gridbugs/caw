@@ -48,6 +48,10 @@ pub fn freq_hz_of_midi_index(midi_index: u8) -> f64 {
         * (2_f64.powf((midi_index as f64 - A4_MIDI_INDEX as f64) / (NOTES_PER_OCTAVE as f64)))
 }
 
+pub fn semitone_ratio(num_semitones: f64) -> f64 {
+    2.0_f64.powf(num_semitones / (NOTES_PER_OCTAVE as f64))
+}
+
 /// Definition of notes based on MIDI tuned to A440
 pub struct Note {
     pub name: NoteName,

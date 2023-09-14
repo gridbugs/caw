@@ -1,6 +1,5 @@
 use clap::Parser;
-use midly::{Smf, TrackEventKind};
-use std::fs;
+use ibis_interactive::midi::MidiFile;
 
 #[derive(Parser, Debug)]
 struct Args {
@@ -9,18 +8,7 @@ struct Args {
 
 fn main() {
     let args = Args::parse();
-    let data = fs::read(args.name).unwrap();
-    let midi = Smf::parse(&data).unwrap();
-    println!("{:?}", midi.header);
-    println!("num tracks: {}", midi.tracks.len());
-    if let Some(track) = midi.tracks.first() {
-        for event in track {
-            if let TrackEventKind::Midi { channel, message } = event.kind {
-                println!("delta: {}", event.delta);
-                println!("channel: {}", channel);
-                println!("{:?}", message);
-            }
-        }
-    }
-    println!("{:?}", midi.header);
+    let midi_file = MidiFile::read(args.name).unwrap();
+    let track = midi_file.track(0).unwrap();
+    println!("{:#?}", track);
 }
