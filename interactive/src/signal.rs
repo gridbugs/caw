@@ -161,6 +161,17 @@ impl<T: Clone + 'static> Signal<T> {
             x
         })
     }
+
+    /// Force the evaluation of a signal, inoring its value. Use when laziness would otherwise
+    /// prevent the evaluation of a signal.
+    pub fn force<U, SL: SignalLike<U> + Clone + 'static>(&self, other: &SL) -> Self {
+        let other = other.clone();
+        let signal = self.clone();
+        Signal::from_fn(move |ctx| {
+            let _ = other.sample(ctx);
+            signal.sample(ctx)
+        })
+    }
 }
 
 impl<T: Clone + std::fmt::Debug + 'static> Signal<T> {

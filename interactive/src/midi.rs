@@ -123,12 +123,14 @@ pub struct MidiVoiceRaw {
     pub note_index: Signal<u7>,
     pub velocity: Signal<u7>,
     pub gate: Gate,
+    pub monitor: MidiVoiceMonitor,
 }
 
 pub struct MidiVoice {
     pub note_freq: Sfreq,
     pub velocity_01: Sf64,
     pub gate: Gate,
+    pub monitor: MidiVoiceMonitor,
 }
 
 fn signal_u7_to_01(s: &Signal<u7>) -> Sf64 {
@@ -143,6 +145,7 @@ impl MidiVoiceRaw {
                 .map(|i| Freq::from_hz(music::freq_hz_of_midi_index(i.as_int()))),
             velocity_01: signal_u7_to_01(&self.velocity),
             gate: self.gate.clone(),
+            monitor: self.monitor.clone(),
         }
     }
 }
@@ -186,6 +189,38 @@ pub struct MidiPlayer {
     pub pitch_bend_multiplier: Sf64,
 }
 
+struct MidiPlayerRawStateVoice {
+    note_index: u7,
+    velocity: u7,
+    gate: bool,
+}
+
+struct MidiPlayerRawState {
+    // a value of `None` indicates that the voice is free to be used for new notes without
+    // interrupting a currently-playing sound
+    voices: Vec<Option<MidiPlayerRawStateVoice>>,
+    controllers: Vec<u7>,
+    pitch_bend: u14,
+}
+
+/// Inform a player that a voice has become silent. This will let the player know it can safely
+/// re-use the voice for another note without interrupting some currently playing sound. Note that
+/// knowledge of gate states is not sufficient for this purpose due to notes continuing to play
+/// after a key is released (e.g. with a non-zero release in the ADSR or various delay effects).
+/// Also note that if the player has no free voices it will use an eviction policy to choose a
+/// non-free voice to re-use when a new key is pressed.
+#[derive(Clone)]
+pub struct MidiVoiceMonitor {
+    state: Rc<RefCell<MidiPlayerRawState>>,
+    voice_index: usize,
+}
+
+impl MidiVoiceMonitor {
+    fn clear(&self) {
+        self.state.borrow_mut().voices[self.voice_index] = None;
+    }
+}
+
 trait MidiEventSource {
     fn for_each_new_event<F>(&mut self, ctx: &SignalCtx, f: F)
     where
@@ -199,17 +234,7 @@ impl MidiPlayerRaw {
         polyphony: usize,
         mut event_source: impl MidiEventSource + 'static,
     ) -> MidiPlayerRaw {
-        struct Voice {
-            note_index: u7,
-            velocity: u7,
-            gate: bool,
-        }
-        struct State {
-            voices: Vec<Option<Voice>>,
-            controllers: Vec<u7>,
-            pitch_bend: u14,
-        }
-        let state = Rc::new(RefCell::new(State {
+        let state = Rc::new(RefCell::new(MidiPlayerRawState {
             voices: (0..polyphony).map(|_| None).collect(),
             controllers: (0..128).map(|_| u7::new(0)).collect(),
             pitch_bend: u14::new(0x2000),
@@ -268,10 +293,15 @@ impl MidiPlayerRaw {
                             .unwrap_or(false)
                     }
                 });
+                let monitor = MidiVoiceMonitor {
+                    state: Rc::clone(&state),
+                    voice_index: i,
+                };
                 MidiVoiceRaw {
                     note_index,
                     velocity,
                     gate,
+                    monitor,
                 }
             })
             .collect::<Vec<_>>();
@@ -297,7 +327,7 @@ impl MidiPlayerRaw {
                 state.borrow().pitch_bend
             }
         });
-        MidiPlayerRaw {
+        Self {
             voices,
             controllers,
             pitch_bend,
