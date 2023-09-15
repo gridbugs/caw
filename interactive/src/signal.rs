@@ -39,6 +39,14 @@ pub fn sfreq_s(s: impl Into<Sf64>) -> Sfreq {
     s.into().map(freq_s)
 }
 
+pub fn sfreq_to_hz(sfreq: impl Into<Sfreq>) -> Sf64 {
+    sfreq.into().map(|f| f.hz())
+}
+
+pub fn sfreq_to_s(sfreq: impl Into<Sfreq>) -> Sf64 {
+    sfreq.into().map(|f| f.s())
+}
+
 /// Information about the current state of playback that will be passed to every signal each frame
 pub struct SignalCtx {
     pub sample_index: u64,

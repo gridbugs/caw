@@ -34,87 +34,21 @@ impl MidiFile {
         self.smf.tracks.len()
     }
 
-    pub fn track(&self, index: usize) -> anyhow::Result<MidiTrack> {
-        if let Some(events) = self.smf.tracks.get(index) {
-            Ok(MidiTrack::from_midly_track(self.smf.header.timing, events))
+    pub fn track_player(
+        &self,
+        track_index: usize,
+        channel: u8,
+        polyphony: usize,
+    ) -> anyhow::Result<MidiPlayer> {
+        if let Some(events) = self.smf.tracks.get(track_index) {
+            let event_source = MidlyTrackEventSource::new(events, self.smf.header.timing);
+            Ok(MidiPlayerRaw::new(channel.into(), polyphony, event_source).to_player())
         } else {
             anyhow::bail!(
                 "Track index {} is out of range (there are {} tracks)",
-                index,
+                track_index,
                 self.num_tracks()
             )
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
-struct MidiTrackEntry {
-    absolute_time: u32,
-    midi_events: Vec<MidiEvent>,
-}
-
-#[derive(Debug, Clone)]
-pub struct MidiTrack {
-    ticks_per_second: f64,
-    track_entries: Vec<MidiTrackEntry>,
-}
-
-const DEFAULT_US_PER_BEAT: u32 = 250_000;
-
-impl MidiTrack {
-    fn from_midly_track<'a>(timing: Timing, track: &[TrackEvent]) -> Self {
-        let tempo_us_per_beat = track.iter().find_map(|e| {
-            if let TrackEventKind::Meta(MetaMessage::Tempo(tempo_us_per_beat)) = e.kind {
-                Some(tempo_us_per_beat.as_int())
-            } else {
-                None
-            }
-        });
-        let ticks_per_second = match timing {
-            Timing::Metrical(ticks_per_beat) => {
-                let us_per_beat = if let Some(tempo_us_per_beat) = tempo_us_per_beat {
-                    tempo_us_per_beat
-                } else {
-                    log::warn!(
-                        "Unspecified tempo. Assuming {} microseconds per beat.",
-                        DEFAULT_US_PER_BEAT
-                    );
-                    DEFAULT_US_PER_BEAT
-                } as f64;
-                (ticks_per_beat.as_int() as f64 * 1_000_000.0) / us_per_beat
-            }
-            Timing::Timecode(frames_per_second, ticks_per_frame) => {
-                frames_per_second.as_f32() as f64 * ticks_per_frame as f64
-            }
-        };
-        let mut track_entries: Vec<MidiTrackEntry> = Vec::new();
-        let mut absolute_time = 0;
-        for event in track {
-            if let TrackEventKind::Midi { channel, message } = event.kind {
-                if event.delta == 0 {
-                    if let Some(prev) = track_entries.last_mut() {
-                        // this is not the first event to happen at this time
-                        prev.midi_events.push(MidiEvent { channel, message });
-                    } else {
-                        // this is the very first event and it has a delta of 0
-                        track_entries.push(MidiTrackEntry {
-                            absolute_time: 0,
-                            midi_events: vec![MidiEvent { channel, message }],
-                        });
-                    }
-                } else {
-                    // first event of a new time
-                    absolute_time += event.delta.as_int();
-                    track_entries.push(MidiTrackEntry {
-                        absolute_time,
-                        midi_events: vec![MidiEvent { channel, message }],
-                    });
-                }
-            }
-        }
-        Self {
-            ticks_per_second,
-            track_entries,
         }
     }
 }
@@ -123,14 +57,12 @@ pub struct MidiVoiceRaw {
     pub note_index: Signal<u7>,
     pub velocity: Signal<u7>,
     pub gate: Gate,
-    pub monitor: MidiVoiceMonitor,
 }
 
 pub struct MidiVoice {
     pub note_freq: Sfreq,
     pub velocity_01: Sf64,
     pub gate: Gate,
-    pub monitor: MidiVoiceMonitor,
 }
 
 fn signal_u7_to_01(s: &Signal<u7>) -> Sf64 {
@@ -145,7 +77,6 @@ impl MidiVoiceRaw {
                 .map(|i| Freq::from_hz(music::freq_hz_of_midi_index(i.as_int()))),
             velocity_01: signal_u7_to_01(&self.velocity),
             gate: self.gate.clone(),
-            monitor: self.monitor.clone(),
         }
     }
 }
@@ -189,10 +120,18 @@ pub struct MidiPlayer {
     pub pitch_bend_multiplier: Sf64,
 }
 
+#[derive(Clone, Copy, PartialEq, Eq)]
+enum GateState {
+    Pressed,
+    Released,
+    ReleasedThenPressed,
+}
+
 struct MidiPlayerRawStateVoice {
     note_index: u7,
     velocity: u7,
-    gate: bool,
+    gate: GateState,
+    last_change_tick: u64,
 }
 
 struct MidiPlayerRawState {
@@ -201,23 +140,100 @@ struct MidiPlayerRawState {
     voices: Vec<Option<MidiPlayerRawStateVoice>>,
     controllers: Vec<u7>,
     pitch_bend: u14,
+    current_tick: u64,
 }
 
-/// Inform a player that a voice has become silent. This will let the player know it can safely
-/// re-use the voice for another note without interrupting some currently playing sound. Note that
-/// knowledge of gate states is not sufficient for this purpose due to notes continuing to play
-/// after a key is released (e.g. with a non-zero release in the ADSR or various delay effects).
-/// Also note that if the player has no free voices it will use an eviction policy to choose a
-/// non-free voice to re-use when a new key is pressed.
-#[derive(Clone)]
-pub struct MidiVoiceMonitor {
-    state: Rc<RefCell<MidiPlayerRawState>>,
-    voice_index: usize,
-}
+impl MidiPlayerRawState {
+    fn allocate_voice(&self) -> usize {
+        for (i, voice) in self.voices.iter().enumerate() {
+            if voice.is_none() {
+                return i;
+            }
+        }
+        // all voices are in use - try to allocate the the voice whose gate was opened first (of
+        // voices whose gates are currently open)
+        {
+            let mut latest_tick = self.current_tick;
+            let mut best_index = None;
+            for (i, voice) in self.voices.iter().enumerate() {
+                let voice = voice.as_ref().unwrap();
+                if voice.gate == GateState::Released && voice.last_change_tick < latest_tick {
+                    latest_tick = voice.last_change_tick;
+                    best_index = Some(i);
+                }
+            }
+            if let Some(i) = best_index {
+                return i;
+            }
+        }
+        // all gates are currently closed - allocate the most recently pressed voice
+        let mut best_index = 0;
+        let mut oldest_tick = 0;
+        for (i, voice) in self.voices.iter().enumerate() {
+            let voice = voice.as_ref().unwrap();
+            if voice.last_change_tick > oldest_tick {
+                oldest_tick = voice.last_change_tick;
+                best_index = i;
+            }
+        }
+        best_index
+    }
 
-impl MidiVoiceMonitor {
-    fn clear(&self) {
-        self.state.borrow_mut().voices[self.voice_index] = None;
+    fn note_on(&mut self, note_index: u7, velocity: u7) {
+        if velocity == 0 {
+            self.note_off(note_index);
+            return;
+        }
+
+        let mut updated = false;
+        for voice in self.voices.iter_mut() {
+            if let Some(voice) = voice.as_mut() {
+                if voice.note_index == note_index {
+                    voice.velocity = velocity;
+                    voice.gate = if voice.last_change_tick == self.current_tick
+                        && voice.gate == GateState::Released
+                    {
+                        GateState::ReleasedThenPressed
+                    } else {
+                        GateState::Pressed
+                    };
+                    voice.last_change_tick = self.current_tick;
+                    updated = true;
+                }
+            }
+        }
+        if updated {
+            return;
+        }
+        let voice_index = self.allocate_voice();
+        let voice = MidiPlayerRawStateVoice {
+            note_index,
+            velocity,
+            gate: GateState::ReleasedThenPressed,
+            last_change_tick: self.current_tick,
+        };
+        self.voices[voice_index] = Some(voice);
+    }
+
+    fn note_off(&mut self, note_index: u7) {
+        for voice in self.voices.iter_mut() {
+            if let Some(voice) = voice.as_mut() {
+                if voice.note_index == note_index {
+                    voice.gate = GateState::Released;
+                    voice.last_change_tick = self.current_tick;
+                }
+            }
+        }
+    }
+
+    fn progress_gates(&mut self) {
+        for voice in self.voices.iter_mut() {
+            if let Some(voice) = voice.as_mut() {
+                if voice.gate == GateState::ReleasedThenPressed {
+                    voice.gate = GateState::Pressed;
+                }
+            }
+        }
     }
 }
 
@@ -227,9 +243,78 @@ trait MidiEventSource {
         F: FnMut(MidiEvent);
 }
 
+struct MidlyTrackEventSource {
+    track: Vec<TrackEvent<'static>>,
+    timing: Timing,
+    tick_duration_s: f64,
+    next_index: usize,
+    next_tick: u32,
+    current_time_s: f64,
+    next_tick_time_s: f64,
+}
+
+const DEFAULT_US_PER_BEAT: u32 = 500_000;
+
+impl MidlyTrackEventSource {
+    fn new(track: &[TrackEvent<'static>], timing: Timing) -> Self {
+        let track = track.to_vec();
+        let tick_duration_s = match timing {
+            Timing::Metrical(ticks_per_beat) => {
+                DEFAULT_US_PER_BEAT as f64 / (ticks_per_beat.as_int() as f64 * 1_000_000.0)
+            }
+            Timing::Timecode(frames_per_second, ticks_per_frame) => {
+                1.0 / (frames_per_second.as_f32() as f64 * ticks_per_frame as f64)
+            }
+        };
+        Self {
+            track,
+            timing,
+            tick_duration_s,
+            next_index: 0,
+            next_tick: 0,
+            current_time_s: 0.0,
+            next_tick_time_s: 0.0,
+        }
+    }
+}
+
+impl MidiEventSource for MidlyTrackEventSource {
+    fn for_each_new_event<F>(&mut self, ctx: &SignalCtx, mut f: F)
+    where
+        F: FnMut(MidiEvent),
+    {
+        let time_since_prev_tick_s = 1.0 / ctx.sample_rate_hz;
+        self.current_time_s += time_since_prev_tick_s;
+        while self.next_tick_time_s < self.current_time_s {
+            self.next_tick_time_s += self.tick_duration_s;
+            while let Some(event) = self.track.get(self.next_index) {
+                let tick = self.next_tick;
+                if event.delta == tick {
+                    self.next_tick = 0;
+                    self.next_index += 1;
+                    match event.kind {
+                        TrackEventKind::Midi { channel, message } => {
+                            f(MidiEvent { channel, message })
+                        }
+                        TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)) => {
+                            if let Timing::Metrical(ticks_per_beat) = self.timing {
+                                self.tick_duration_s = us_per_beat.as_int() as f64
+                                    / (ticks_per_beat.as_int() as f64 * 1_000_000.0);
+                            }
+                        }
+                        _ => (),
+                    }
+                } else {
+                    break;
+                }
+            }
+            self.next_tick += 1;
+        }
+    }
+}
+
 impl MidiPlayerRaw {
     fn new(
-        &self,
         channel: u4,
         polyphony: usize,
         mut event_source: impl MidiEventSource + 'static,
@@ -238,24 +323,30 @@ impl MidiPlayerRaw {
             voices: (0..polyphony).map(|_| None).collect(),
             controllers: (0..128).map(|_| u7::new(0)).collect(),
             pitch_bend: u14::new(0x2000),
+            current_tick: 0,
         }));
         let effectful_signal = Signal::from_fn({
             let state = Rc::clone(&state);
             move |ctx| {
                 let mut state = state.borrow_mut();
+                state.progress_gates();
                 event_source.for_each_new_event(ctx, |event| {
                     if event.channel == channel {
                         use MidiMessage::*;
                         match event.message {
-                            NoteOn { key, vel } => (),
-                            NoteOff { key, vel } => (),
+                            NoteOn { key, vel } => state.note_on(key, vel),
+                            NoteOff { key, vel: _ } => state.note_off(key),
                             PitchBend {
                                 bend: PitchBend(pitch_bend),
                             } => state.pitch_bend = pitch_bend,
+                            Controller { controller, value } => {
+                                state.controllers[controller.as_int() as usize] = value;
+                            }
                             _ => (),
                         }
                     }
                 });
+                state.current_tick += 1;
             }
         });
         let voices = (0..polyphony)
@@ -287,21 +378,17 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        state.borrow().voices[i]
+                        let gate_state = state.borrow().voices[i]
                             .as_ref()
                             .map(|v| v.gate)
-                            .unwrap_or(false)
+                            .unwrap_or(GateState::Released);
+                        gate_state == GateState::Pressed
                     }
                 });
-                let monitor = MidiVoiceMonitor {
-                    state: Rc::clone(&state),
-                    voice_index: i,
-                };
                 MidiVoiceRaw {
                     note_index,
                     velocity,
                     gate,
-                    monitor,
                 }
             })
             .collect::<Vec<_>>();
