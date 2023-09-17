@@ -31,19 +31,19 @@ fn make_voice(
     let osc = vec![
         Oscillator::builder_hz(Waveform::Saw, &note_freq_hz).build_signal(),
         Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * 1.01).build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * 0.5).build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * 0.505).build_signal(),
+        Oscillator::builder_hz(Waveform::Pulse, &note_freq_hz * 0.5).build_signal(),
     ]
     .into_iter()
     .sum::<Sf64>();
     let env = AdsrLinear01::builder(&gate)
         .attack_s(0.0)
-        .decay_s(1.0)
-        .sustain_01(0.5)
+        .decay_s(2.0)
+        .sustain_01(0.0)
         .release_s(0.1)
-        .build_signal();
+        .build_signal()
+        .exp_01(1.0);
     let filtered_osc = osc.filter(
-        LowPassMoogLadder::builder((&env * 8000.0) + 0.0)
+        LowPassMoogLadder::builder(&env * 8000.0)
             .resonance(2.0)
             .build(),
     );

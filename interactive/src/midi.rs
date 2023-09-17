@@ -2,12 +2,15 @@ use crate::{
     music,
     signal::{Freq, Gate, Sf64, Sfreq, Signal, SignalCtx},
 };
+use midir::{MidiInput, MidiInputConnection, MidiInputPort};
+use midly::{
+    live::LiveEvent, Format, MetaMessage, PitchBend, Smf, Timing, TrackEvent, TrackEventKind,
+};
 pub use midly::{
     num::{u14, u4, u7},
     MidiMessage,
 };
-use midly::{Format, MetaMessage, PitchBend, Smf, Timing, TrackEvent, TrackEventKind};
-use std::{cell::RefCell, fs, path::Path, rc::Rc};
+use std::{cell::RefCell, fs, path::Path, rc::Rc, sync::mpsc};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MidiEvent {
@@ -50,6 +53,47 @@ impl MidiFile {
                 self.num_tracks()
             )
         }
+    }
+}
+
+pub struct MidiLive {
+    midi_input: MidiInput,
+    midi_input_ports: Vec<MidiInputPort>,
+}
+
+impl MidiLive {
+    pub fn new() -> anyhow::Result<Self> {
+        let midi_input = MidiInput::new("ibis")?;
+        let midi_input_ports = midi_input.ports();
+        Ok(Self {
+            midi_input,
+            midi_input_ports,
+        })
+    }
+
+    pub fn enumerate_port_names<'a>(&'a self) -> impl Iterator<Item = (usize, String)> + 'a {
+        self.midi_input_ports
+            .iter()
+            .enumerate()
+            .filter_map(|(i, port)| {
+                if let Ok(name) = self.midi_input.port_name(port) {
+                    Some((i, name))
+                } else {
+                    None
+                }
+            })
+    }
+
+    pub fn into_player(
+        self,
+        port_index: usize,
+        channel: u8,
+        polyphony: usize,
+    ) -> anyhow::Result<MidiPlayer> {
+        let event_source =
+            MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
+        let player = MidiPlayerRaw::new(channel.into(), polyphony, event_source).to_player();
+        Ok(player)
     }
 }
 
@@ -102,8 +146,12 @@ impl MidiControllerTableRaw {
 }
 
 impl MidiControllerTable {
-    pub fn get_01(&self, i: u7) -> Sf64 {
-        self.values_01[i.as_int() as usize].clone()
+    pub fn get_01(&self, i: u8) -> Sf64 {
+        self.values_01[i as usize].clone()
+    }
+
+    pub fn modulation(&self) -> Sf64 {
+        self.get_01(1)
     }
 }
 
@@ -310,6 +358,52 @@ impl MidiEventSource for MidlyTrackEventSource {
             }
             self.next_tick += 1;
         }
+    }
+}
+
+struct MidirMidiInputEventSource {
+    #[allow(unused)]
+    midi_input_connection: MidiInputConnection<()>,
+    midi_event_receiver: mpsc::Receiver<MidiEvent>,
+}
+
+impl MidirMidiInputEventSource {
+    fn new(midi_input: MidiInput, port: &MidiInputPort) -> anyhow::Result<Self> {
+        let port_name = format!("ibis {}", midi_input.port_name(port)?);
+        let (midi_event_sender, midi_event_receiver) = mpsc::channel::<MidiEvent>();
+        let midi_input_connection = midi_input
+            .connect(
+                port,
+                port_name.as_str(),
+                move |_timestamp_us, message, &mut ()| {
+                    if let Ok(event) = LiveEvent::parse(message) {
+                        match event {
+                            LiveEvent::Midi { channel, message } => {
+                                let midi_event = MidiEvent { channel, message };
+                                if let Err(_) = midi_event_sender.send(midi_event) {
+                                    log::error!("failed to send message from live midi thread");
+                                }
+                            }
+                            _ => (),
+                        }
+                    }
+                },
+                (),
+            )
+            .map_err(|_| anyhow::anyhow!("Failed to connect to midi port"))?;
+        Ok(Self {
+            midi_input_connection,
+            midi_event_receiver,
+        })
+    }
+}
+
+impl MidiEventSource for MidirMidiInputEventSource {
+    fn for_each_new_event<F>(&mut self, _ctx: &SignalCtx, f: F)
+    where
+        F: FnMut(MidiEvent),
+    {
+        self.midi_event_receiver.try_iter().for_each(f)
     }
 }
 

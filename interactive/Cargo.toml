@@ -17,6 +17,7 @@ midir = "0.9"
 
 [dev-dependencies]
 clap = { version = "4.4", features = ["derive"] }
+env_logger = "0.10"
 
 [[example]]
 name = "saw"
@@ -31,4 +32,7 @@ name = "periodic_gate"
 name = "keyboard_and_mouse"
 
 [[example]]
-name = "midi"
+name = "midi_file"
+
+[[example]]
+name = "midi_live"
