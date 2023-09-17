@@ -14,6 +14,7 @@ rgb_int = "0.1"
 line_2d = "0.5"
 midly = "0.5"
 midir = "0.9"
+nix = { version = "0.27", features = ["fs", "term"] }
 
 [dev-dependencies]
 clap = { version = "4.4", features = ["derive"] }
@@ -36,3 +37,6 @@ name = "midi_file"
 
 [[example]]
 name = "midi_live"
+
+[[example]]
+name = "midi_live_with_serial"

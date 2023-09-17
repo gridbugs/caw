@@ -32,7 +32,7 @@ fn make_voice(
         .exp_01(1.0);
     let filtered_osc = osc.filter(
         LowPassMoogLadder::builder(&env * ((controllers.modulation() * 6000.0) + 4000.0))
-            .resonance(2.0)
+            .resonance(9.0)
             .build(),
     );
     filtered_osc.mul_lazy(&env) * velocity_01

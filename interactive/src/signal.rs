@@ -306,6 +306,10 @@ impl Signal<f64> {
         (self + 1.0) / 2.0
     }
 
+    pub fn inv_01(&self) -> Self {
+        self.map(|x| 1.0 - x)
+    }
+
     /// Evaluate `by`, and then only evaluate `self` and multiply it by the value of `by` if `by`
     /// is non-zero. Otherwise just return 0.
     pub fn mul_lazy(&self, by: &Self) -> Self {
@@ -442,6 +446,16 @@ pub fn sum(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
         out = out + signal;
     }
     out
+}
+
+pub fn mean(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
+    let mut out = const_(0.0);
+    let mut count = 0;
+    for signal in signals {
+        out = out + signal;
+        count += 1;
+    }
+    out / (count as f64)
 }
 
 pub trait SignalLike<T> {
