@@ -124,19 +124,7 @@ impl MidiLiveSerial {
             57600 => BaudRate::B57600,
             115200 => BaudRate::B115200,
             230400 => BaudRate::B230400,
-            460800 => BaudRate::B460800,
-            500000 => BaudRate::B500000,
-            576000 => BaudRate::B576000,
-            921600 => BaudRate::B921600,
-            1000000 => BaudRate::B1000000,
-            1152000 => BaudRate::B1152000,
-            1500000 => BaudRate::B1500000,
-            2000000 => BaudRate::B2000000,
-            2500000 => BaudRate::B2500000,
-            3000000 => BaudRate::B3000000,
-            3500000 => BaudRate::B3500000,
-            4000000 => BaudRate::B4000000,
-            other => other.try_into()?,
+            other => anyhow::bail!("Unsupported baud rate: {}", other),
         })
     }
 
