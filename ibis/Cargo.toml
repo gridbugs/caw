@@ -1,0 +1,13 @@
+[package]
+name = "ibis"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+cpal = "0.15"
+ibis_core = { version = "0.1", path = "../core" }
+log = "0.4"
+midly = "0.5"
+midir = "0.9"
+nix = { version = "0.27", features = ["fs", "term"] }

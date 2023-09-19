@@ -6,15 +6,10 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-cpal = "0.15"
-log = "0.4"
-sdl2 = "0.35"
-rand = "0.8"
-rgb_int = "0.1"
+ibis = { version = "0.1", path = "../ibis" }
 line_2d = "0.5"
-midly = "0.5"
-midir = "0.9"
-nix = { version = "0.27", features = ["fs", "term"] }
+rgb_int = "0.1"
+sdl2 = "0.35"
 
 [dev-dependencies]
 clap = { version = "4.4", features = ["derive"] }

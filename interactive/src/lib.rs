@@ -1,12 +1,5 @@
-pub mod clock;
-pub mod envelope;
-pub mod filters;
+pub use ibis::{
+    clock, envelope, filters, midi, music, oscillator, sample_player, signal, signal_player,
+};
 pub mod input;
-pub mod midi;
-pub mod music;
-pub mod oscillator;
-pub mod sample_player;
-pub mod signal;
-pub mod signal_arithmetic;
-pub mod signal_player;
 pub mod window;

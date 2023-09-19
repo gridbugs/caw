@@ -58,7 +58,7 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let midi_file = MidiFile::read(args.name).unwrap();
-    let MidiPlayer { voices, .. } = midi_file.track_player(0, 0, 128).unwrap();
+    let MidiPlayer { voices, .. } = midi_file.track_player(0, 0, 128, 1.0).unwrap();
     let signal = voices.into_iter().map(make_voice).sum::<Sf64>();
     run(signal)
 }
