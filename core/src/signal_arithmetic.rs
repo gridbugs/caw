@@ -82,6 +82,7 @@ macro_rules! impl_binary_op {
             }
         }
 
+        // implement assignment trait
         impl<T> $trait_assign for Signal<T>
         where
             T: $trait<Output = T> + Clone + 'static,
@@ -91,12 +92,58 @@ macro_rules! impl_binary_op {
             }
         }
 
+        // implement assignment trait for references
         impl<T> $trait_assign<&Self> for Signal<T>
         where
             T: $trait<Output = T> + Clone + 'static,
         {
             fn $fn_assign(&mut self, rhs: &Self) {
                 *self = (&*self).$fn(rhs);
+            }
+        }
+
+        // implement the operation between signals and scalars with the scalar on the LHS for f64
+        impl $trait<Sf64> for f64 {
+            type Output = Sf64;
+            fn $fn(self, rhs: Sf64) -> Self::Output {
+                rhs.$fn(self)
+            }
+        }
+
+        // implement the operation between references to signals and scalars with the scalar on the
+        // LHS for f64
+        impl $trait<&Sf64> for f64 {
+            type Output = Sf64;
+            fn $fn(self, rhs: &Sf64) -> Self::Output {
+                rhs.$fn(self)
+            }
+        }
+
+        // silently coerce i64 scalars into f64 when operating with Sf64
+        impl $trait<i64> for Sf64 {
+            type Output = Sf64;
+            fn $fn(self, rhs: i64) -> Self::Output {
+                self.$fn(rhs as f64)
+            }
+        }
+        impl $trait<Sf64> for i64 {
+            type Output = Sf64;
+            fn $fn(self, rhs: Sf64) -> Self::Output {
+                rhs.$fn(self as f64)
+            }
+        }
+
+        // silently coerce i64 scalars into f64 when operating with Sf64 refs
+        impl $trait<i64> for &Sf64 {
+            type Output = Sf64;
+            fn $fn(self, rhs: i64) -> Self::Output {
+                self.$fn(rhs as f64)
+            }
+        }
+        impl $trait<&Sf64> for i64 {
+            type Output = Sf64;
+            fn $fn(self, rhs: &Sf64) -> Self::Output {
+                rhs.$fn(self as f64)
             }
         }
     };
@@ -118,4 +165,14 @@ impl Sum for Sf64 {
             const_(0.0)
         }
     }
+}
+
+#[test]
+fn test() {
+    // Test that code involving silent scalar coersion and scalars on the RHS of operators
+    // can be compiled.
+    let _ = const_(0.0) + 5;
+    let _ = 5 + const_(0.0);
+    let _ = const_(0.0) + 5.0;
+    let _ = 5.0 + const_(0.0);
 }
