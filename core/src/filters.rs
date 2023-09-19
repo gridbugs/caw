@@ -1,4 +1,4 @@
-use crate::signal::{const_, Filter, Sf64, SignalCtx};
+use crate::signal::{Filter, Sf64, SignalCtx};
 
 mod biquad_filter {
     // This is based on the filter designs at:
@@ -263,25 +263,12 @@ mod biquad_filter {
 
 pub struct LowPassButterworth(biquad_filter::butterworth::State);
 
-/// Included for consistency with `LowPassChebyshev`
-pub struct LowPassButterworthBuilder(LowPassButterworth);
-
-impl LowPassButterworthBuilder {
-    pub fn build(self) -> LowPassButterworth {
-        self.0
-    }
-}
-
 impl LowPassButterworth {
     pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
         LowPassButterworth(biquad_filter::butterworth::State {
             half_power_frequency_hz: cutoff_hz.into(),
             buffer: biquad_filter::Buffer::new(1),
         })
-    }
-
-    pub fn builder(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
-        LowPassButterworthBuilder(Self::new(cutoff_hz))
     }
 }
 
@@ -296,25 +283,12 @@ impl Filter for LowPassButterworth {
 
 pub struct HighPassButterworth(biquad_filter::butterworth::State);
 
-/// Included for consistency with `HighPassChebyshev`
-pub struct HighPassButterworthBuilder(HighPassButterworth);
-
-impl HighPassButterworthBuilder {
-    pub fn build(self) -> HighPassButterworth {
-        self.0
-    }
-}
-
 impl HighPassButterworth {
     pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
         Self(biquad_filter::butterworth::State {
             half_power_frequency_hz: cutoff_hz.into(),
             buffer: biquad_filter::Buffer::new(1),
         })
-    }
-
-    pub fn builder(cutoff_hz: impl Into<Sf64>) -> HighPassButterworthBuilder {
-        HighPassButterworthBuilder(Self::new(cutoff_hz))
     }
 }
 
@@ -337,37 +311,6 @@ impl LowPassChebyshev {
             buffer: biquad_filter::Buffer::new(1),
         })
     }
-
-    pub fn builder(cutoff_hz: impl Into<Sf64>) -> LowPassChebyshevBuilder {
-        LowPassChebyshevBuilder::new(cutoff_hz)
-    }
-}
-
-pub struct LowPassChebyshevBuilder {
-    cutoff_hz: Sf64,
-    resonance: Option<Sf64>,
-}
-
-impl LowPassChebyshevBuilder {
-    pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-        Self {
-            cutoff_hz: cutoff_hz.into(),
-            resonance: None,
-        }
-    }
-
-    pub fn resonance(mut self, resonance: impl Into<Sf64>) -> Self {
-        self.resonance = Some(resonance.into());
-        self
-    }
-
-    pub fn build(self) -> LowPassChebyshev {
-        LowPassChebyshev::new(
-            self.cutoff_hz,
-            self.resonance
-                .unwrap_or_else(|| const_(biquad_filter::chebyshev::EPSILON_MIN)),
-        )
-    }
 }
 
 impl Filter for LowPassChebyshev {
@@ -376,12 +319,6 @@ impl Filter for LowPassChebyshev {
 
     fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         biquad_filter::chebyshev::low_pass::run(&mut self.0, input, ctx)
-    }
-}
-
-impl From<LowPassChebyshevBuilder> for LowPassChebyshev {
-    fn from(value: LowPassChebyshevBuilder) -> Self {
-        value.build()
     }
 }
 
@@ -395,37 +332,6 @@ impl HighPassChebyshev {
             buffer: biquad_filter::Buffer::new(1),
         })
     }
-
-    pub fn builder(cutoff_hz: impl Into<Sf64>) -> HighPassChebyshevBuilder {
-        HighPassChebyshevBuilder::new(cutoff_hz)
-    }
-}
-
-pub struct HighPassChebyshevBuilder {
-    cutoff_hz: Sf64,
-    resonance: Option<Sf64>,
-}
-
-impl HighPassChebyshevBuilder {
-    pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-        Self {
-            cutoff_hz: cutoff_hz.into(),
-            resonance: None,
-        }
-    }
-
-    pub fn resonance(mut self, resonance: impl Into<Sf64>) -> Self {
-        self.resonance = Some(resonance.into());
-        self
-    }
-
-    pub fn build(self) -> HighPassChebyshev {
-        HighPassChebyshev::new(
-            self.cutoff_hz,
-            self.resonance
-                .unwrap_or_else(|| const_(biquad_filter::chebyshev::EPSILON_MIN)),
-        )
-    }
 }
 
 impl Filter for HighPassChebyshev {
@@ -437,84 +343,8 @@ impl Filter for HighPassChebyshev {
     }
 }
 
-impl From<HighPassChebyshevBuilder> for HighPassChebyshev {
-    fn from(value: HighPassChebyshevBuilder) -> Self {
-        value.build()
-    }
-}
-
-pub struct Saturate {
-    pub scale: Sf64,
-    pub max: Sf64,
-    pub min: Sf64,
-}
-
-pub struct SaturateBuilder {
-    scale: Option<Sf64>,
-    max: Option<Sf64>,
-    min: Option<Sf64>,
-}
-
-impl Saturate {
-    pub fn builder() -> SaturateBuilder {
-        SaturateBuilder::new()
-    }
-}
-
-impl SaturateBuilder {
-    pub fn new() -> Self {
-        Self {
-            scale: None,
-            max: None,
-            min: None,
-        }
-    }
-
-    pub fn scale(mut self, scale: impl Into<Sf64>) -> Self {
-        self.scale = Some(scale.into());
-        self
-    }
-
-    pub fn min(mut self, min: impl Into<Sf64>) -> Self {
-        self.min = Some(min.into());
-        self
-    }
-
-    pub fn max(mut self, max: impl Into<Sf64>) -> Self {
-        self.max = Some(max.into());
-        self
-    }
-
-    pub fn threshold(mut self, threshold: impl Into<Sf64>) -> Self {
-        let threshold = threshold.into();
-        self.max = Some(threshold.clone());
-        self.min = Some(threshold * -1.0);
-        self
-    }
-
-    pub fn build(self) -> Saturate {
-        Saturate {
-            scale: self.scale.unwrap_or_else(|| const_(1.0)),
-            min: self.min.unwrap_or_else(|| const_(-1.0)),
-            max: self.max.unwrap_or_else(|| const_(1.0)),
-        }
-    }
-}
-
-impl Filter for Saturate {
-    type Input = f64;
-    type Output = f64;
-
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        let scale = self.scale.sample(ctx);
-        let min = self.min.sample(ctx);
-        let max = self.max.sample(ctx);
-        (input * scale).clamp(min, max)
-    }
-}
-
 mod moog_ladder_low_pass_filter {
-    use crate::signal::{const_, Filter, Sf64, SignalCtx};
+    use crate::signal::{Filter, Sf64, SignalCtx};
     use std::f64::consts::PI;
 
     // This is the Oberheim Variation Model implementation of the Moog Ladder low pass filter. It's
@@ -638,32 +468,6 @@ mod moog_ladder_low_pass_filter {
         resonance: Sf64,
     }
 
-    pub struct LowPassMoogLadderBuilder {
-        cutoff_hz: Sf64,
-        resonance: Option<Sf64>,
-    }
-
-    impl LowPassMoogLadderBuilder {
-        pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-            Self {
-                cutoff_hz: cutoff_hz.into(),
-                resonance: None,
-            }
-        }
-
-        pub fn resonance(mut self, resonance: impl Into<Sf64>) -> Self {
-            self.resonance = Some(resonance.into());
-            self
-        }
-
-        pub fn build(self) -> LowPassMoogLadder {
-            LowPassMoogLadder::new(
-                self.cutoff_hz,
-                self.resonance.unwrap_or_else(|| const_(0.0)),
-            )
-        }
-    }
-
     impl LowPassMoogLadder {
         pub fn new(cutoff_hz: impl Into<Sf64>, resonance: impl Into<Sf64>) -> Self {
             Self {
@@ -671,10 +475,6 @@ mod moog_ladder_low_pass_filter {
                 cutoff_hz: cutoff_hz.into(),
                 resonance: resonance.into(),
             }
-        }
-
-        pub fn builder(cutoff_hz: impl Into<Sf64>) -> LowPassMoogLadderBuilder {
-            LowPassMoogLadderBuilder::new(cutoff_hz)
         }
     }
 
@@ -702,3 +502,21 @@ mod moog_ladder_low_pass_filter {
 }
 
 pub use moog_ladder_low_pass_filter::*;
+
+pub struct Saturate {
+    pub scale: Sf64,
+    pub max: Sf64,
+    pub min: Sf64,
+}
+
+impl Filter for Saturate {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let scale = self.scale.sample(ctx);
+        let min = self.min.sample(ctx);
+        let max = self.max.sample(ctx);
+        (input * scale).clamp(min, max)
+    }
+}

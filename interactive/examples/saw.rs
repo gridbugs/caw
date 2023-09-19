@@ -1,5 +1,5 @@
 use ibis_interactive::{
-    oscillator::{Oscillator, Waveform},
+    prelude::*,
     signal::Sf64,
     window::{Rgb24, Window},
 };
@@ -17,6 +17,6 @@ fn run(signal: Sf64) -> anyhow::Result<()> {
 }
 
 fn main() -> anyhow::Result<()> {
-    let signal = Oscillator::builder_hz(Waveform::Saw, 200.0).build_signal();
+    let signal = oscillator_hz(Waveform::Saw, 200.0).build();
     run(signal)
 }

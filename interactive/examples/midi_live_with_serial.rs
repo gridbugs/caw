@@ -1,10 +1,6 @@
 use clap::{Parser, Subcommand};
 use ibis_interactive::{
-    envelope::AdsrLinear01,
-    filters::*,
-    midi::{MidiControllerTable, MidiLive, MidiLiveSerial, MidiPlayer, MidiVoice},
-    oscillator::{Oscillator, Waveform},
-    signal::{self, Sf64},
+    prelude::*,
     window::{Rgb24, Window},
 };
 
@@ -51,33 +47,33 @@ fn make_voice(
         detune,
         envelope,
     } = Effects::new(controllers.modulation(), serial_controllers);
-    let note_freq_hz = signal::sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
-    let osc = signal::mean([
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz)
+    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
+    let osc = mean([
+        oscillator_hz(Waveform::Saw, &note_freq_hz)
             .reset_trigger(gate.to_trigger_rising_edge())
-            .build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * ((&detune * 0.02) + 1.0))
+            .build(),
+        oscillator_hz(Waveform::Saw, &note_freq_hz * ((&detune * 0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
-            .build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * ((&detune * -0.02) + 1.0))
+            .build(),
+        oscillator_hz(Waveform::Saw, &note_freq_hz * ((&detune * -0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
-            .build_signal(),
+            .build(),
     ]);
-    let env = AdsrLinear01::builder(&gate)
+    let env = adsr_linear_01(&gate)
         .attack_s(0.0)
         .decay_s(0.5)
         .sustain_01(envelope)
         .release_s(0.5)
-        .build_signal()
+        .build()
         .exp_01(1.0);
-    let lfo = Oscillator::builder_hz(Waveform::Sine, lfo_freq * 20.0)
+    let lfo = oscillator_hz(Waveform::Sine, lfo_freq * 20.0)
         .reset_trigger(gate.to_trigger_rising_edge())
-        .build_signal()
+        .build()
         .signed_to_01()
         * lfo_scale;
     let filtered_osc = osc
         .filter(
-            LowPassMoogLadder::builder(signal::sum([
+            low_pass_moog_ladder(sum([
                 200.0.into(),
                 &env * (low_pass_filter_cutoff * 10_000.0),
                 lfo * 10_000.0,
@@ -85,7 +81,7 @@ fn make_voice(
             .resonance(low_pass_filter_resonance * 4.0)
             .build(),
         )
-        .filter(HighPassButterworth::builder(high_pass_filter_cutoff * 400.0 + 10.0).build());
+        .filter(high_pass_butterworth(high_pass_filter_cutoff * 400.0 + 10.0).build());
     filtered_osc.mul_lazy(&env) * velocity_01
 }
 
@@ -151,7 +147,7 @@ fn main() -> anyhow::Result<()> {
                 })
                 .sum::<Sf64>()
                 .filter(
-                    Saturate::builder()
+                    saturate()
                         .scale((serial_controllers.get_01(37) * 9.0) + 1.0)
                         .threshold((serial_controllers.get_01(38).inv_01() * 3.9) + 0.1)
                         .build(),

@@ -1,3 +1,4 @@
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
@@ -45,6 +46,11 @@ pub fn sfreq_to_hz(sfreq: impl Into<Sfreq>) -> Sf64 {
 
 pub fn sfreq_to_s(sfreq: impl Into<Sfreq>) -> Sf64 {
     sfreq.into().map(|f| f.s())
+}
+
+pub fn noise() -> Sf64 {
+    let mut rng = StdRng::from_entropy();
+    Signal::from_fn(move |_ctx| (rng.gen::<f64>() * 2.0) - 1.0)
 }
 
 /// Information about the current state of playback that will be passed to every signal each frame

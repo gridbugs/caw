@@ -1,10 +1,6 @@
 use clap::{Parser, Subcommand};
 use ibis_interactive::{
-    envelope::AdsrLinear01,
-    filters::*,
-    midi::{MidiControllerTable, MidiLive, MidiPlayer, MidiVoice},
-    oscillator::{Oscillator, Waveform},
-    signal::{self, Sf64},
+    prelude::*,
     window::{Rgb24, Window},
 };
 
@@ -17,21 +13,21 @@ fn make_voice(
     pitch_bend_multiplier: impl Into<Sf64>,
     controllers: &MidiControllerTable,
 ) -> Sf64 {
-    let note_freq_hz = signal::sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
-    let osc = signal::sum([
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz).build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * 1.01).build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * 0.99).build_signal(),
+    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
+    let osc = sum([
+        oscillator_hz(Waveform::Saw, &note_freq_hz).build(),
+        oscillator_hz(Waveform::Saw, &note_freq_hz * 1.01).build(),
+        oscillator_hz(Waveform::Saw, &note_freq_hz * 0.99).build(),
     ]);
-    let env = AdsrLinear01::builder(&gate)
+    let env = adsr_linear_01(&gate)
         .attack_s(0.0)
         .decay_s(2.0)
         .sustain_01(0.5)
         .release_s(0.1)
-        .build_signal()
+        .build()
         .exp_01(1.0);
     let filtered_osc = osc.filter(
-        LowPassMoogLadder::builder(&env * ((controllers.modulation() * 6000.0) + 4000.0))
+        low_pass_moog_ladder(&env * ((controllers.modulation() * 6000.0) + 4000.0))
             .resonance(9.0)
             .build(),
     );
@@ -88,7 +84,7 @@ fn main() -> anyhow::Result<()> {
                 .into_iter()
                 .map(|voice| make_voice(voice, &pitch_bend_multiplier, &controllers))
                 .sum::<Sf64>()
-                .filter(Saturate::builder().scale(1.0).threshold(1.0).build());
+                .filter(saturate().scale(1.0).threshold(1.0).build());
             run(signal)?;
         }
     }

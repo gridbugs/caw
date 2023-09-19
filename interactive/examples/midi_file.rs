@@ -1,9 +1,7 @@
 use clap::Parser;
 use ibis_interactive::{
-    envelope::AdsrLinear01,
-    filters::*,
     midi::{MidiFile, MidiPlayer, MidiVoice},
-    oscillator::{Oscillator, Waveform},
+    prelude::*,
     signal::{self, Sf64},
     window::{Rgb24, Window},
 };
@@ -29,24 +27,20 @@ fn make_voice(
 ) -> Sf64 {
     let note_freq_hz = signal::sfreq_to_hz(note_freq);
     let osc = vec![
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz).build_signal(),
-        Oscillator::builder_hz(Waveform::Saw, &note_freq_hz * 1.01).build_signal(),
-        Oscillator::builder_hz(Waveform::Pulse, &note_freq_hz * 0.5).build_signal(),
+        oscillator_hz(Waveform::Saw, &note_freq_hz).build(),
+        oscillator_hz(Waveform::Saw, &note_freq_hz * 1.01).build(),
+        oscillator_hz(Waveform::Pulse, &note_freq_hz * 0.5).build(),
     ]
     .into_iter()
     .sum::<Sf64>();
-    let env = AdsrLinear01::builder(&gate)
+    let env = adsr_linear_01(&gate)
         .attack_s(0.0)
         .decay_s(2.0)
         .sustain_01(0.0)
         .release_s(0.1)
-        .build_signal()
+        .build()
         .exp_01(1.0);
-    let filtered_osc = osc.filter(
-        LowPassMoogLadder::builder(&env * 8000.0)
-            .resonance(2.0)
-            .build(),
-    );
+    let filtered_osc = osc.filter(low_pass_moog_ladder(&env * 8000.0).resonance(2.0).build());
     filtered_osc.mul_lazy(&env) * velocity_01
 }
 
