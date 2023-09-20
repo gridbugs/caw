@@ -19,6 +19,7 @@ pub mod prelude {
             signal::{adsr_linear_01, oscillator, oscillator_hz, oscillator_s},
         },
         midi::{MidiControllerTable, MidiPlayer, MidiVoice},
+        music::{freq_hz_of_midi_index, Note, NoteName},
         oscillator::Waveform,
         signal::{
             const_, mean, noise, sfreq_hz, sfreq_s, sfreq_to_hz, sfreq_to_s, sum, Freq, Gate, Sf64,

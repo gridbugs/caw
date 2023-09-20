@@ -1,8 +1,5 @@
 use clap::{Parser, Subcommand};
-use ibis_interactive::{
-    prelude::*,
-    window::{Rgb24, Window},
-};
+use ibis_interactive::prelude::*;
 
 struct Effects {
     high_pass_filter_cutoff: Sf64,

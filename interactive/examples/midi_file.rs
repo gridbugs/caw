@@ -1,10 +1,5 @@
 use clap::Parser;
-use ibis_interactive::{
-    midi::{MidiFile, MidiPlayer, MidiVoice},
-    prelude::*,
-    signal::{self, Sf64},
-    window::{Rgb24, Window},
-};
+use ibis_interactive::prelude::*;
 
 fn run(signal: Sf64) -> anyhow::Result<()> {
     let window = Window::builder()
@@ -25,7 +20,7 @@ fn make_voice(
         gate,
     }: MidiVoice,
 ) -> Sf64 {
-    let note_freq_hz = signal::sfreq_to_hz(note_freq);
+    let note_freq_hz = sfreq_to_hz(note_freq);
     let osc = vec![
         oscillator_hz(Waveform::Saw, &note_freq_hz).build(),
         oscillator_hz(Waveform::Saw, &note_freq_hz * 1.01).build(),

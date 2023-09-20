@@ -1,10 +1,4 @@
-use ibis_interactive::{
-    input::{Input, Key},
-    music::{self, Note, NoteName},
-    prelude::*,
-    signal::{const_, Gate, Sf64},
-    window::{Rgb24, Window},
-};
+use ibis_interactive::prelude::*;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;
@@ -37,12 +31,12 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     top_row
         .into_iter()
         .enumerate()
-        .map(|(i, key)| (key, music::freq_hz_of_midi_index(i as u8 + top_row_base)))
+        .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + top_row_base)))
         .chain(
             bottom_row
                 .into_iter()
                 .enumerate()
-                .map(|(i, key)| (key, music::freq_hz_of_midi_index(i as u8 + bottom_row_base))),
+                .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + bottom_row_base))),
         )
         .collect::<Vec<_>>()
 }

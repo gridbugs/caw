@@ -1,8 +1,4 @@
-use ibis_interactive::{
-    prelude::*,
-    signal::Sf64,
-    window::{Rgb24, Window},
-};
+use ibis_interactive::prelude::*;
 
 fn run(signal: Sf64) -> anyhow::Result<()> {
     let window = Window::builder()
