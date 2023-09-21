@@ -1,4 +1,5 @@
 use crate::signal::{Filter, Sf64, SignalCtx};
+use std::collections::VecDeque;
 
 mod biquad_filter {
     // This is based on the filter designs at:
@@ -518,5 +519,66 @@ impl Filter for Saturate {
         let min = self.min.sample(ctx);
         let max = self.max.sample(ctx);
         (input * scale).clamp(min, max)
+    }
+}
+
+pub struct Delay {
+    samples: VecDeque<f64>,
+    time_s: Sf64,
+}
+
+impl Delay {
+    pub fn new(time_s: Sf64) -> Self {
+        Self {
+            samples: VecDeque::new(),
+            time_s,
+        }
+    }
+}
+
+impl Filter for Delay {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let target_size = (self.time_s.sample(ctx) * ctx.sample_rate_hz) as usize;
+        if self.samples.len() < target_size {
+            self.samples.push_back(input);
+            0.0
+        } else {
+            if self.samples.len() == target_size {
+                self.samples.push_back(input);
+            }
+            self.samples.pop_front().unwrap_or(0.0)
+        }
+    }
+}
+
+pub struct Echo {
+    delay: Delay,
+    scale: Sf64,
+    previous_sample: f64,
+}
+
+impl Echo {
+    pub fn new(delay_s: Sf64, scale: Sf64) -> Self {
+        Self {
+            delay: Delay::new(delay_s),
+            scale,
+            previous_sample: 0.0,
+        }
+    }
+}
+
+impl Filter for Echo {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let scale = self.scale.sample(ctx);
+        let delay_input = input + (self.previous_sample * scale);
+        let delay_output = self.delay.run(delay_input, ctx);
+        self.previous_sample = delay_output;
+        input + delay_output
     }
 }

@@ -12,7 +12,7 @@ pub mod prelude {
     pub use crate::{
         builder::{
             filter::{
-                high_pass_butterworth, high_pass_chebyshev, low_pass_butterworth,
+                echo, high_pass_butterworth, high_pass_chebyshev, low_pass_butterworth,
                 low_pass_chebyshev, low_pass_moog_ladder, saturate,
             },
             gate::{periodic_gate, periodic_gate_hz, periodic_gate_s},

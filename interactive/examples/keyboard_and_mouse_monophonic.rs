@@ -45,7 +45,7 @@ fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf
     let freq_hz = freq_hz.filter(low_pass_butterworth(5.0).build());
     let oscillator = mean([
         oscillator_hz(Waveform::Sine, &freq_hz).build(),
-        oscillator_hz(Waveform::Sine, &freq_hz * 2).build(),
+        //        oscillator_hz(Waveform::Sine, &freq_hz * 2).build(),
     ]);
     let amp_env = adsr_linear_01(&gate).release_s(0.5).build();
     let filter_env = adsr_linear_01(&gate)
@@ -129,6 +129,6 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = voice(window.input());
+    let signal = voice(window.input()).filter(echo().time_s(0.2).scale(0.6).build());
     window.play(signal * 0.1)
 }

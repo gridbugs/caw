@@ -324,6 +324,37 @@ pub mod filter {
         }
     }
 
+    pub struct EchoBuilder {
+        time_s: Option<Sf64>,
+        scale: Option<Sf64>,
+    }
+
+    impl EchoBuilder {
+        pub fn new() -> Self {
+            Self {
+                time_s: None,
+                scale: None,
+            }
+        }
+
+        pub fn time_s(mut self, time_s: impl Into<Sf64>) -> Self {
+            self.time_s = Some(time_s.into());
+            self
+        }
+
+        pub fn scale(mut self, scale: impl Into<Sf64>) -> Self {
+            self.scale = Some(scale.into());
+            self
+        }
+
+        pub fn build(self) -> Echo {
+            Echo::new(
+                self.time_s.unwrap_or_else(|| const_(1.0)),
+                self.scale.unwrap_or_else(|| const_(0.5)),
+            )
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
     }
@@ -346,5 +377,9 @@ pub mod filter {
 
     pub fn saturate() -> SaturateBuilder {
         SaturateBuilder::new()
+    }
+
+    pub fn echo() -> EchoBuilder {
+        EchoBuilder::new()
     }
 }
