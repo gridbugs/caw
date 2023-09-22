@@ -576,7 +576,7 @@ impl Filter for Echo {
 
     fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let scale = self.scale.sample(ctx);
-        let delay_input = input + (self.previous_sample * scale);
+        let delay_input = (input + self.previous_sample) * scale;
         let delay_output = self.delay.run(delay_input, ctx);
         self.previous_sample = delay_output;
         input + delay_output
