@@ -101,9 +101,7 @@ struct MidiPlayerRawStateVoice {
 }
 
 struct MidiPlayerRawState {
-    // a value of `None` indicates that the voice is free to be used for new notes without
-    // interrupting a currently-playing sound
-    voices: Vec<Option<MidiPlayerRawStateVoice>>,
+    voices: Vec<MidiPlayerRawStateVoice>,
     controllers: Vec<u7>,
     pitch_bend: u14,
     current_tick: u64,
@@ -111,18 +109,12 @@ struct MidiPlayerRawState {
 
 impl MidiPlayerRawState {
     fn allocate_voice(&self) -> usize {
-        for (i, voice) in self.voices.iter().enumerate() {
-            if voice.is_none() {
-                return i;
-            }
-        }
-        // all voices are in use - try to allocate the the voice whose gate was opened first (of
-        // voices whose gates are currently open)
+        // try to allocate the the voice whose gate was opened first (of voices whose gates are
+        // currently open)
         {
             let mut latest_tick = self.current_tick;
             let mut best_index = None;
             for (i, voice) in self.voices.iter().enumerate() {
-                let voice = voice.as_ref().unwrap();
                 if voice.gate == GateState::Released && voice.last_change_tick < latest_tick {
                     latest_tick = voice.last_change_tick;
                     best_index = Some(i);
@@ -136,7 +128,6 @@ impl MidiPlayerRawState {
         let mut best_index = 0;
         let mut oldest_tick = 0;
         for (i, voice) in self.voices.iter().enumerate() {
-            let voice = voice.as_ref().unwrap();
             if voice.last_change_tick > oldest_tick {
                 oldest_tick = voice.last_change_tick;
                 best_index = i;
@@ -150,22 +141,19 @@ impl MidiPlayerRawState {
             self.note_off(note_index);
             return;
         }
-
         let mut updated = false;
         for voice in self.voices.iter_mut() {
-            if let Some(voice) = voice.as_mut() {
-                if voice.note_index == note_index {
-                    voice.velocity = velocity;
-                    voice.gate = if voice.last_change_tick == self.current_tick
-                        && voice.gate == GateState::Released
-                    {
-                        GateState::ReleasedThenPressed
-                    } else {
-                        GateState::Pressed
-                    };
-                    voice.last_change_tick = self.current_tick;
-                    updated = true;
-                }
+            if voice.note_index == note_index {
+                voice.velocity = velocity;
+                voice.gate = if voice.last_change_tick == self.current_tick
+                    && voice.gate == GateState::Released
+                {
+                    GateState::ReleasedThenPressed
+                } else {
+                    GateState::Pressed
+                };
+                voice.last_change_tick = self.current_tick;
+                updated = true;
             }
         }
         if updated {
@@ -178,26 +166,22 @@ impl MidiPlayerRawState {
             gate: GateState::ReleasedThenPressed,
             last_change_tick: self.current_tick,
         };
-        self.voices[voice_index] = Some(voice);
+        self.voices[voice_index] = voice;
     }
 
     fn note_off(&mut self, note_index: u7) {
         for voice in self.voices.iter_mut() {
-            if let Some(voice) = voice.as_mut() {
-                if voice.note_index == note_index {
-                    voice.gate = GateState::Released;
-                    voice.last_change_tick = self.current_tick;
-                }
+            if voice.note_index == note_index {
+                voice.gate = GateState::Released;
+                voice.last_change_tick = self.current_tick;
             }
         }
     }
 
     fn progress_gates(&mut self) {
         for voice in self.voices.iter_mut() {
-            if let Some(voice) = voice.as_mut() {
-                if voice.gate == GateState::ReleasedThenPressed {
-                    voice.gate = GateState::Pressed;
-                }
+            if voice.gate == GateState::ReleasedThenPressed {
+                voice.gate = GateState::Pressed;
             }
         }
     }
@@ -287,9 +271,16 @@ impl MidiPlayerRaw {
         channel: u4,
         polyphony: usize,
         mut event_source: impl MidiEventSource + 'static,
-    ) -> MidiPlayerRaw {
+    ) -> Self {
         let state = Rc::new(RefCell::new(MidiPlayerRawState {
-            voices: (0..polyphony).map(|_| None).collect(),
+            voices: (0..polyphony)
+                .map(|_| MidiPlayerRawStateVoice {
+                    note_index: 0.into(),
+                    velocity: 0.into(),
+                    gate: GateState::Released,
+                    last_change_tick: 0,
+                })
+                .collect(),
             controllers: (0..128).map(|_| u7::new(0)).collect(),
             pitch_bend: u14::new(0x2000),
             current_tick: 0,
@@ -325,10 +316,7 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        state.borrow().voices[i]
-                            .as_ref()
-                            .map(|v| v.note_index)
-                            .unwrap_or(u7::new(0))
+                        state.borrow().voices[i].note_index
                     }
                 });
                 let velocity = Signal::from_fn({
@@ -336,10 +324,7 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        state.borrow().voices[i]
-                            .as_ref()
-                            .map(|v| v.velocity)
-                            .unwrap_or(u7::new(0))
+                        state.borrow().voices[i].velocity
                     }
                 });
                 let gate = Gate::from_fn({
@@ -347,10 +332,7 @@ impl MidiPlayerRaw {
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        let gate_state = state.borrow().voices[i]
-                            .as_ref()
-                            .map(|v| v.gate)
-                            .unwrap_or(GateState::Released);
+                        let gate_state = state.borrow().voices[i].gate;
                         gate_state == GateState::Pressed
                     }
                 });
@@ -414,5 +396,187 @@ impl MidiPlayer {
         event_source: impl MidiEventSource + 'static,
     ) -> Self {
         MidiPlayerRaw::new(channel, polyphony, event_source).to_player()
+    }
+}
+
+pub struct MidiPlayerMonophonicRaw {
+    pub voice: MidiVoiceRaw,
+    pub controllers: MidiControllerTableRaw,
+    pub pitch_bend: Signal<u14>,
+}
+
+pub struct MidiPlayerMonophonic {
+    pub voice: MidiVoice,
+    pub controllers: MidiControllerTable,
+    pub pitch_bend_1: Sf64,
+    pub pitch_bend_multiplier: Sf64,
+}
+
+struct MidiPlayerMonophonicRawStateNote {
+    velocity: u7,
+    last_pressed: u64,
+    currently_pressed: bool,
+}
+
+struct MidiPlayerMonophonicRawState {
+    notes: Vec<MidiPlayerMonophonicRawStateNote>,
+    controllers: Vec<u7>,
+    pitch_bend: u14,
+}
+
+#[derive(Clone)]
+struct MidiPlayerMonophonicRawVoiceComponents {
+    note_index: u7,
+    velocity: u7,
+    gate: bool,
+}
+
+impl MidiPlayerMonophonicRawState {
+    fn voice_components(&self) -> MidiPlayerMonophonicRawVoiceComponents {
+        let mut any_currently_pressed = false;
+        let mut note_index = u7::new(0);
+        let mut newest_last_pressed = 0;
+        let mut velocity = u7::new(0);
+        let mut note_index_all = u7::new(0);
+        let mut newest_last_pressed_all = 0;
+        for (i, note) in self.notes.iter().enumerate() {
+            if note.currently_pressed {
+                any_currently_pressed = true;
+                if note.last_pressed > newest_last_pressed {
+                    newest_last_pressed = note.last_pressed;
+                    note_index = (i as u8).into();
+                    velocity = note.velocity;
+                }
+            }
+            if note.last_pressed > newest_last_pressed_all {
+                newest_last_pressed_all = note.last_pressed;
+                note_index_all = (i as u8).into();
+            }
+        }
+        let note_index = if any_currently_pressed {
+            note_index
+        } else {
+            note_index_all
+        };
+        MidiPlayerMonophonicRawVoiceComponents {
+            note_index,
+            velocity,
+            gate: any_currently_pressed,
+        }
+    }
+}
+
+impl MidiPlayerMonophonicRawState {
+    fn new() -> Self {
+        Self {
+            notes: (0..128)
+                .map(|_| MidiPlayerMonophonicRawStateNote {
+                    velocity: 0.into(),
+                    last_pressed: 0,
+                    currently_pressed: false,
+                })
+                .collect(),
+            controllers: (0..128).map(|_| u7::new(0)).collect(),
+            pitch_bend: u14::new(0x2000),
+        }
+    }
+}
+
+impl MidiPlayerMonophonicRaw {
+    pub fn new(channel: u4, mut event_source: impl MidiEventSource + 'static) -> Self {
+        let state = Rc::new(RefCell::new(MidiPlayerMonophonicRawState::new()));
+        let effectful_signal = Signal::from_fn({
+            let state = Rc::clone(&state);
+            move |ctx| {
+                event_source.for_each_new_event(ctx, |event| {
+                    if event.channel == channel {
+                        let mut state = state.borrow_mut();
+                        use MidiMessage::*;
+                        match event.message {
+                            NoteOn { key, vel: velocity } => {
+                                state.notes[key.as_int() as usize] =
+                                    MidiPlayerMonophonicRawStateNote {
+                                        last_pressed: ctx.sample_index,
+                                        currently_pressed: true,
+                                        velocity,
+                                    }
+                            }
+                            NoteOff { key, vel: _ } => {
+                                state.notes[key.as_int() as usize].currently_pressed = false;
+                            }
+                            PitchBend {
+                                bend: PitchBend(pitch_bend),
+                            } => state.pitch_bend = pitch_bend,
+                            Controller { controller, value } => {
+                                state.controllers[controller.as_int() as usize] = value;
+                            }
+                            _ => (),
+                        }
+                    }
+                })
+            }
+        });
+        let voice_components = Signal::from_fn({
+            let state = Rc::clone(&state);
+            let effectful_signal = effectful_signal.clone();
+            move |ctx| {
+                effectful_signal.sample(ctx);
+                state.borrow().voice_components()
+            }
+        });
+        let voice = MidiVoiceRaw {
+            note_index: voice_components.map(|v| v.note_index),
+            velocity: voice_components.map(|v| v.velocity),
+            gate: voice_components.map(|v| v.gate).to_gate(),
+        };
+        let controllers = MidiControllerTableRaw {
+            values: (0..128)
+                .map(|i| {
+                    Signal::from_fn({
+                        let state = Rc::clone(&state);
+                        let effectful_signal = effectful_signal.clone();
+                        move |ctx| {
+                            effectful_signal.sample(ctx);
+                            state.borrow().controllers[i]
+                        }
+                    })
+                })
+                .collect(),
+        };
+        let pitch_bend = Signal::from_fn({
+            let state = Rc::clone(&state);
+            let effectful_signal = effectful_signal.clone();
+            move |ctx| {
+                effectful_signal.sample(ctx);
+                state.borrow().pitch_bend
+            }
+        });
+        Self {
+            voice,
+            controllers,
+            pitch_bend,
+        }
+    }
+
+    pub fn to_player(&self) -> MidiPlayerMonophonic {
+        let pitch_bend_1 = self
+            .pitch_bend
+            .map(|x| ((x.as_int() as i32 - 0x2000) as f64 * 2.0) / 0x3FFF as f64);
+        let pitch_bend_multiplier = pitch_bend_1.map({
+            let max_ratio = music::semitone_ratio(2.0);
+            move |x| max_ratio.powf(x)
+        });
+        MidiPlayerMonophonic {
+            voice: self.voice.to_voice(),
+            controllers: self.controllers.to_controller_table(),
+            pitch_bend_1,
+            pitch_bend_multiplier,
+        }
+    }
+}
+
+impl MidiPlayerMonophonic {
+    pub fn new(channel: u4, event_source: impl MidiEventSource + 'static) -> Self {
+        MidiPlayerMonophonicRaw::new(channel, event_source).to_player()
     }
 }
