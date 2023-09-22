@@ -38,3 +38,6 @@ name = "midi_live"
 
 [[example]]
 name = "midi_live_with_serial"
+
+[[example]]
+name = "midi_live_with_serial_monophonic"

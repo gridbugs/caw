@@ -18,7 +18,7 @@ pub mod prelude {
             gate::{periodic_gate, periodic_gate_hz, periodic_gate_s},
             signal::{adsr_linear_01, oscillator, oscillator_hz, oscillator_s},
         },
-        midi::{MidiControllerTable, MidiPlayer, MidiVoice},
+        midi::{MidiControllerTable, MidiPlayer, MidiPlayerMonophonic, MidiVoice},
         music::{freq_hz_of_midi_index, Note, NoteName},
         oscillator::Waveform,
         signal::{

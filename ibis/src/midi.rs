@@ -83,6 +83,16 @@ impl MidiLive {
             MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
         Ok(MidiPlayer::new(channel.into(), polyphony, event_source))
     }
+
+    pub fn into_player_monophonic(
+        self,
+        port_index: usize,
+        channel: u8,
+    ) -> anyhow::Result<MidiPlayerMonophonic> {
+        let event_source =
+            MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
+        Ok(MidiPlayerMonophonic::new(channel.into(), event_source))
+    }
 }
 
 pub struct MidiLiveSerial {

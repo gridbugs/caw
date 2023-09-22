@@ -44,15 +44,18 @@ fn make_voice(
         detune,
         echo_scale,
     } = Effects::new(controllers.modulation(), serial_controllers);
-    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
+    let note_freq_hz = sfreq_to_hz(note_freq)
+        .filter(low_pass_chebyshev(10.0).resonance(2.0).build())
+        * pitch_bend_multiplier.into();
+    let waveform = Waveform::Sine;
     let osc = mean([
-        oscillator_hz(Waveform::Saw, &note_freq_hz)
+        oscillator_hz(waveform, &note_freq_hz)
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
-        oscillator_hz(Waveform::Saw, &note_freq_hz * ((&detune * 0.02) + 1.0))
+        oscillator_hz(waveform, &note_freq_hz * ((&detune * 0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
-        oscillator_hz(Waveform::Saw, &note_freq_hz * ((&detune * -0.02) + 1.0))
+        oscillator_hz(waveform, &note_freq_hz * ((&detune * -0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
     ]);
@@ -63,10 +66,10 @@ fn make_voice(
         .release_s(0.5)
         .build()
         .exp_01(1.0);
-    let lfo = (oscillator_hz(Waveform::Saw, lfo_freq * 20.0)
+    let lfo = oscillator_hz(Waveform::Sine, lfo_freq * 20.0)
         .reset_trigger(gate.to_trigger_rising_edge())
-        .build())
-    .signed_to_01()
+        .build()
+        .signed_to_01()
         * lfo_scale;
     let filtered_osc = osc
         .filter(
@@ -78,7 +81,7 @@ fn make_voice(
             .resonance(low_pass_filter_resonance * 4.0)
             .build(),
         )
-        .filter(high_pass_butterworth(high_pass_filter_cutoff * 4000.0 + 10.0).build());
+        .filter(high_pass_butterworth(high_pass_filter_cutoff * 400.0 + 10.0).build());
     (filtered_osc.mul_lazy(&env) * velocity_01).filter(echo().time_s(0.2).scale(echo_scale).build())
 }
 
@@ -122,33 +125,28 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Play { midi_port } => {
-            let MidiPlayer {
-                voices,
+            let MidiPlayerMonophonic {
+                voice,
                 pitch_bend_multiplier,
                 controllers,
                 ..
-            } = midi_live.into_player(midi_port, 0, 8).unwrap();
+            } = midi_live.into_player_monophonic(midi_port, 0).unwrap();
             let MidiPlayer {
                 controllers: serial_controllers,
                 ..
             } = MidiLiveSerial::new("/dev/tty.usbserial-1140", 115200)?.into_player(0, 0);
-            let signal = voices
-                .into_iter()
-                .map(|voice| {
-                    make_voice(
-                        voice,
-                        &pitch_bend_multiplier,
-                        &controllers,
-                        &serial_controllers,
-                    )
-                })
-                .sum::<Sf64>()
-                .filter(
-                    saturate()
-                        .scale((serial_controllers.get_01(37) * 9.0) + 1.0)
-                        .threshold((serial_controllers.get_01(38).inv_01() * 3.9) + 0.1)
-                        .build(),
-                );
+            let signal = make_voice(
+                voice,
+                &pitch_bend_multiplier,
+                &controllers,
+                &serial_controllers,
+            )
+            .filter(
+                saturate()
+                    .scale((serial_controllers.get_01(37) * 9.0) + 1.0)
+                    .threshold((serial_controllers.get_01(38).inv_01() * 3.9) + 0.1)
+                    .build(),
+            );
             run(signal)?;
         }
     }
