@@ -177,7 +177,7 @@ pub mod gate {
 pub mod filter {
     use crate::{
         filters::*,
-        signal::{const_, Sf64},
+        signal::{const_, Sf64, Trigger},
     };
 
     /// Included for consistency with other filters even though `LowPassButterworth` doesn't
@@ -355,6 +355,14 @@ pub mod filter {
         }
     }
 
+    pub struct SampleAndHoldBuilder(SampleAndHold);
+
+    impl SampleAndHoldBuilder {
+        pub fn build(self) -> SampleAndHold {
+            self.0
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
     }
@@ -381,5 +389,9 @@ pub mod filter {
 
     pub fn echo() -> EchoBuilder {
         EchoBuilder::new()
+    }
+
+    pub fn sample_and_hold(trigger: Trigger) -> SampleAndHoldBuilder {
+        SampleAndHoldBuilder(SampleAndHold::new(trigger))
     }
 }

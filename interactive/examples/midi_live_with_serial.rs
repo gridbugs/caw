@@ -35,6 +35,7 @@ fn make_voice(
     controllers: &MidiControllerTable,
     serial_controllers: &MidiControllerTable,
 ) -> Sf64 {
+    let velocity_01 = velocity_01.filter(low_pass_butterworth(10.0).build());
     let Effects {
         high_pass_filter_cutoff,
         low_pass_filter_cutoff,
@@ -45,17 +46,22 @@ fn make_voice(
         echo_scale,
     } = Effects::new(controllers.modulation(), serial_controllers);
     let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
+    let waveform = Waveform::Sine;
     let osc = mean([
-        oscillator_hz(Waveform::Saw, &note_freq_hz)
+        oscillator_hz(waveform, &note_freq_hz)
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
-        oscillator_hz(Waveform::Saw, &note_freq_hz * ((&detune * 0.02) + 1.0))
+        oscillator_hz(waveform, &note_freq_hz * ((&detune * 0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
-        oscillator_hz(Waveform::Saw, &note_freq_hz * ((&detune * -0.02) + 1.0))
+        oscillator_hz(waveform, &note_freq_hz * ((&detune * -0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
-    ]);
+    ]) + noise() * 0.1;
+    let sah_clock = periodic_gate_s(0.15).build().to_trigger_rising_edge();
+    let sah = noise()
+        .signed_to_01()
+        .filter(sample_and_hold(sah_clock.clone()).build());
     let env = adsr_linear_01(&gate)
         .attack_s(0.0)
         .decay_s(0.5)
@@ -63,10 +69,12 @@ fn make_voice(
         .release_s(0.5)
         .build()
         .exp_01(1.0);
-    let lfo = (oscillator_hz(Waveform::Saw, lfo_freq * 20.0)
+    let lfo = (oscillator_hz(Waveform::Sine, lfo_freq * 2.0)
         .reset_trigger(gate.to_trigger_rising_edge())
-        .build())
-    .signed_to_01()
+        .build()
+        * -1)
+        .signed_to_01()
+        .filter(sample_and_hold(sah_clock.clone()).build())
         * lfo_scale;
     let filtered_osc = osc
         .filter(
@@ -74,6 +82,7 @@ fn make_voice(
                 200.0.into(),
                 &env * (low_pass_filter_cutoff * 10_000.0),
                 lfo * 10_000.0,
+                sah * 0,
             ]))
             .resonance(low_pass_filter_resonance * 4.0)
             .build(),

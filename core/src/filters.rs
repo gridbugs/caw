@@ -1,4 +1,4 @@
-use crate::signal::{Filter, Sf64, SignalCtx};
+use crate::signal::{Filter, Sf64, SignalCtx, Trigger};
 use std::collections::VecDeque;
 
 mod biquad_filter {
@@ -580,5 +580,31 @@ impl Filter for Echo {
         let delay_output = self.delay.run(delay_input, ctx);
         self.previous_sample = delay_output;
         input + delay_output
+    }
+}
+
+pub struct SampleAndHold {
+    trigger: Trigger,
+    sample: f64,
+}
+
+impl SampleAndHold {
+    pub fn new(trigger: Trigger) -> Self {
+        Self {
+            trigger,
+            sample: 0.0,
+        }
+    }
+}
+
+impl Filter for SampleAndHold {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        if self.trigger.sample(ctx) {
+            self.sample = input;
+        }
+        self.sample
     }
 }

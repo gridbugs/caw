@@ -44,8 +44,8 @@ fn make_voice(
         detune,
         echo_scale,
     } = Effects::new(controllers.modulation(), serial_controllers);
-    let note_freq_hz = sfreq_to_hz(note_freq)
-        .filter(low_pass_chebyshev(10.0).resonance(2.0).build())
+    let velocity_01 = velocity_01.filter(low_pass_butterworth(10.0).build());
+    let note_freq_hz = sfreq_to_hz(note_freq).filter(low_pass_butterworth(10.0).build())
         * pitch_bend_multiplier.into();
     let waveform = Waveform::Sine;
     let osc = mean([
@@ -60,7 +60,7 @@ fn make_voice(
             .build(),
     ]);
     let env = adsr_linear_01(&gate)
-        .attack_s(0.0)
+        .attack_s(0.1)
         .decay_s(0.5)
         .sustain_01(0.8)
         .release_s(0.5)
