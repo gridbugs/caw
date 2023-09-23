@@ -111,6 +111,10 @@ enum Commands {
     Play {
         #[arg(short, long)]
         midi_port: usize,
+        #[arg(short, long)]
+        serial_port: String,
+        #[arg(short, long, default_value_t = 115200)]
+        serial_baud: u32,
     },
 }
 
@@ -124,7 +128,11 @@ fn main() -> anyhow::Result<()> {
                 println!("{}: {}", i, name);
             }
         }
-        Commands::Play { midi_port } => {
+        Commands::Play {
+            midi_port,
+            serial_port,
+            serial_baud,
+        } => {
             let MidiPlayerMonophonic {
                 voice,
                 pitch_bend_multiplier,
@@ -134,7 +142,7 @@ fn main() -> anyhow::Result<()> {
             let MidiPlayer {
                 controllers: serial_controllers,
                 ..
-            } = MidiLiveSerial::new("/dev/tty.usbserial-1140", 115200)?.into_player(0, 0);
+            } = MidiLiveSerial::new(serial_port, serial_baud)?.into_player(0, 0);
             let signal = make_voice(
                 voice,
                 &pitch_bend_multiplier,
