@@ -47,7 +47,7 @@ fn make_voice(
     let velocity_01 = velocity_01.filter(low_pass_butterworth(10.0).build());
     let note_freq_hz = sfreq_to_hz(note_freq).filter(low_pass_butterworth(10.0).build())
         * pitch_bend_multiplier.into();
-    let waveform = Waveform::Sine;
+    let waveform = Waveform::Saw;
     let osc = mean([
         oscillator_hz(waveform, &note_freq_hz)
             .reset_trigger(gate.to_trigger_rising_edge())
@@ -56,6 +56,9 @@ fn make_voice(
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
         oscillator_hz(waveform, &note_freq_hz * ((&detune * -0.02) + 1.0))
+            .reset_trigger(gate.to_trigger_rising_edge())
+            .build(),
+        oscillator_hz(Waveform::Pulse, &note_freq_hz * 0.3)
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
     ]);

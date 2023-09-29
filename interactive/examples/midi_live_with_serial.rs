@@ -9,10 +9,16 @@ struct Effects {
     lfo_scale: Sf64,
     detune: Sf64,
     echo_scale: Sf64,
+    sah_freq: Sf64,
+    sah_scale: Sf64,
+    attack: Sf64,
+    decay: Sf64,
+    sustain: Sf64,
+    release: Sf64,
 }
 
 impl Effects {
-    fn new(modulation: Sf64, extra_controllers: &MidiControllerTable) -> Self {
+    fn new(controllers: &MidiControllerTable, extra_controllers: &MidiControllerTable) -> Self {
         Self {
             high_pass_filter_cutoff: extra_controllers.get_01(35).exp_01(1.0),
             low_pass_filter_cutoff: extra_controllers.get_01(31).inv_01().exp_01(1.0),
@@ -20,7 +26,13 @@ impl Effects {
             lfo_freq: extra_controllers.get_01(33),
             lfo_scale: extra_controllers.get_01(34),
             detune: extra_controllers.get_01(36),
-            echo_scale: modulation,
+            echo_scale: controllers.modulation(),
+            sah_freq: controllers.get_01(21),
+            sah_scale: controllers.get_01(22),
+            attack: controllers.get_01(25),
+            decay: controllers.get_01(26),
+            sustain: controllers.get_01(27),
+            release: controllers.get_01(28),
         }
     }
 }
@@ -44,9 +56,15 @@ fn make_voice(
         lfo_scale,
         detune,
         echo_scale,
-    } = Effects::new(controllers.modulation(), serial_controllers);
+        sah_freq,
+        sah_scale,
+        attack,
+        decay,
+        sustain,
+        release,
+    } = Effects::new(controllers, serial_controllers);
     let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
-    let waveform = Waveform::Sine;
+    let waveform = Waveform::Saw;
     let osc = mean([
         oscillator_hz(waveform, &note_freq_hz)
             .reset_trigger(gate.to_trigger_rising_edge())
@@ -57,24 +75,31 @@ fn make_voice(
         oscillator_hz(waveform, &note_freq_hz * ((&detune * -0.02) + 1.0))
             .reset_trigger(gate.to_trigger_rising_edge())
             .build(),
-    ]) + noise() * 0.1;
-    let sah_clock = periodic_gate_s(0.15).build().to_trigger_rising_edge();
+        oscillator_hz(Waveform::Pulse, &note_freq_hz / semitone_ratio(19.0))
+            .reset_trigger(gate.to_trigger_rising_edge())
+            .build(),
+    ]);
+    let sah_clock = periodic_gate_s(sah_freq + 0.01)
+        .build()
+        .to_trigger_rising_edge();
     let sah = noise()
         .signed_to_01()
         .filter(sample_and_hold(sah_clock.clone()).build());
     let env = adsr_linear_01(&gate)
-        .attack_s(0.0)
-        .decay_s(0.5)
-        .sustain_01(0.8)
-        .release_s(0.5)
+        .attack_s(attack)
+        .decay_s(decay)
+        .sustain_01(sustain)
+        .release_s(release)
         .build()
         .exp_01(1.0);
-    let lfo = (oscillator_hz(Waveform::Sine, lfo_freq * 2.0)
+    let lfo_lfo = noise()
+        .filter(sample_and_hold(periodic_gate_s(0.5).build().to_trigger_rising_edge()).build())
+        .signed_to_01();
+    let lfo = (oscillator_hz(Waveform::Saw, lfo_freq * (5.0 + lfo_lfo * 10.0))
         .reset_trigger(gate.to_trigger_rising_edge())
         .build()
-        * -1)
-        .signed_to_01()
-        .filter(sample_and_hold(sah_clock.clone()).build())
+        * 1)
+    .signed_to_01()
         * lfo_scale;
     let filtered_osc = osc
         .filter(
@@ -82,7 +107,7 @@ fn make_voice(
                 200.0.into(),
                 &env * (low_pass_filter_cutoff * 10_000.0),
                 lfo * 10_000.0,
-                sah * 0,
+                (sah * sah_scale * 5000),
             ]))
             .resonance(low_pass_filter_resonance * 4.0)
             .build(),
@@ -119,7 +144,7 @@ enum Commands {
         midi_port: usize,
         #[arg(short, long)]
         serial_port: String,
-        #[arg(short, long, default_value_t = 115200)]
+        #[arg(long, default_value_t = 115200)]
         serial_baud: u32,
     },
 }
