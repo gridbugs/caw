@@ -1,5 +1,5 @@
 use crate::signal::SignalCtx;
-pub use ibis_core::midi::*;
+pub use currawong_core::midi::*;
 use midir::{MidiInput, MidiInputConnection, MidiInputPort};
 use midly::{live::LiveEvent, Format, Smf};
 use nix::sys::termios::BaudRate;
@@ -52,7 +52,7 @@ pub struct MidiLive {
 
 impl MidiLive {
     pub fn new() -> anyhow::Result<Self> {
-        let midi_input = MidiInput::new("ibis")?;
+        let midi_input = MidiInput::new("currawong")?;
         let midi_input_ports = midi_input.ports();
         Ok(Self {
             midi_input,
@@ -189,7 +189,7 @@ struct MidirMidiInputEventSource {
 
 impl MidirMidiInputEventSource {
     fn new(midi_input: MidiInput, port: &MidiInputPort) -> anyhow::Result<Self> {
-        let port_name = format!("ibis {}", midi_input.port_name(port)?);
+        let port_name = format!("currawong {}", midi_input.port_name(port)?);
         let (midi_event_sender, midi_event_receiver) = mpsc::channel::<MidiEvent>();
         let midi_input_connection = midi_input
             .connect(

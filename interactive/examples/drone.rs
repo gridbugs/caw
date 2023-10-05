@@ -1,4 +1,4 @@
-use ibis_interactive::prelude::*;
+use currawong_interactive::prelude::*;
 
 fn run(signal: Sf64) -> anyhow::Result<()> {
     let window = Window::builder().build();

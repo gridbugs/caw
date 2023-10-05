@@ -4,6 +4,6 @@ resolver = "2"
 
 members = [
     "core",
-    "ibis",
+    "currawong",
     "interactive",
 ]

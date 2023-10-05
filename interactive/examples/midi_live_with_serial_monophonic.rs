@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use ibis_interactive::prelude::*;
+use currawong_interactive::prelude::*;
 
 struct Effects {
     high_pass_filter_cutoff: Sf64,

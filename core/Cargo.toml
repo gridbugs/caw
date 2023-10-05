@@ -1,5 +1,5 @@
 [package]
-name = "ibis_core"
+name = "currawong_core"
 version = "0.1.0"
 edition = "2021"
 

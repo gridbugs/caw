@@ -1,4 +1,4 @@
-pub use ibis::{
+pub use currawong::{
     clock, envelope, filters, midi, music, oscillator, sample_player, signal, signal_player,
 };
 pub mod input;
@@ -8,5 +8,5 @@ pub mod prelude {
         input::{Input, Key},
         window::{Rgb24, Window},
     };
-    pub use ibis::prelude::*;
+    pub use currawong::prelude::*;
 }

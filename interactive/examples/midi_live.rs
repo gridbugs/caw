@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use ibis_interactive::prelude::*;
+use currawong_interactive::prelude::*;
 
 fn make_voice(
     MidiVoice {

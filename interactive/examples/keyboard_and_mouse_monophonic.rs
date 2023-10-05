@@ -1,4 +1,4 @@
-use ibis_interactive::prelude::*;
+use currawong_interactive::prelude::*;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;

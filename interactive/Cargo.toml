@@ -1,12 +1,12 @@
 [package]
-name = "ibis_interactive"
-description = "Use mouse and keyboard to control ibis synhesizer"
+name = "currawong_interactive"
+description = "Use mouse and keyboard to control currawong synhesizer"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-ibis = { version = "0.1", path = "../ibis" }
+currawong = { version = "0.1", path = "../currawong" }
 line_2d = "0.5"
 rgb_int = "0.1"
 sdl2 = "0.35"
