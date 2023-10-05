@@ -3,6 +3,9 @@ pub mod midi;
 pub mod sample_player;
 pub mod signal_player;
 pub mod prelude {
-    pub use crate::midi::{MidiFile, MidiLive, MidiLiveSerial};
+    pub use crate::{
+        midi::{MidiFile, MidiLive, MidiLiveSerial},
+        signal_player::SignalPlayer,
+    };
     pub use currawong_core::prelude::*;
 }

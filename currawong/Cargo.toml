@@ -11,3 +11,6 @@ log = "0.4"
 midly = "0.5"
 midir = "0.9"
 nix = { version = "0.27", features = ["fs", "term"] }
+
+[[example]]
+name = "periodic_gate_varying_period"
