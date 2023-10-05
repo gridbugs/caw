@@ -137,6 +137,7 @@ pub mod gate {
     pub struct PeriodicGateBuilder {
         freq: Sfreq,
         duty_01: Option<Sf64>,
+        offset_01: Option<Sf64>,
     }
 
     impl PeriodicGateBuilder {
@@ -144,6 +145,7 @@ pub mod gate {
             Self {
                 freq: freq.into(),
                 duty_01: None,
+                offset_01: None,
             }
         }
 
@@ -152,10 +154,16 @@ pub mod gate {
             self
         }
 
+        pub fn offset_01(mut self, offset_01: impl Into<Sf64>) -> Self {
+            self.offset_01 = Some(offset_01.into());
+            self
+        }
+
         pub fn build(self) -> Gate {
             PeriodicGate {
                 freq: self.freq,
                 duty_01: self.duty_01.unwrap_or_else(|| const_(0.5)),
+                offset_01: self.offset_01.unwrap_or_else(|| const_(0.0)),
             }
             .gate()
         }
