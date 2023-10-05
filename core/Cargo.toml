@@ -3,6 +3,10 @@ name = "currawong_core"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+default = ["midi"]
+midi = ["midly"]
+
 [dependencies]
 rand = "0.8"
-midly = "0.5"
+midly = { version = "0.5", optional = true }

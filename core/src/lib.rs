@@ -2,6 +2,8 @@ pub mod builder;
 pub mod clock;
 pub mod envelope;
 pub mod filters;
+
+#[cfg(feature = "midi")]
 pub mod midi;
 pub mod music;
 pub mod oscillator;
@@ -9,6 +11,8 @@ pub mod signal;
 pub mod signal_arithmetic;
 
 pub mod prelude {
+    #[cfg(feature = "midi")]
+    pub use crate::midi::{MidiControllerTable, MidiPlayer, MidiPlayerMonophonic, MidiVoice};
     pub use crate::{
         builder::{
             filter::{
@@ -18,7 +22,6 @@ pub mod prelude {
             gate::{periodic_gate, periodic_gate_hz, periodic_gate_s},
             signal::{adsr_linear_01, oscillator, oscillator_hz, oscillator_s},
         },
-        midi::{MidiControllerTable, MidiPlayer, MidiPlayerMonophonic, MidiVoice},
         music::{freq_hz_of_midi_index, semitone_ratio, Note, NoteName},
         oscillator::Waveform,
         signal::{

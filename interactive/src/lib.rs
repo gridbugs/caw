@@ -1,6 +1,10 @@
 pub use currawong::{
-    clock, envelope, filters, midi, music, oscillator, sample_player, signal, signal_player,
+    clock, envelope, filters, music, oscillator, sample_player, signal, signal_player,
 };
+
+#[cfg(feature = "midi")]
+pub use currawong::midi;
+
 pub mod input;
 pub mod window;
 pub mod prelude {
