@@ -127,7 +127,7 @@ pub struct Window {
 impl Window {
     pub fn play_mut<T: Clone + ToF32 + 'static>(
         &self,
-        buffered_signal: &mut Signal<T>,
+        signal: &mut Signal<T>,
     ) -> anyhow::Result<()> {
         let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
         let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
@@ -180,7 +180,7 @@ impl Window {
             if warmup_frames > 0 {
                 warmup_frames -= 1;
             } else {
-                signal_player.send_signal_with_callback(buffered_signal, |sample| {
+                signal_player.send_signal_with_callback(signal, |sample| {
                     visualization_state.add_sample(sample);
                 });
             }
@@ -207,11 +207,8 @@ impl Window {
         Ok(())
     }
 
-    pub fn play<T: Clone + ToF32 + 'static>(
-        &self,
-        mut buffered_signal: Signal<T>,
-    ) -> anyhow::Result<()> {
-        self.play_mut(&mut buffered_signal)
+    pub fn play<T: Clone + ToF32 + 'static>(&self, mut signal: Signal<T>) -> anyhow::Result<()> {
+        self.play_mut(&mut signal)
     }
 
     pub fn builder() -> WindowBuilder {

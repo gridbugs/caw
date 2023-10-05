@@ -35,7 +35,7 @@ impl SignalPlayer {
 
     pub fn send_signal_with_callback<T: Clone + ToF32 + 'static, F: FnMut(f32)>(
         &mut self,
-        buffered_signal: &mut Signal<T>,
+        signal: &mut Signal<T>,
         mut f: F,
     ) {
         let sample_rate_hz = self.sample_player.sample_rate_hz();
@@ -44,24 +44,21 @@ impl SignalPlayer {
                 sample_index: self.sample_index,
                 sample_rate_hz: sample_rate_hz as f64,
             };
-            let sample = buffered_signal.sample(&ctx).to_f32();
+            let sample = signal.sample(&ctx).to_f32();
             f(sample);
             self.sample_index += 1;
             sample
         });
     }
 
-    pub fn send_signal<T: Clone + ToF32 + 'static>(&mut self, buffered_signal: &mut Signal<T>) {
-        self.send_signal_with_callback(buffered_signal, |_| ());
+    pub fn send_signal<T: Clone + ToF32 + 'static>(&mut self, signal: &mut Signal<T>) {
+        self.send_signal_with_callback(signal, |_| ());
     }
 
-    pub fn play_sample_forever<T: Clone + ToF32 + 'static>(
-        &mut self,
-        mut buffered_signal: Signal<T>,
-    ) -> ! {
-        const PERIOD: Duration = Duration::from_millis(30);
+    pub fn play_sample_forever<T: Clone + ToF32 + 'static>(&mut self, mut signal: Signal<T>) -> ! {
+        const PERIOD: Duration = Duration::from_millis(16);
         loop {
-            self.send_signal(&mut buffered_signal);
+            self.send_signal(&mut signal);
             thread::sleep(PERIOD);
         }
     }
