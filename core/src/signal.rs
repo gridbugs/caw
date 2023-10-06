@@ -200,8 +200,8 @@ pub type Sf32 = Signal<f32>;
 pub type Sbool = Signal<bool>;
 pub type Su8 = Signal<u8>;
 
-pub fn const_<T: Clone + 'static>(value: T) -> Signal<T> {
-    Signal::from_fn(move |_| value.clone())
+pub fn const_<T: Copy + 'static>(value: T) -> Signal<T> {
+    Signal::from_fn(move |_| value)
 }
 
 impl From<Freq> for Sfreq {

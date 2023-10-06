@@ -18,3 +18,9 @@ nix = { version = "0.27", features = ["fs", "term"] }
 
 [[example]]
 name = "periodic_gate_varying_period"
+
+[[example]]
+name = "car_sound_basic"
+
+[[example]]
+name = "lfo_pwm"

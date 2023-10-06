@@ -106,7 +106,7 @@ macro_rules! impl_binary_op {
         impl $trait<Sf64> for f64 {
             type Output = Sf64;
             fn $fn(self, rhs: Sf64) -> Self::Output {
-                rhs.$fn(self)
+                const_(self).$fn(rhs)
             }
         }
 
@@ -115,7 +115,7 @@ macro_rules! impl_binary_op {
         impl $trait<&Sf64> for f64 {
             type Output = Sf64;
             fn $fn(self, rhs: &Sf64) -> Self::Output {
-                rhs.$fn(self)
+                const_(self).$fn(rhs)
             }
         }
 
@@ -129,7 +129,7 @@ macro_rules! impl_binary_op {
         impl $trait<Sf64> for i64 {
             type Output = Sf64;
             fn $fn(self, rhs: Sf64) -> Self::Output {
-                rhs.$fn(self as f64)
+                const_(self as f64).$fn(rhs)
             }
         }
 
@@ -143,7 +143,7 @@ macro_rules! impl_binary_op {
         impl $trait<&Sf64> for i64 {
             type Output = Sf64;
             fn $fn(self, rhs: &Sf64) -> Self::Output {
-                rhs.$fn(self as f64)
+                const_(self as f64).$fn(rhs)
             }
         }
     };
