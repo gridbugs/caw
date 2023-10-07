@@ -25,8 +25,8 @@ pub mod prelude {
         music::{freq_hz_of_midi_index, semitone_ratio, Note, NoteName},
         oscillator::Waveform,
         signal::{
-            const_, mean, noise, sfreq_hz, sfreq_s, sfreq_to_hz, sfreq_to_s, sum, Freq, Gate, Sf64,
-            Sfreq, Signal, Trigger,
+            const_, mean, noise, noise_01, sfreq_hz, sfreq_s, sfreq_to_hz, sfreq_to_s, sum, Freq,
+            Gate, Sf64, Sfreq, Signal, Trigger,
         },
     };
 }

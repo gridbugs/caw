@@ -38,7 +38,8 @@ impl Oscillator {
                 }
             };
             let state_delta = self.freq.sample(ctx).hz() / ctx.sample_rate_hz;
-            let state = (state + state_delta).rem_euclid(1.0);
+            let try_state = (state + state_delta).rem_euclid(1.0);
+            let state = if try_state.is_nan() { state } else { try_state };
             state_opt = Some(state);
             match self.waveform.sample(ctx) {
                 Waveform::Sine => (state * PI * 2.0).sin(),

@@ -53,6 +53,11 @@ pub fn noise() -> Sf64 {
     Signal::from_fn(move |_ctx| (rng.gen::<f64>() * 2.0) - 1.0)
 }
 
+pub fn noise_01() -> Sf64 {
+    let mut rng = StdRng::from_entropy();
+    Signal::from_fn(move |_ctx| (rng.gen::<f64>()))
+}
+
 /// Information about the current state of playback that will be passed to every signal each frame
 pub struct SignalCtx {
     pub sample_index: u64,

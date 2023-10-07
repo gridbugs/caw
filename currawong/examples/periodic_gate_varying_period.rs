@@ -5,23 +5,36 @@ fn run(signal: Sf64) -> anyhow::Result<()> {
     signal_player.play_sample_forever(signal);
 }
 
-fn main() -> anyhow::Result<()> {
+fn make_voice(freq_hz: f64, period_s: f64) -> Sf64 {
     let gate = periodic_gate_s(
-        oscillator_s(Waveform::Sine, 10.0)
-            .reset_offset_01(0.5)
+        oscillator_s(Waveform::Sine, period_s)
             .build()
-            .signed_to_01()
-            * 0.4
-            + 0.02,
+            .signed_to_01(),
     )
-    .duty_01(0.05)
+    .duty_01(0.5)
     .build();
-    let freq_hz = 100.0;
-    let osc = oscillator_hz(Waveform::Pulse, freq_hz).build();
-    let env = adsr_linear_01(&gate).release_s(0.1).build().exp_01(5.0);
-    let volume_env = adsr_linear_01(gate).release_s(0.1).build();
-    let signal = osc
-        .filter(low_pass_moog_ladder(env * 6000.0).resonance(2.0).build())
-        .mul_lazy(&volume_env);
+    let osc = mean([
+        oscillator_hz(Waveform::Pulse, freq_hz / 1.5).build(),
+        oscillator_hz(Waveform::Saw, freq_hz).build(),
+        oscillator_hz(Waveform::Saw, freq_hz * 1.01).build(),
+        noise() * 2.0,
+    ]);
+    let env = adsr_linear_01(gate)
+        .attack_s(0.1)
+        .decay_s(0.1)
+        .sustain_01(0.5)
+        .release_s(0.1)
+        .build()
+        .filter(low_pass_butterworth(100.0).build());
+    osc.filter(low_pass_moog_ladder(2000 * &env).resonance(4.0).build()) * env
+}
+
+fn main() -> anyhow::Result<()> {
+    let signal = mean([
+        make_voice(100.0, 10.0),
+        make_voice(200.0, 7.0),
+        make_voice(150.0, 11.0),
+        make_voice(300.0, 3.0),
+    ]);
     run(signal)
 }

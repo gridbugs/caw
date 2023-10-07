@@ -10,8 +10,7 @@ fn main() -> anyhow::Result<()> {
         (oscillator_s(Waveform::Saw, 2.0).build() * -1).signed_to_01() * 0.4 + 0.05,
     )
     .build();
-    let sah = noise()
-        .signed_to_01()
+    let sah = noise_01()
         .filter(sample_and_hold(periodic_gate_s(0.2).build().to_trigger_rising_edge()).build())
         .filter(low_pass_butterworth(10.0).build());
     let freq_hz = 10.0;
