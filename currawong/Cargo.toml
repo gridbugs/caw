@@ -24,3 +24,6 @@ name = "car_sound_basic"
 
 [[example]]
 name = "lfo_pwm"
+
+[[example]]
+name = "tweet"
