@@ -27,3 +27,6 @@ name = "lfo_pwm"
 
 [[example]]
 name = "tweet"
+
+[[example]]
+name = "drum_sounds"
