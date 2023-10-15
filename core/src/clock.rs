@@ -1,7 +1,7 @@
 use crate::{
     builder,
     oscillator::Waveform,
-    signal::{Gate, Sf64, Sfreq},
+    signal::{Gate, Sf64, Sfreq, Trigger},
 };
 
 pub struct PeriodicGate {
@@ -30,5 +30,22 @@ impl PeriodicGate {
             .build()
             .map(|x| x < 0.0)
             .to_gate()
+    }
+}
+
+pub struct PeriodicTrigger {
+    pub freq: Sfreq,
+}
+
+impl PeriodicTrigger {
+    pub fn new(freq: impl Into<Sfreq>) -> Self {
+        Self { freq: freq.into() }
+    }
+
+    pub fn trigger(self) -> Trigger {
+        builder::signal::oscillator(Waveform::Pulse, self.freq)
+            .build()
+            .map(|x| x < 0.0)
+            .to_trigger_rising_edge()
     }
 }

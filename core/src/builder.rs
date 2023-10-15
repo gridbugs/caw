@@ -130,8 +130,8 @@ pub mod signal {
 
 pub mod gate {
     use crate::{
-        clock::PeriodicGate,
-        signal::{const_, sfreq_hz, sfreq_s, Gate, Sf64, Sfreq},
+        clock::{PeriodicGate, PeriodicTrigger},
+        signal::{const_, sfreq_hz, sfreq_s, Gate, Sf64, Sfreq, Trigger},
     };
 
     pub struct PeriodicGateBuilder {
@@ -179,6 +179,30 @@ pub mod gate {
 
     pub fn periodic_gate_s(freq_s: impl Into<Sf64>) -> PeriodicGateBuilder {
         PeriodicGateBuilder::new(sfreq_s(freq_s))
+    }
+
+    pub struct PeriodicTriggerBuilder(PeriodicTrigger);
+
+    impl PeriodicTriggerBuilder {
+        pub fn new(freq: impl Into<Sfreq>) -> Self {
+            Self(PeriodicTrigger::new(freq))
+        }
+
+        pub fn build(self) -> Trigger {
+            self.0.trigger()
+        }
+    }
+
+    pub fn periodic_trigger(freq: impl Into<Sfreq>) -> PeriodicTriggerBuilder {
+        PeriodicTriggerBuilder::new(freq)
+    }
+
+    pub fn periodic_trigger_hz(freq_hz: impl Into<Sf64>) -> PeriodicTriggerBuilder {
+        PeriodicTriggerBuilder::new(sfreq_hz(freq_hz))
+    }
+
+    pub fn periodic_trigger_s(freq_s: impl Into<Sf64>) -> PeriodicTriggerBuilder {
+        PeriodicTriggerBuilder::new(sfreq_s(freq_s))
     }
 }
 
@@ -401,5 +425,64 @@ pub mod filter {
 
     pub fn sample_and_hold(trigger: Trigger) -> SampleAndHoldBuilder {
         SampleAndHoldBuilder(SampleAndHold::new(trigger))
+    }
+}
+
+pub mod loopers {
+    use crate::{
+        loopers::*,
+        signal::{Gate, Trigger},
+    };
+
+    pub struct ClockedTriggerLooperBuilder {
+        clock: Option<Trigger>,
+        add: Option<Gate>,
+        remove: Option<Gate>,
+        length: Option<usize>,
+    }
+
+    impl ClockedTriggerLooperBuilder {
+        pub fn new() -> Self {
+            Self {
+                clock: None,
+                add: None,
+                remove: None,
+                length: None,
+            }
+        }
+
+        pub fn clock(mut self, clock: impl Into<Trigger>) -> Self {
+            self.clock = Some(clock.into());
+            self
+        }
+
+        pub fn add(mut self, add: impl Into<Gate>) -> Self {
+            self.add = Some(add.into());
+            self
+        }
+
+        pub fn remove(mut self, remove: impl Into<Gate>) -> Self {
+            self.remove = Some(remove.into());
+            self
+        }
+
+        pub fn length(mut self, length: usize) -> Self {
+            self.length = Some(length.into());
+            self
+        }
+
+        pub fn build(self) -> Trigger {
+            ClockedTriggerLooper {
+                clock: self.clock.unwrap_or_else(|| Trigger::never()),
+                add: self.add.unwrap_or_else(|| Gate::never()),
+                remove: self.remove.unwrap_or_else(|| Gate::never()),
+                length: self.length.unwrap_or(8),
+            }
+            .trigger()
+        }
+    }
+
+    pub fn clocked_trigger_looper() -> ClockedTriggerLooperBuilder {
+        ClockedTriggerLooperBuilder::new()
     }
 }

@@ -2,6 +2,7 @@ pub mod builder;
 pub mod clock;
 pub mod envelope;
 pub mod filters;
+pub mod loopers;
 
 #[cfg(feature = "midi")]
 pub mod midi;
@@ -19,7 +20,11 @@ pub mod prelude {
                 echo, high_pass_butterworth, high_pass_chebyshev, low_pass_butterworth,
                 low_pass_chebyshev, low_pass_moog_ladder, sample_and_hold, saturate,
             },
-            gate::{periodic_gate, periodic_gate_hz, periodic_gate_s},
+            gate::{
+                periodic_gate, periodic_gate_hz, periodic_gate_s, periodic_trigger,
+                periodic_trigger_hz, periodic_trigger_s,
+            },
+            loopers::clocked_trigger_looper,
             signal::{adsr_linear_01, oscillator, oscillator_hz, oscillator_s},
         },
         music::{freq_hz_of_midi_index, semitone_ratio, Note, NoteName},

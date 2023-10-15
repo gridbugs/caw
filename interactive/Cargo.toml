@@ -48,3 +48,6 @@ name = "midi_live_with_serial_monophonic"
 
 [[example]]
 name = "car_sound"
+
+[[example]]
+name = "drum_machine"

@@ -43,10 +43,7 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
 
 fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
     let freq_hz = freq_hz.filter(low_pass_butterworth(5.0).build());
-    let oscillator = mean([
-        oscillator_hz(Waveform::Sine, &freq_hz).build(),
-        //        oscillator_hz(Waveform::Sine, &freq_hz * 2).build(),
-    ]);
+    let oscillator = oscillator_hz(Waveform::Sine, &freq_hz).build();
     let amp_env = adsr_linear_01(&gate).release_s(0.5).build();
     let filter_env = adsr_linear_01(&gate)
         .attack_s(0.01)
