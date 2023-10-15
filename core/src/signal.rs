@@ -365,6 +365,16 @@ impl Signal<f64> {
     }
 }
 
+impl Signal<u8> {
+    pub fn midi_index_to_freq_hz_a440(&self) -> Signal<f64> {
+        self.map(crate::music::freq_hz_of_midi_index)
+    }
+
+    pub fn midi_index_to_freq_a440(&self) -> Signal<Freq> {
+        sfreq_hz(self.midi_index_to_freq_hz_a440())
+    }
+}
+
 #[derive(Clone)]
 pub struct Trigger(Sbool);
 

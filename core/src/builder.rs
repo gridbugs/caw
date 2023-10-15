@@ -482,7 +482,67 @@ pub mod loopers {
         }
     }
 
+    pub struct ClockedMidiNoteMonophonicLooperBuilder {
+        clock: Option<Trigger>,
+        input_gate: Option<Gate>,
+        input_midi_index: Option<Su8>,
+        clear: Option<Gate>,
+        length: Option<usize>,
+    }
+
+    impl ClockedMidiNoteMonophonicLooperBuilder {
+        pub fn new() -> Self {
+            Self {
+                clock: None,
+                input_gate: None,
+                input_midi_index: None,
+                clear: None,
+                length: None,
+            }
+        }
+
+        pub fn clock(mut self, clock: impl Into<Trigger>) -> Self {
+            self.clock = Some(clock.into());
+            self
+        }
+
+        pub fn input_gate(mut self, input_gate: impl Into<Gate>) -> Self {
+            self.input_gate = Some(input_gate.into());
+            self
+        }
+
+        pub fn input_midi_index(mut self, input_midi_index: impl Into<Su8>) -> Self {
+            self.input_midi_index = Some(input_midi_index.into());
+            self
+        }
+
+        pub fn clear(mut self, clear: impl Into<Gate>) -> Self {
+            self.clear = Some(clear.into());
+            self
+        }
+
+        pub fn length(mut self, length: usize) -> Self {
+            self.length = Some(length.into());
+            self
+        }
+
+        pub fn build(self) -> (Gate, Su8) {
+            ClockedMidiNoteMonophonicLooper {
+                clock: self.clock.unwrap_or_else(|| Trigger::never()),
+                input_gate: self.input_gate.unwrap_or_else(|| Gate::never()),
+                input_midi_index: self.input_midi_index.unwrap_or_else(|| const_(0)),
+                clear: self.clear.unwrap_or_else(|| Gate::never()),
+                length: self.length.unwrap_or(8),
+            }
+            .signal()
+        }
+    }
+
     pub fn clocked_trigger_looper() -> ClockedTriggerLooperBuilder {
         ClockedTriggerLooperBuilder::new()
+    }
+
+    pub fn clocked_midi_note_monophonic_looper() -> ClockedMidiNoteMonophonicLooperBuilder {
+        ClockedMidiNoteMonophonicLooperBuilder::new()
     }
 }
