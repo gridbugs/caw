@@ -14,7 +14,7 @@ fn midi_index_by_key() -> Vec<(Key, u8)> {
 fn midi_index_by_key_bass() -> Vec<(Key, u8)> {
     use Key::*;
     let bottom_row_base = Note::new(NoteName::C, 2).to_midi_index();
-    let bottom_row = vec![R, N5, T, N6, Y, U, N8, I, N9, O, N0, P];
+    let bottom_row = vec![R, N5, T, N6, Y, U, N8, I, N9, O, N0, P, LeftBracket];
     bottom_row
         .into_iter()
         .enumerate()
