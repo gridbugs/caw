@@ -95,7 +95,9 @@ impl WindowBuilder {
 
     pub fn build(self) -> Window {
         Window {
-            title: self.title.unwrap_or_else(|| "Ibis Synthesizer".to_string()),
+            title: self
+                .title
+                .unwrap_or_else(|| "Currawong Synthesizer".to_string()),
             width_px: self.width_px.unwrap_or(960),
             height_px: self.height_px.unwrap_or(720),
             stable: self.stable.unwrap_or(false),
