@@ -32,15 +32,22 @@ impl ClockedTriggerLooper {
                 if remove.sample(ctx) {
                     sequence[next_index] = false;
                 }
-                // this is set here to prevent the drum sounding twice the first time it's pressed
+                // Set the output before updating the sequence. The sound plays when a key is
+                // pressed, and on the clock pulse imediately after we don't want to play the sound
+                // a second time. Setting the output here prevents this.
                 output = sequence[next_index];
                 if samples_since_last_add < samples_since_last_clock_pulse / 2 {
                     sequence[next_index] = true;
-                } else if samples_since_last_add < samples_since_last_clock_pulse {
-                    sequence[(next_index + length - 1) % length] = true;
-                } else if add.sample(ctx) {
-                    sequence[next_index] = true;
-                    output = true;
+                } else {
+                    if samples_since_last_add < samples_since_last_clock_pulse {
+                        sequence[(next_index + length - 1) % length] = true;
+                    }
+                    if add.sample(ctx) {
+                        sequence[next_index] = true;
+                        // Explicitly set the output here. When holding a button we fill the
+                        // sequence on each clock tick and also play the sound.
+                        output = true;
+                    }
                 }
                 samples_since_last_clock_pulse = 0;
                 next_index = (next_index + 1) % length;
