@@ -181,7 +181,11 @@ fn bass_voice(gate: Gate, midi_index: Su8, filter: Sf64) -> Sf64 {
         mk_pulse(&(&freq_hz * (1 + 0.47 / &freq_hz))) * 0.5,
     ])
     .filter(low_pass_butterworth(&freq_hz * 8).build());
-    let env = adsr_linear_01(gate).build();
+    let env = adsr_linear_01(gate)
+        .attack_s(0.1)
+        .release_s(1.0)
+        .build()
+        .exp_01(-1.0);
     let osc_filtered = osc
         .filter(
             low_pass_moog_ladder(env * freq_hz * 64 * (filter + 0.01))

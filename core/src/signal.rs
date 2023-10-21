@@ -298,19 +298,28 @@ impl Signal<bool> {
 }
 
 impl Signal<f64> {
-    /// The function f(x) = exp(k * (x - a)) - b
+    /// The function f(x) =
+    ///   k > 0  => exp(k * (x - a)) - b
+    ///   k == 0 => x
+    ///   k < 0  => -(ln(x + b) / k) + a
     /// ...where a and b are chosen so that f(0) = 0 and f(1) = 1.
     /// The k parameter controls how sharp the curve is.
-    /// It approaches a linear function as k approaches 0.
-    /// k = 0 is special cased as a linear function for convenience.
-    pub fn exp_01(&self, k: f64) -> Self {
-        if k == 0.0 {
-            self.clone()
-        } else {
-            let b = 1.0 / k.exp_m1();
-            let a = -b.ln() / k;
-            self.map(move |x| (k * (x - a)).exp() - b)
-        }
+    /// The functions when k != 0 are inverses of each other and both approach linearity as k
+    /// approaches 0.
+    pub fn exp_01(&self, k: impl Into<Sf64>) -> Self {
+        let k = k.into();
+        self.map_ctx(move |x, ctx| {
+            let k = k.sample(ctx);
+            let b = 1.0 / k.abs().exp_m1();
+            let a = -b.ln() / k.abs();
+            if k > 0.0 {
+                (k * (x - a)).exp() - b
+            } else if k < 0.0 {
+                -((x + b).ln() / k) + a
+            } else {
+                x
+            }
+        })
     }
 
     pub fn signed_to_01(&self) -> Self {
