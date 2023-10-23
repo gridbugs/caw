@@ -21,6 +21,7 @@ pub struct MidiVoiceRaw {
     pub gate: Gate,
 }
 
+#[derive(Clone)]
 pub struct MidiVoice {
     pub note_freq: Sfreq,
     pub velocity_01: Sf64,
@@ -68,22 +69,36 @@ impl MidiControllerTable {
         self.values_01[i as usize].clone()
     }
 
+    pub fn volume(&self) -> Sf64 {
+        self.get_01(7)
+    }
+
     pub fn modulation(&self) -> Sf64 {
         self.get_01(1)
     }
 }
 
-pub struct MidiPlayerRaw {
+const NUM_MIDI_CHANNELS: usize = 16;
+
+pub struct MidiChannelRaw {
     pub voices: Vec<MidiVoiceRaw>,
     pub controllers: MidiControllerTableRaw,
     pub pitch_bend: Signal<u14>,
 }
 
-pub struct MidiPlayer {
+pub struct MidiPlayerRaw {
+    pub channels: Vec<MidiChannelRaw>,
+}
+
+pub struct MidiChannel {
     pub voices: Vec<MidiVoice>,
     pub controllers: MidiControllerTable,
     pub pitch_bend_1: Sf64,
     pub pitch_bend_multiplier: Sf64,
+}
+
+pub struct MidiPlayer {
+    pub channels: Vec<MidiChannel>,
 }
 
 #[derive(Clone, Copy, PartialEq, Eq)]
@@ -267,112 +282,131 @@ impl MidiEventSource for TrackEventSource {
 }
 
 impl MidiPlayerRaw {
-    pub fn new(
-        channel: u4,
-        polyphony: usize,
-        mut event_source: impl MidiEventSource + 'static,
-    ) -> Self {
-        let state = Rc::new(RefCell::new(MidiPlayerRawState {
-            voices: (0..polyphony)
-                .map(|_| MidiPlayerRawStateVoice {
-                    note_index: 0.into(),
-                    velocity: 0.into(),
-                    gate: GateState::Released,
-                    last_change_tick: 0,
+    pub fn new(polyphony: usize, mut event_source: impl MidiEventSource + 'static) -> Self {
+        let states = Rc::new(RefCell::new(
+            (0..NUM_MIDI_CHANNELS)
+                .map(|_| MidiPlayerRawState {
+                    voices: (0..polyphony)
+                        .map(|_| MidiPlayerRawStateVoice {
+                            note_index: 0.into(),
+                            velocity: 0.into(),
+                            gate: GateState::Released,
+                            last_change_tick: 0,
+                        })
+                        .collect(),
+                    controllers: (0..128).map(|_| u7::new(0)).collect(),
+                    pitch_bend: u14::new(0x2000),
+                    current_tick: 0,
                 })
-                .collect(),
-            controllers: (0..128).map(|_| u7::new(0)).collect(),
-            pitch_bend: u14::new(0x2000),
-            current_tick: 0,
-        }));
+                .collect::<Vec<_>>(),
+        ));
         let effectful_signal = Signal::from_fn({
-            let state = Rc::clone(&state);
+            let states = Rc::clone(&states);
             move |ctx| {
-                let mut state = state.borrow_mut();
-                state.progress_gates();
+                let mut states = states.borrow_mut();
+                for state in states.iter_mut() {
+                    state.progress_gates();
+                }
                 event_source.for_each_new_event(ctx, |event| {
-                    if event.channel == channel {
-                        use MidiMessage::*;
-                        match event.message {
-                            NoteOn { key, vel } => state.note_on(key, vel),
-                            NoteOff { key, vel: _ } => state.note_off(key),
-                            PitchBend {
-                                bend: PitchBend(pitch_bend),
-                            } => state.pitch_bend = pitch_bend,
-                            Controller { controller, value } => {
-                                state.controllers[controller.as_int() as usize] = value;
-                            }
-                            _ => (),
+                    let state = &mut states[event.channel.as_int() as usize];
+                    use MidiMessage::*;
+                    match event.message {
+                        NoteOn { key, vel } => state.note_on(key, vel),
+                        NoteOff { key, vel: _ } => state.note_off(key),
+                        PitchBend {
+                            bend: PitchBend(pitch_bend),
+                        } => state.pitch_bend = pitch_bend,
+                        Controller { controller, value } => {
+                            state.controllers[controller.as_int() as usize] = value;
                         }
+                        _ => (),
                     }
                 });
-                state.current_tick += 1;
+                for state in states.iter_mut() {
+                    state.current_tick += 1;
+                }
             }
         });
-        let voices = (0..polyphony)
-            .map(|i| {
-                let note_index = Signal::from_fn({
-                    let state = Rc::clone(&state);
-                    let effectful_signal = effectful_signal.clone();
-                    move |ctx| {
-                        effectful_signal.sample(ctx);
-                        state.borrow().voices[i].note_index
-                    }
-                });
-                let velocity = Signal::from_fn({
-                    let state = Rc::clone(&state);
-                    let effectful_signal = effectful_signal.clone();
-                    move |ctx| {
-                        effectful_signal.sample(ctx);
-                        state.borrow().voices[i].velocity
-                    }
-                });
-                let gate = Gate::from_fn({
-                    let state = Rc::clone(&state);
-                    let effectful_signal = effectful_signal.clone();
-                    move |ctx| {
-                        effectful_signal.sample(ctx);
-                        let gate_state = state.borrow().voices[i].gate;
-                        gate_state == GateState::Pressed
-                    }
-                });
-                MidiVoiceRaw {
-                    note_index,
-                    velocity,
-                    gate,
-                }
-            })
-            .collect::<Vec<_>>();
-        let controllers = MidiControllerTableRaw {
-            values: (0..128)
-                .map(|i| {
-                    Signal::from_fn({
-                        let state = Rc::clone(&state);
-                        let effectful_signal = effectful_signal.clone();
-                        move |ctx| {
-                            effectful_signal.sample(ctx);
-                            state.borrow().controllers[i]
+        let channels = (0..NUM_MIDI_CHANNELS)
+            .map(|channel_i| {
+                let voices = (0..polyphony)
+                    .map(|i| {
+                        let note_index = Signal::from_fn({
+                            let states = Rc::clone(&states);
+                            let effectful_signal = effectful_signal.clone();
+                            move |ctx| {
+                                effectful_signal.sample(ctx);
+                                states.borrow()[channel_i].voices[i].note_index
+                            }
+                        });
+                        let velocity = Signal::from_fn({
+                            let states = Rc::clone(&states);
+                            let effectful_signal = effectful_signal.clone();
+                            move |ctx| {
+                                effectful_signal.sample(ctx);
+                                states.borrow()[channel_i].voices[i].velocity
+                            }
+                        });
+                        let gate = Gate::from_fn({
+                            let states = Rc::clone(&states);
+                            let effectful_signal = effectful_signal.clone();
+                            move |ctx| {
+                                effectful_signal.sample(ctx);
+                                let gate_state = states.borrow()[channel_i].voices[i].gate;
+                                gate_state == GateState::Pressed
+                            }
+                        });
+                        MidiVoiceRaw {
+                            note_index,
+                            velocity,
+                            gate,
                         }
                     })
-                })
-                .collect(),
-        };
-        let pitch_bend = Signal::from_fn({
-            let state = Rc::clone(&state);
-            let effectful_signal = effectful_signal.clone();
-            move |ctx| {
-                effectful_signal.sample(ctx);
-                state.borrow().pitch_bend
-            }
-        });
-        Self {
-            voices,
-            controllers,
-            pitch_bend,
-        }
+                    .collect::<Vec<_>>();
+                let controllers = MidiControllerTableRaw {
+                    values: (0..128)
+                        .map(|i| {
+                            Signal::from_fn({
+                                let states = Rc::clone(&states);
+                                let effectful_signal = effectful_signal.clone();
+                                move |ctx| {
+                                    effectful_signal.sample(ctx);
+                                    states.borrow()[channel_i].controllers[i]
+                                }
+                            })
+                        })
+                        .collect(),
+                };
+                let pitch_bend = Signal::from_fn({
+                    let states = Rc::clone(&states);
+                    let effectful_signal = effectful_signal.clone();
+                    move |ctx| {
+                        effectful_signal.sample(ctx);
+                        states.borrow()[channel_i].pitch_bend
+                    }
+                });
+                MidiChannelRaw {
+                    voices,
+                    controllers,
+                    pitch_bend,
+                }
+            })
+            .collect();
+        Self { channels }
     }
 
     pub fn to_player(&self) -> MidiPlayer {
+        let channels = self
+            .channels
+            .iter()
+            .map(|channel_raw| channel_raw.to_channel())
+            .collect();
+        MidiPlayer { channels }
+    }
+}
+
+impl MidiChannelRaw {
+    fn to_channel(&self) -> MidiChannel {
         let pitch_bend_1 = self
             .pitch_bend
             .map(|x| ((x.as_int() as i32 - 0x2000) as f64 * 2.0) / 0x3FFF as f64);
@@ -380,7 +414,7 @@ impl MidiPlayerRaw {
             let max_ratio = music::semitone_ratio(2.0);
             move |x| max_ratio.powf(x)
         });
-        MidiPlayer {
+        MidiChannel {
             voices: self.voices.iter().map(|v| v.to_voice()).collect(),
             controllers: self.controllers.to_controller_table(),
             pitch_bend_1,
@@ -390,12 +424,8 @@ impl MidiPlayerRaw {
 }
 
 impl MidiPlayer {
-    pub fn new(
-        channel: u4,
-        polyphony: usize,
-        event_source: impl MidiEventSource + 'static,
-    ) -> Self {
-        MidiPlayerRaw::new(channel, polyphony, event_source).to_player()
+    pub fn new(polyphony: usize, event_source: impl MidiEventSource + 'static) -> Self {
+        MidiPlayerRaw::new(polyphony, event_source).to_player()
     }
 }
 

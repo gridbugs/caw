@@ -47,7 +47,7 @@ fn make_voice(
     controllers: &MidiControllerTable,
     serial_controllers: &MidiControllerTable,
 ) -> Sf64 {
-    let velocity_01 = velocity_01.filter(low_pass_butterworth(10.0).build());
+    let velocity_01 = velocity_01.exp_01(-2.0);
     let Effects {
         high_pass_filter_cutoff,
         low_pass_filter_cutoff,

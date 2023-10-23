@@ -27,14 +27,13 @@ impl MidiFile {
     pub fn track_player(
         &self,
         track_index: usize,
-        channel: u8,
         polyphony: usize,
         default_s_per_beat: f64,
     ) -> anyhow::Result<MidiPlayer> {
         if let Some(events) = self.smf.tracks.get(track_index) {
             let event_source =
                 TrackEventSource::new(events, self.smf.header.timing, default_s_per_beat);
-            Ok(MidiPlayer::new(channel.into(), polyphony, event_source))
+            Ok(MidiPlayer::new(polyphony, event_source))
         } else {
             anyhow::bail!(
                 "Track index {} is out of range (there are {} tracks)",
@@ -73,15 +72,10 @@ impl MidiLive {
             })
     }
 
-    pub fn into_player(
-        self,
-        port_index: usize,
-        channel: u8,
-        polyphony: usize,
-    ) -> anyhow::Result<MidiPlayer> {
+    pub fn into_player(self, port_index: usize, polyphony: usize) -> anyhow::Result<MidiPlayer> {
         let event_source =
             MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
-        Ok(MidiPlayer::new(channel.into(), polyphony, event_source))
+        Ok(MidiPlayer::new(polyphony, event_source))
     }
 
     pub fn into_player_monophonic(
@@ -175,9 +169,9 @@ impl MidiLiveSerial {
         Ok(())
     }
 
-    pub fn into_player(self, channel: u8, polyphony: usize) -> MidiPlayer {
+    pub fn into_player(self, polyphony: usize) -> MidiPlayer {
         let event_source = MidiLiveSerialEventSource::new(self);
-        MidiPlayer::new(channel.into(), polyphony, event_source)
+        MidiPlayer::new(polyphony, event_source)
     }
 }
 
