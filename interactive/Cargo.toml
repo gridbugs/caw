@@ -51,3 +51,6 @@ name = "car_sound"
 
 [[example]]
 name = "drum_machine"
+
+[[example]]
+name = "sample_playback"
