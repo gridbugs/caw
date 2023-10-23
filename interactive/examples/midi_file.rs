@@ -18,6 +18,7 @@ fn make_voice(
         note_freq,
         velocity_01,
         gate,
+        ..
     }: MidiVoice,
 ) -> Sf64 {
     let note_freq_hz = sfreq_to_hz(note_freq);
@@ -47,7 +48,7 @@ struct Args {
 fn main() -> anyhow::Result<()> {
     let args = Args::parse();
     let midi_file = MidiFile::read(args.name).unwrap();
-    let MidiPlayer { channels } = midi_file.track_player(0, 128, 1.0).unwrap();
+    let MidiPlayer { channels } = midi_file.track_player(0, 12, 1.0).unwrap();
     let signal = channels[0]
         .voices
         .iter()

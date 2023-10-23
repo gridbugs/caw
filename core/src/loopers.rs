@@ -1,4 +1,4 @@
-pub use crate::signal::*;
+use crate::signal::*;
 
 pub struct ClockedTriggerLooper {
     pub clock: Trigger,

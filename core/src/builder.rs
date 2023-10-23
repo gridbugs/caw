@@ -431,7 +431,7 @@ pub mod filter {
 pub mod loopers {
     use crate::{
         loopers::*,
-        signal::{Gate, Trigger},
+        signal::{const_, Gate, Su8, Trigger},
     };
 
     pub struct ClockedTriggerLooperBuilder {
@@ -544,5 +544,37 @@ pub mod loopers {
 
     pub fn clocked_midi_note_monophonic_looper() -> ClockedMidiNoteMonophonicLooperBuilder {
         ClockedMidiNoteMonophonicLooperBuilder::new()
+    }
+}
+
+pub mod sampler {
+    pub use crate::sampler::{Sample, Sampler};
+    use crate::signal::{Sf64, Trigger};
+
+    pub struct SamplerBuilder<'a> {
+        sample: &'a Sample,
+        trigger: Option<Trigger>,
+    }
+
+    impl<'a> SamplerBuilder<'a> {
+        pub fn new(sample: &'a Sample) -> Self {
+            Self {
+                sample,
+                trigger: None,
+            }
+        }
+
+        pub fn trigger(mut self, trigger: impl Into<Trigger>) -> Self {
+            self.trigger = Some(trigger.into());
+            self
+        }
+
+        pub fn build(self) -> Sf64 {
+            Sampler::new(self.sample, self.trigger.unwrap_or_else(Trigger::never)).signal()
+        }
+    }
+
+    pub fn sampler(sample: &Sample) -> SamplerBuilder {
+        SamplerBuilder::new(sample)
     }
 }

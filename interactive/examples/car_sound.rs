@@ -30,8 +30,9 @@ fn make_voice(
         note_freq,
         velocity_01,
         gate,
+        ..
     }: MidiVoice,
-    pitch_bend_multiplier: impl Into<Sf64>,
+    pitch_bend_multiplier_hz: impl Into<Sf64>,
     controllers: &MidiControllerTable,
     serial_controllers: &MidiControllerTable,
 ) -> Sf64 {
@@ -47,7 +48,7 @@ fn make_voice(
     let velocity_01 = velocity_01.filter(low_pass_butterworth(10.0).build());
     let note_freq_hz = sfreq_to_hz(note_freq)
         .filter(low_pass_butterworth(0.2 + detune * 4.0).build())
-        * pitch_bend_multiplier.into()
+        * pitch_bend_multiplier_hz.into()
         * 2;
     let lfo2 = oscillator_hz(Waveform::Sine, (&note_freq_hz / semitone_ratio(19.0)) / 4.0)
         .build()
@@ -142,17 +143,17 @@ fn main() -> anyhow::Result<()> {
         } => {
             let MidiPlayerMonophonic {
                 voice,
-                pitch_bend_multiplier,
+                pitch_bend_multiplier_hz,
                 controllers,
                 ..
             } = midi_live.into_player_monophonic(midi_port, 0).unwrap();
-            let MidiPlayer {
+            let MidiChannel {
                 controllers: serial_controllers,
                 ..
-            } = MidiLiveSerial::new(serial_port, serial_baud)?.into_player(0, 0);
+            } = MidiLiveSerial::new(serial_port, serial_baud)?.into_player_single_channel(0, 0);
             let signal = make_voice(
                 voice,
-                &pitch_bend_multiplier,
+                &pitch_bend_multiplier_hz,
                 &controllers,
                 &serial_controllers,
             )

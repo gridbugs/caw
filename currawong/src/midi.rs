@@ -78,6 +78,17 @@ impl MidiLive {
         Ok(MidiPlayer::new(polyphony, event_source))
     }
 
+    pub fn into_player_single_channel(
+        self,
+        channel: u8,
+        port_index: usize,
+        polyphony: usize,
+    ) -> anyhow::Result<MidiChannel> {
+        let MidiPlayer { channels } = self.into_player(port_index, polyphony)?;
+        let channel = channels[channel as usize].clone();
+        Ok(channel)
+    }
+
     pub fn into_player_monophonic(
         self,
         port_index: usize,
@@ -172,6 +183,11 @@ impl MidiLiveSerial {
     pub fn into_player(self, polyphony: usize) -> MidiPlayer {
         let event_source = MidiLiveSerialEventSource::new(self);
         MidiPlayer::new(polyphony, event_source)
+    }
+
+    pub fn into_player_single_channel(self, channel: u8, polyphony: usize) -> MidiChannel {
+        let MidiPlayer { channels } = self.into_player(polyphony);
+        channels[channel as usize].clone()
     }
 }
 

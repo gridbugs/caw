@@ -23,6 +23,7 @@ pub struct MidiVoiceRaw {
 
 #[derive(Clone)]
 pub struct MidiVoice {
+    pub note_index: Signal<u8>,
     pub note_freq: Sfreq,
     pub velocity_01: Sf64,
     pub gate: Gate,
@@ -35,6 +36,7 @@ fn signal_u7_to_01(s: &Signal<u7>) -> Sf64 {
 impl MidiVoiceRaw {
     pub fn to_voice(&self) -> MidiVoice {
         MidiVoice {
+            note_index: self.note_index.map(|i| i.as_int()),
             note_freq: self
                 .note_index
                 .map(|i| Freq::from_hz(music::freq_hz_of_midi_index(i.as_int()))),
@@ -48,6 +50,7 @@ pub struct MidiControllerTableRaw {
     values: Vec<Signal<u7>>,
 }
 
+#[derive(Clone)]
 pub struct MidiControllerTable {
     values_01: Vec<Sf64>,
 }
@@ -90,11 +93,12 @@ pub struct MidiPlayerRaw {
     pub channels: Vec<MidiChannelRaw>,
 }
 
+#[derive(Clone)]
 pub struct MidiChannel {
     pub voices: Vec<MidiVoice>,
     pub controllers: MidiControllerTable,
     pub pitch_bend_1: Sf64,
-    pub pitch_bend_multiplier: Sf64,
+    pub pitch_bend_multiplier_hz: Sf64,
 }
 
 pub struct MidiPlayer {
@@ -410,7 +414,7 @@ impl MidiChannelRaw {
         let pitch_bend_1 = self
             .pitch_bend
             .map(|x| ((x.as_int() as i32 - 0x2000) as f64 * 2.0) / 0x3FFF as f64);
-        let pitch_bend_multiplier = pitch_bend_1.map({
+        let pitch_bend_multiplier_hz = pitch_bend_1.map({
             let max_ratio = music::semitone_ratio(2.0);
             move |x| max_ratio.powf(x)
         });
@@ -418,7 +422,7 @@ impl MidiChannelRaw {
             voices: self.voices.iter().map(|v| v.to_voice()).collect(),
             controllers: self.controllers.to_controller_table(),
             pitch_bend_1,
-            pitch_bend_multiplier,
+            pitch_bend_multiplier_hz,
         }
     }
 }
@@ -439,7 +443,7 @@ pub struct MidiPlayerMonophonic {
     pub voice: MidiVoice,
     pub controllers: MidiControllerTable,
     pub pitch_bend_1: Sf64,
-    pub pitch_bend_multiplier: Sf64,
+    pub pitch_bend_multiplier_hz: Sf64,
 }
 
 struct MidiPlayerMonophonicRawStateNote {
@@ -592,7 +596,7 @@ impl MidiPlayerMonophonicRaw {
         let pitch_bend_1 = self
             .pitch_bend
             .map(|x| ((x.as_int() as i32 - 0x2000) as f64 * 2.0) / 0x3FFF as f64);
-        let pitch_bend_multiplier = pitch_bend_1.map({
+        let pitch_bend_multiplier_hz = pitch_bend_1.map({
             let max_ratio = music::semitone_ratio(2.0);
             move |x| max_ratio.powf(x)
         });
@@ -600,7 +604,7 @@ impl MidiPlayerMonophonicRaw {
             voice: self.voice.to_voice(),
             controllers: self.controllers.to_controller_table(),
             pitch_bend_1,
-            pitch_bend_multiplier,
+            pitch_bend_multiplier_hz,
         }
     }
 }

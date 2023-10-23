@@ -6,11 +6,12 @@ fn make_voice(
         note_freq,
         velocity_01,
         gate,
+        ..
     }: MidiVoice,
-    pitch_bend_multiplier: impl Into<Sf64>,
+    pitch_bend_multiplier_hz: impl Into<Sf64>,
     controllers: &MidiControllerTable,
 ) -> Sf64 {
-    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
+    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier_hz.into();
     let osc = sum([
         oscillator_hz(Waveform::Saw, &note_freq_hz).build(),
         oscillator_hz(Waveform::Saw, &note_freq_hz * 1.01).build(),
@@ -71,15 +72,16 @@ fn main() -> anyhow::Result<()> {
             }
         }
         Commands::Play { midi_port } => {
-            let MidiPlayer {
+            let MidiPlayer { channels } = midi_live.into_player(midi_port, 8).unwrap();
+            let MidiChannel {
                 voices,
-                pitch_bend_multiplier,
+                pitch_bend_multiplier_hz,
                 controllers,
                 ..
-            } = midi_live.into_player(midi_port, 0, 8).unwrap();
+            } = channels[0].clone();
             let signal = voices
                 .into_iter()
-                .map(|voice| make_voice(voice, &pitch_bend_multiplier, &controllers))
+                .map(|voice| make_voice(voice, &pitch_bend_multiplier_hz, &controllers))
                 .sum::<Sf64>()
                 .filter(saturate().scale(1.0).threshold(1.0).build());
             run(signal)?;

@@ -298,6 +298,10 @@ impl Signal<bool> {
 }
 
 impl Signal<f64> {
+    pub fn clamp_non_negative(&self) -> Self {
+        self.map(|x| x.max(0.0))
+    }
+
     /// The function f(x) =
     ///   k > 0  => exp(k * (x - a)) - b
     ///   k == 0 => x
@@ -374,6 +378,15 @@ impl Signal<f64> {
     }
 }
 
+impl Signal<Freq> {
+    pub fn hz(&self) -> Sf64 {
+        self.map(|s| s.hz)
+    }
+    pub fn s(&self) -> Sf64 {
+        self.map(|s| s.s())
+    }
+}
+
 impl Signal<u8> {
     pub fn midi_index_to_freq_hz_a440(&self) -> Signal<f64> {
         self.map(crate::music::freq_hz_of_midi_index)
@@ -401,6 +414,10 @@ impl Trigger {
 
     pub fn to_gate(&self) -> Gate {
         self.0.to_gate()
+    }
+
+    pub fn and_fn_ctx<F: FnMut(&SignalCtx) -> bool + 'static>(&self, mut f: F) -> Self {
+        Self(self.0.map_ctx(move |value, ctx| value && f(ctx)))
     }
 
     pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {

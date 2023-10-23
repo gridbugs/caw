@@ -42,8 +42,9 @@ fn make_voice(
         note_freq,
         velocity_01,
         gate,
+        ..
     }: MidiVoice,
-    pitch_bend_multiplier: impl Into<Sf64>,
+    pitch_bend_multiplier_hz: impl Into<Sf64>,
     controllers: &MidiControllerTable,
     serial_controllers: &MidiControllerTable,
 ) -> Sf64 {
@@ -63,7 +64,7 @@ fn make_voice(
         sustain,
         release,
     } = Effects::new(controllers, serial_controllers);
-    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier.into();
+    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier_hz.into();
     let waveform = Waveform::Saw;
     let osc = mean([
         oscillator_hz(waveform, &note_freq_hz)
@@ -164,22 +165,23 @@ fn main() -> anyhow::Result<()> {
             serial_port,
             serial_baud,
         } => {
-            let MidiPlayer {
+            let MidiPlayer { channels } = midi_live.into_player(midi_port, 8).unwrap();
+            let MidiChannel {
                 voices,
-                pitch_bend_multiplier,
+                pitch_bend_multiplier_hz,
                 controllers,
                 ..
-            } = midi_live.into_player(midi_port, 0, 8).unwrap();
-            let MidiPlayer {
+            } = channels[0].clone();
+            let MidiChannel {
                 controllers: serial_controllers,
                 ..
-            } = MidiLiveSerial::new(serial_port, serial_baud)?.into_player(0, 0);
+            } = MidiLiveSerial::new(serial_port, serial_baud)?.into_player_single_channel(0, 0);
             let signal = voices
                 .into_iter()
                 .map(|voice| {
                     make_voice(
                         voice,
-                        &pitch_bend_multiplier,
+                        &pitch_bend_multiplier_hz,
                         &controllers,
                         &serial_controllers,
                     )
