@@ -49,12 +49,12 @@ fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf
     let env = adsr_linear_01(&gate)
         .decay_s(0.5)
         .sustain_01(0.5)
-        .release_s(1.0)
+        .release_s(10.0)
         .build()
         .exp_01(2.0);
     let lfo_env = adsr_linear_01(&gate)
-        .attack_s(2.0)
-        .release_s(1.0)
+        .attack_s(1.0)
+        .release_s(5.0)
         .build()
         .exp_01(4.0);
     oscillator

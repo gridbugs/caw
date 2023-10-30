@@ -188,7 +188,7 @@ fn bass_voice(gate: Gate, midi_index: Su8, filter: Sf64) -> Sf64 {
         .exp_01(-1.0);
     let osc_filtered = osc
         .filter(
-            low_pass_moog_ladder(env * freq_hz * 64 * (filter + 0.01))
+            low_pass_moog_ladder(env * freq_hz * 128 * (filter + 0.01))
                 .resonance(1.0)
                 .build(),
         )
