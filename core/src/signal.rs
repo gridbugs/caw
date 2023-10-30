@@ -298,6 +298,13 @@ impl Signal<bool> {
 }
 
 impl Signal<f64> {
+    pub fn max(&self, rhs: impl Into<Sf64>) -> Self {
+        self.both(&rhs.into()).map(|(x, y)| x.max(y))
+    }
+    pub fn min(&self, rhs: impl Into<Sf64>) -> Self {
+        self.both(&rhs.into()).map(|(x, y)| x.min(y))
+    }
+
     pub fn clamp_non_negative(&self) -> Self {
         self.map(|x| x.max(0.0))
     }

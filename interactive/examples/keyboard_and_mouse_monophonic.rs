@@ -2,7 +2,7 @@ use currawong_interactive::prelude::*;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;
-    let top_row_base = Note::new(NoteName::A, 4).to_midi_index();
+    let top_row_base = Note::new(NoteName::A, 2).to_midi_index();
     let top_row = vec![
         N1,
         Q,
@@ -26,7 +26,7 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
         Equals,
         RightBracket,
     ];
-    let bottom_row_base = Note::new(NoteName::B, 3).to_midi_index();
+    let bottom_row_base = Note::new(NoteName::B, 1).to_midi_index();
     let bottom_row = vec![Z, X, D, C, F, V, B, H, N, J, M, K, Comma, Period];
     top_row
         .into_iter()
@@ -42,23 +42,30 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
 }
 
 fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
-    let freq_hz = freq_hz.filter(low_pass_butterworth(5.0).build());
-    let oscillator = oscillator_hz(Waveform::Sine, &freq_hz).build();
-    let amp_env = adsr_linear_01(&gate).release_s(0.5).build();
-    let filter_env = adsr_linear_01(&gate)
-        .attack_s(0.01)
-        .decay_s(0.1)
-        .sustain_01(0.6)
-        .release_s(0.5)
-        .build();
+    let lfo = oscillator_hz(Waveform::Sine, 128.0 * effect_y)
+        .build()
+        .signed_to_01();
+    let oscillator = oscillator_hz(Waveform::Saw, &freq_hz).build();
+    let env = adsr_linear_01(&gate)
+        .decay_s(0.5)
+        .sustain_01(0.5)
+        .release_s(1.0)
+        .build()
+        .exp_01(2.0);
+    let lfo_env = adsr_linear_01(&gate)
+        .attack_s(2.0)
+        .release_s(1.0)
+        .build()
+        .exp_01(4.0);
     oscillator
         .filter(
-            low_pass_moog_ladder(&filter_env * 8000.0 * effect_x)
-                .resonance(effect_y * 8.0)
-                .build(),
+            low_pass_moog_ladder(
+                (env * (20000.0 - (lfo * lfo_env * 20000.0 * effect_x))).clamp_non_negative(),
+            )
+            .resonance(1.3)
+            .build(),
         )
-        .mul_lazy(&amp_env)
-        .force_lazy(&filter_env)
+        .map(|x| (x * 8.0).tanh())
 }
 
 fn voice(input: Input) -> Sf64 {
@@ -126,6 +133,6 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = voice(window.input()).filter(echo().time_s(0.2).scale(0.6).build());
+    let signal = voice(window.input());
     window.play(signal * 0.1)
 }

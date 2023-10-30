@@ -75,7 +75,7 @@ impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
             None,
         )?;
         stream.play()?;
-        let buffer_padding = core.config.sample_rate.0 as u64 / 20;
+        let buffer_padding = core.config.sample_rate.0 as u64 / 40;
         Ok(Self {
             core,
             buffer_padding,
