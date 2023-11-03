@@ -70,18 +70,15 @@ fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf6
 }
 
 fn voice(input: Input) -> Sf64 {
-    freq_hz_by_gate()
-        .into_iter()
-        .map(|(key, freq_hz)| {
-            single_voice(
-                freq_hz,
-                input.key(key),
-                input.x_01().clone(),
-                input.y_01().clone(),
-            )
-        })
-        .sum::<Sf64>()
-        .filter(saturate().scale(2.0).min(-1.0).max(2.0).build())
+    sum_parallel(freq_hz_by_gate().into_iter().map(|(key, freq_hz)| {
+        single_voice(
+            freq_hz,
+            input.key(key),
+            input.x_01().clone(),
+            input.y_01().clone(),
+        )
+    }))
+    .filter(saturate().scale(2.0).min(-1.0).max(2.0).build())
 }
 
 fn main() -> anyhow::Result<()> {

@@ -9,8 +9,8 @@ macro_rules! impl_binary_op {
         // applying the operator pairwise between two signals
         impl<T> $trait for Signal<T>
         where
-            T: $trait + Clone + 'static,
-            <T as $trait>::Output: Clone,
+            T: $trait + Clone + Send + 'static,
+            <T as $trait>::Output: Clone + Send,
         {
             type Output = Signal<<T as $trait>::Output>;
 
@@ -22,8 +22,8 @@ macro_rules! impl_binary_op {
         // applying the operator pairwise between two signals (lhs is a reference)
         impl<T> $trait<Signal<T>> for &Signal<T>
         where
-            T: $trait + Clone + 'static,
-            <T as $trait>::Output: Clone,
+            T: $trait + Clone + Send + 'static,
+            <T as $trait>::Output: Clone + Send,
         {
             type Output = Signal<<T as $trait>::Output>;
 
@@ -35,8 +35,8 @@ macro_rules! impl_binary_op {
         // applying the operator pairwise between two signals (rhs is a reference)
         impl<T> $trait<&Signal<T>> for Signal<T>
         where
-            T: $trait + Clone + 'static,
-            <T as $trait>::Output: Clone,
+            T: $trait + Clone + Send + 'static,
+            <T as $trait>::Output: Clone + Send,
         {
             type Output = Signal<<T as $trait>::Output>;
 
@@ -48,8 +48,8 @@ macro_rules! impl_binary_op {
         // applying the operator pairwise between two references to signals
         impl<T> $trait<&Signal<T>> for &Signal<T>
         where
-            T: $trait + Clone + 'static,
-            <T as $trait>::Output: Clone,
+            T: $trait + Clone + Send + 'static,
+            <T as $trait>::Output: Clone + Send,
         {
             type Output = Signal<<T as $trait>::Output>;
 
@@ -61,8 +61,8 @@ macro_rules! impl_binary_op {
         // applying the operator between the signal and a scalar
         impl<T> $trait<T> for Signal<T>
         where
-            T: $trait + Copy + 'static,
-            <T as $trait>::Output: Clone,
+            T: $trait + Copy + Send + 'static,
+            <T as $trait>::Output: Clone + Send,
         {
             type Output = Signal<<T as $trait>::Output>;
             fn $fn(self, rhs: T) -> Self::Output {
@@ -73,8 +73,8 @@ macro_rules! impl_binary_op {
         // applying the operator between a reference to the signal and a scalar
         impl<T> $trait<T> for &Signal<T>
         where
-            T: $trait + Copy + 'static,
-            <T as $trait>::Output: Clone,
+            T: $trait + Copy + Send + 'static,
+            <T as $trait>::Output: Clone + Send,
         {
             type Output = Signal<<T as $trait>::Output>;
             fn $fn(self, rhs: T) -> Self::Output {
@@ -85,7 +85,7 @@ macro_rules! impl_binary_op {
         // implement assignment trait
         impl<T> $trait_assign for Signal<T>
         where
-            T: $trait<Output = T> + Clone + 'static,
+            T: $trait<Output = T> + Clone + Send + 'static,
         {
             fn $fn_assign(&mut self, rhs: Self) {
                 *self = (&*self).$fn(rhs);
@@ -95,7 +95,7 @@ macro_rules! impl_binary_op {
         // implement assignment trait for references
         impl<T> $trait_assign<&Self> for Signal<T>
         where
-            T: $trait<Output = T> + Clone + 'static,
+            T: $trait<Output = T> + Clone + Send + 'static,
         {
             fn $fn_assign(&mut self, rhs: &Self) {
                 *self = (&*self).$fn(rhs);

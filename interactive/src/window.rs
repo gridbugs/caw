@@ -127,7 +127,7 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn play_mut<T: Clone + ToF32 + 'static>(
+    pub fn play_mut<T: Clone + ToF32 + Send + 'static>(
         &self,
         signal: &mut Signal<T>,
     ) -> anyhow::Result<()> {
@@ -209,7 +209,10 @@ impl Window {
         Ok(())
     }
 
-    pub fn play<T: Clone + ToF32 + 'static>(&self, mut signal: Signal<T>) -> anyhow::Result<()> {
+    pub fn play<T: Clone + ToF32 + Send + 'static>(
+        &self,
+        mut signal: Signal<T>,
+    ) -> anyhow::Result<()> {
         self.play_mut(&mut signal)
     }
 

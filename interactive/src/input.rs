@@ -1,6 +1,6 @@
 use crate::signal::{Gate, Sf64, Signal};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Key {
@@ -213,15 +213,15 @@ impl Input {
 }
 
 pub struct InputState {
-    keyboard: KeyboardGeneric<Rc<RefCell<bool>>>,
-    mouse: MouseGeneric<Rc<RefCell<f64>>, Rc<RefCell<bool>>>,
+    keyboard: KeyboardGeneric<Arc<Mutex<bool>>>,
+    mouse: MouseGeneric<Arc<Mutex<f64>>, Arc<Mutex<bool>>>,
 }
 
 impl InputState {
     pub fn new() -> Self {
-        let mk_key = || Rc::new(RefCell::new(false));
-        let mk_position = || Rc::new(RefCell::new(0.0));
-        let mk_button = || Rc::new(RefCell::new(false));
+        let mk_key = || Arc::new(Mutex::new(false));
+        let mk_position = || Arc::new(Mutex::new(0.0));
+        let mk_button = || Arc::new(Mutex::new(false));
         Self {
             keyboard: KeyboardGeneric {
                 a: mk_key(),
@@ -329,12 +329,12 @@ impl InputState {
             Scancode::Slash => &self.keyboard.slash,
             _ => return,
         };
-        *key_state.borrow_mut() = pressed;
+        *key_state.lock().unwrap() = pressed;
     }
 
     pub fn set_mouse_position(&self, x_01: f64, y_01: f64) {
-        *self.mouse.x_01.borrow_mut() = x_01;
-        *self.mouse.y_01.borrow_mut() = y_01;
+        *self.mouse.x_01.lock().unwrap() = x_01;
+        *self.mouse.y_01.lock().unwrap() = y_01;
     }
 
     pub fn set_mouse_button(&self, mouse_button: SdlMouseButton, pressed: bool) {
@@ -344,25 +344,25 @@ impl InputState {
             SdlMouseButton::Middle => &self.mouse.middle,
             _ => return,
         };
-        *button_state.borrow_mut() = pressed;
+        *button_state.lock().unwrap() = pressed;
     }
 
     pub fn keyboard(&self) -> Keyboard {
         self.keyboard.map(|key| {
-            let key = Rc::clone(key);
-            Gate::from_fn(move |_| *key.borrow())
+            let key = Arc::clone(key);
+            Gate::from_fn(move |_| *key.lock().unwrap())
         })
     }
 
     pub fn mouse(&self) -> Mouse {
         self.mouse.map(
             |position| {
-                let position = Rc::clone(position);
-                Signal::from_fn(move |_| *position.borrow())
+                let position = Arc::clone(position);
+                Signal::from_fn(move |_| *position.lock().unwrap())
             },
             |button| {
-                let button = Rc::clone(button);
-                Gate::from_fn(move |_| *button.borrow())
+                let button = Arc::clone(button);
+                Gate::from_fn(move |_| *button.lock().unwrap())
             },
         )
     }

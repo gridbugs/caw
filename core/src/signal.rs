@@ -1,5 +1,5 @@
 use rand::{rngs::StdRng, Rng, SeedableRng};
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy, PartialEq)]
 pub struct Freq {
@@ -62,6 +62,7 @@ pub fn noise_01() -> Sf64 {
 pub struct SignalCtx {
     pub sample_index: u64,
     pub sample_rate_hz: f64,
+    pub num_threads: usize,
 }
 
 /// Low-level interface for signals
@@ -86,13 +87,13 @@ pub fn raw_fn<T, F: FnMut(&SignalCtx) -> T>(f: F) -> SignalRawFn<T, F> {
 /// most once per frame. It is "unshared" in the sense that it owns the `SignalRaw` instance that
 /// it is wrapping.
 struct SignalUnshared<T> {
-    signal: Box<dyn SignalRaw<T>>,
+    signal: Box<dyn SignalRaw<T> + Send>,
     buffered_sample: Option<T>,
     next_sample_index: u64,
 }
 
 impl<T: Clone> SignalUnshared<T> {
-    fn new<S: SignalRaw<T> + 'static>(signal: S) -> Self {
+    fn new<S: SignalRaw<T> + Send + 'static>(signal: S) -> Self {
         Self {
             signal: Box::new(signal),
             buffered_sample: None,
@@ -123,33 +124,42 @@ impl<T: Clone> SignalUnshared<T> {
 /// A shared caching layer around an implementation of `SignalRaw<T>` which makes sure that the
 /// `SignalRaw`'s `sample` method is only called at most once per frame. Its `Clone` implementation
 /// is a shallow clone that creates a shared reference to the same underlying signal.
-pub struct Signal<T>(Rc<RefCell<SignalUnshared<T>>>);
+pub struct Signal<T> {
+    buffered_signal: Arc<Mutex<SignalUnshared<T>>>,
+}
 
-impl<T: Clone + 'static> Clone for Signal<T> {
+impl<T: Clone + Send + 'static> Clone for Signal<T> {
     fn clone(&self) -> Self {
-        Self(Rc::clone(&self.0))
+        Self {
+            buffered_signal: Arc::clone(&self.buffered_signal),
+        }
     }
 }
 
-impl<T: Clone + 'static> Signal<T> {
-    pub fn new<S: SignalRaw<T> + 'static>(signal: S) -> Self {
-        Self(Rc::new(RefCell::new(SignalUnshared::new(signal))))
+impl<T: Clone + Send + 'static> Signal<T> {
+    pub fn new<S: SignalRaw<T> + Send + 'static>(signal: S) -> Self {
+        Self {
+            buffered_signal: Arc::new(Mutex::new(SignalUnshared::new(signal))),
+        }
     }
 
-    pub fn from_fn<F: FnMut(&SignalCtx) -> T + 'static>(f: F) -> Self {
+    pub fn from_fn<F: FnMut(&SignalCtx) -> T + Send + 'static>(f: F) -> Self {
         Self::new(raw_fn(f))
     }
 
     pub fn sample(&self, ctx: &SignalCtx) -> T {
-        self.0.borrow_mut().sample(ctx)
+        self.buffered_signal.lock().unwrap().sample(ctx)
     }
 
-    pub fn map<U: Clone + 'static, F: FnMut(T) -> U + 'static>(&self, mut f: F) -> Signal<U> {
+    pub fn map<U: Clone + Send + 'static, F: FnMut(T) -> U + Send + 'static>(
+        &self,
+        mut f: F,
+    ) -> Signal<U> {
         let signal = self.clone();
         Signal::from_fn(move |ctx| f(signal.sample(ctx)))
     }
 
-    pub fn map_ctx<U: Clone + 'static, F: FnMut(T, &SignalCtx) -> U + 'static>(
+    pub fn map_ctx<U: Clone + Send + 'static, F: FnMut(T, &SignalCtx) -> U + Send + 'static>(
         &self,
         mut f: F,
     ) -> Signal<U> {
@@ -157,7 +167,7 @@ impl<T: Clone + 'static> Signal<T> {
         Signal::from_fn(move |ctx| f(signal.sample(ctx), ctx))
     }
 
-    pub fn both<U: Clone + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
+    pub fn both<U: Clone + Send + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
         let signal = self.clone();
         let other = other.clone();
         Signal::from_fn(move |ctx| {
@@ -167,14 +177,14 @@ impl<T: Clone + 'static> Signal<T> {
         })
     }
 
-    pub fn filter<F: Filter<Input = T> + 'static>(&self, mut filter: F) -> Signal<F::Output>
+    pub fn filter<F: Filter<Input = T> + Send + 'static>(&self, mut filter: F) -> Signal<F::Output>
     where
-        F::Output: Clone + 'static,
+        F::Output: Clone + Send + 'static,
     {
         self.map_ctx(move |x, ctx| filter.run(x, ctx))
     }
 
-    pub fn debug<F: FnMut(T) + 'static>(&self, mut f: F) -> Self {
+    pub fn debug<F: FnMut(T) + Send + 'static>(&self, mut f: F) -> Self {
         self.map(move |x| {
             f(x.clone());
             x
@@ -183,7 +193,7 @@ impl<T: Clone + 'static> Signal<T> {
 
     /// Force the evaluation of a signal, inoring its value. Use when laziness would otherwise
     /// prevent the evaluation of a signal.
-    pub fn force<U, SL: SignalLike<U> + Clone + 'static>(&self, other: &SL) -> Self {
+    pub fn force<U, SL: SignalLike<U> + Clone + Send + 'static>(&self, other: &SL) -> Self {
         let other = other.clone();
         let signal = self.clone();
         Signal::from_fn(move |ctx| {
@@ -193,7 +203,7 @@ impl<T: Clone + 'static> Signal<T> {
     }
 }
 
-impl<T: Clone + std::fmt::Debug + 'static> Signal<T> {
+impl<T: Clone + std::fmt::Debug + Send + 'static> Signal<T> {
     pub fn debug_print(&self) -> Self {
         self.debug(|x| println!("{:?}", x))
     }
@@ -205,7 +215,7 @@ pub type Sf32 = Signal<f32>;
 pub type Sbool = Signal<bool>;
 pub type Su8 = Signal<u8>;
 
-pub fn const_<T: Copy + 'static>(value: T) -> Signal<T> {
+pub fn const_<T: Copy + Send + 'static>(value: T) -> Signal<T> {
     Signal::from_fn(move |_| value)
 }
 
@@ -365,7 +375,7 @@ impl Signal<f64> {
     /// completing its release if the volume envelope release completes first. This creates a
     /// problem when the released key is pressed a second time, the effect envelope generator will
     /// be at a non-zero state, so the full effect of its attack will be lost.
-    pub fn force_lazy<SL: SignalLike<f64> + Clone + 'static>(&self, other: &SL) -> Self {
+    pub fn force_lazy<SL: SignalLike<f64> + Clone + Send + 'static>(&self, other: &SL) -> Self {
         let other = other.clone();
         let signal = self.clone();
         let mut stopped = false;
@@ -423,11 +433,11 @@ impl Trigger {
         self.0.to_gate()
     }
 
-    pub fn and_fn_ctx<F: FnMut(&SignalCtx) -> bool + 'static>(&self, mut f: F) -> Self {
+    pub fn and_fn_ctx<F: FnMut(&SignalCtx) -> bool + Send + 'static>(&self, mut f: F) -> Self {
         Self(self.0.map_ctx(move |value, ctx| value && f(ctx)))
     }
 
-    pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {
+    pub fn debug<F: FnMut(bool) + Send + 'static>(&self, f: F) -> Self {
         self.to_signal().debug(f).to_trigger_raw()
     }
 
@@ -462,7 +472,7 @@ impl Gate {
         self.0.to_trigger_rising_edge()
     }
 
-    pub fn debug<F: FnMut(bool) + 'static>(&self, f: F) -> Self {
+    pub fn debug<F: FnMut(bool) + Send + 'static>(&self, f: F) -> Self {
         self.to_signal().debug(f).to_gate()
     }
 
@@ -470,7 +480,7 @@ impl Gate {
         self.to_signal().debug_print().to_gate()
     }
 
-    pub fn from_fn<F: FnMut(&SignalCtx) -> bool + 'static>(f: F) -> Self {
+    pub fn from_fn<F: FnMut(&SignalCtx) -> bool + Send + 'static>(f: F) -> Self {
         Self(Signal::new(raw_fn(f)))
     }
 }
@@ -502,6 +512,24 @@ pub fn sum(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
     out
 }
 
+pub fn sum_parallel(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
+    let signals = signals.into_iter().collect::<Vec<_>>();
+    Signal::from_fn(move |ctx| {
+        use rayon::prelude::*;
+        signals
+            // add 1 to avoid a small chunk for the remainder
+            .par_chunks((signals.len() / ctx.num_threads) + 1)
+            .map(|signals| {
+                let mut sum = 0.0;
+                for signal in signals {
+                    sum += signal.sample(ctx);
+                }
+                sum
+            })
+            .sum()
+    })
+}
+
 pub fn mean(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
     let mut out = const_(0.0);
     let mut count = 0;
@@ -516,7 +544,7 @@ pub trait SignalLike<T> {
     fn sample(&self, ctx: &SignalCtx) -> T;
 }
 
-impl<T: Clone + 'static> SignalLike<T> for Signal<T> {
+impl<T: Clone + Send + 'static> SignalLike<T> for Signal<T> {
     fn sample(&self, ctx: &SignalCtx) -> T {
         Signal::sample(self, ctx)
     }
@@ -534,7 +562,7 @@ impl SignalLike<bool> for Gate {
     }
 }
 
-impl<T: Clone + 'static> From<&Signal<T>> for Signal<T> {
+impl<T: Clone + Send + 'static> From<&Signal<T>> for Signal<T> {
     fn from(value: &Signal<T>) -> Self {
         value.clone()
     }

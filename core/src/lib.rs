@@ -35,8 +35,8 @@ pub mod prelude {
         oscillator::Waveform,
         sampler::{Sample, Sampler},
         signal::{
-            const_, mean, noise, noise_01, sfreq_hz, sfreq_s, sfreq_to_hz, sfreq_to_s, sum, Freq,
-            Gate, Sf64, Sfreq, Signal, Su8, Trigger,
+            const_, mean, noise, noise_01, sfreq_hz, sfreq_s, sfreq_to_hz, sfreq_to_s, sum,
+            sum_parallel, Freq, Gate, Sf64, Sfreq, Signal, Su8, Trigger,
         },
     };
 }

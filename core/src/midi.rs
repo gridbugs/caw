@@ -7,7 +7,7 @@ pub use midly::{
     MidiMessage,
 };
 use midly::{MetaMessage, PitchBend, Timing, TrackEvent, TrackEventKind};
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, Mutex};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MidiEvent {
@@ -286,8 +286,8 @@ impl MidiEventSource for TrackEventSource {
 }
 
 impl MidiPlayerRaw {
-    pub fn new(polyphony: usize, mut event_source: impl MidiEventSource + 'static) -> Self {
-        let states = Rc::new(RefCell::new(
+    pub fn new(polyphony: usize, mut event_source: impl MidiEventSource + Send + 'static) -> Self {
+        let states = Arc::new(Mutex::new(
             (0..NUM_MIDI_CHANNELS)
                 .map(|_| MidiPlayerRawState {
                     voices: (0..polyphony)
@@ -305,9 +305,9 @@ impl MidiPlayerRaw {
                 .collect::<Vec<_>>(),
         ));
         let effectful_signal = Signal::from_fn({
-            let states = Rc::clone(&states);
+            let states = Arc::clone(&states);
             move |ctx| {
-                let mut states = states.borrow_mut();
+                let mut states = states.lock().unwrap();
                 for state in states.iter_mut() {
                     state.progress_gates();
                 }
@@ -336,27 +336,27 @@ impl MidiPlayerRaw {
                 let voices = (0..polyphony)
                     .map(|i| {
                         let note_index = Signal::from_fn({
-                            let states = Rc::clone(&states);
+                            let states = Arc::clone(&states);
                             let effectful_signal = effectful_signal.clone();
                             move |ctx| {
                                 effectful_signal.sample(ctx);
-                                states.borrow()[channel_i].voices[i].note_index
+                                states.lock().unwrap()[channel_i].voices[i].note_index
                             }
                         });
                         let velocity = Signal::from_fn({
-                            let states = Rc::clone(&states);
+                            let states = Arc::clone(&states);
                             let effectful_signal = effectful_signal.clone();
                             move |ctx| {
                                 effectful_signal.sample(ctx);
-                                states.borrow()[channel_i].voices[i].velocity
+                                states.lock().unwrap()[channel_i].voices[i].velocity
                             }
                         });
                         let gate = Gate::from_fn({
-                            let states = Rc::clone(&states);
+                            let states = Arc::clone(&states);
                             let effectful_signal = effectful_signal.clone();
                             move |ctx| {
                                 effectful_signal.sample(ctx);
-                                let gate_state = states.borrow()[channel_i].voices[i].gate;
+                                let gate_state = states.lock().unwrap()[channel_i].voices[i].gate;
                                 gate_state == GateState::Pressed
                             }
                         });
@@ -371,22 +371,22 @@ impl MidiPlayerRaw {
                     values: (0..128)
                         .map(|i| {
                             Signal::from_fn({
-                                let states = Rc::clone(&states);
+                                let states = Arc::clone(&states);
                                 let effectful_signal = effectful_signal.clone();
                                 move |ctx| {
                                     effectful_signal.sample(ctx);
-                                    states.borrow()[channel_i].controllers[i]
+                                    states.lock().unwrap()[channel_i].controllers[i]
                                 }
                             })
                         })
                         .collect(),
                 };
                 let pitch_bend = Signal::from_fn({
-                    let states = Rc::clone(&states);
+                    let states = Arc::clone(&states);
                     let effectful_signal = effectful_signal.clone();
                     move |ctx| {
                         effectful_signal.sample(ctx);
-                        states.borrow()[channel_i].pitch_bend
+                        states.lock().unwrap()[channel_i].pitch_bend
                     }
                 });
                 MidiChannelRaw {
@@ -428,7 +428,7 @@ impl MidiChannelRaw {
 }
 
 impl MidiPlayer {
-    pub fn new(polyphony: usize, event_source: impl MidiEventSource + 'static) -> Self {
+    pub fn new(polyphony: usize, event_source: impl MidiEventSource + Send + 'static) -> Self {
         MidiPlayerRaw::new(polyphony, event_source).to_player()
     }
 }
@@ -517,14 +517,14 @@ impl MidiPlayerMonophonicRawState {
 }
 
 impl MidiPlayerMonophonicRaw {
-    pub fn new(channel: u4, mut event_source: impl MidiEventSource + 'static) -> Self {
-        let state = Rc::new(RefCell::new(MidiPlayerMonophonicRawState::new()));
+    pub fn new(channel: u4, mut event_source: impl MidiEventSource + Send + 'static) -> Self {
+        let state = Arc::new(Mutex::new(MidiPlayerMonophonicRawState::new()));
         let effectful_signal = Signal::from_fn({
-            let state = Rc::clone(&state);
+            let state = Arc::clone(&state);
             move |ctx| {
                 event_source.for_each_new_event(ctx, |event| {
                     if event.channel == channel {
-                        let mut state = state.borrow_mut();
+                        let mut state = state.lock().unwrap();
                         use MidiMessage::*;
                         match event.message {
                             NoteOn { key, vel: velocity } => {
@@ -551,11 +551,11 @@ impl MidiPlayerMonophonicRaw {
             }
         });
         let voice_components = Signal::from_fn({
-            let state = Rc::clone(&state);
+            let state = Arc::clone(&state);
             let effectful_signal = effectful_signal.clone();
             move |ctx| {
                 effectful_signal.sample(ctx);
-                state.borrow().voice_components()
+                state.lock().unwrap().voice_components()
             }
         });
         let voice = MidiVoiceRaw {
@@ -567,22 +567,22 @@ impl MidiPlayerMonophonicRaw {
             values: (0..128)
                 .map(|i| {
                     Signal::from_fn({
-                        let state = Rc::clone(&state);
+                        let state = Arc::clone(&state);
                         let effectful_signal = effectful_signal.clone();
                         move |ctx| {
                             effectful_signal.sample(ctx);
-                            state.borrow().controllers[i]
+                            state.lock().unwrap().controllers[i]
                         }
                     })
                 })
                 .collect(),
         };
         let pitch_bend = Signal::from_fn({
-            let state = Rc::clone(&state);
+            let state = Arc::clone(&state);
             let effectful_signal = effectful_signal.clone();
             move |ctx| {
                 effectful_signal.sample(ctx);
-                state.borrow().pitch_bend
+                state.lock().unwrap().pitch_bend
             }
         });
         Self {
@@ -610,7 +610,7 @@ impl MidiPlayerMonophonicRaw {
 }
 
 impl MidiPlayerMonophonic {
-    pub fn new(channel: u4, event_source: impl MidiEventSource + 'static) -> Self {
+    pub fn new(channel: u4, event_source: impl MidiEventSource + Send + 'static) -> Self {
         MidiPlayerMonophonicRaw::new(channel, event_source).to_player()
     }
 }
