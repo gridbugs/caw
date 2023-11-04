@@ -54,3 +54,6 @@ name = "drum_machine"
 
 [[example]]
 name = "sample_playback"
+
+[[example]]
+name = "diy_square_wave"
