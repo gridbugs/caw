@@ -85,16 +85,16 @@ pub fn raw_fn<T, F: FnMut(&SignalCtx) -> T>(f: F) -> SignalRawFn<T, F> {
 /// Caching layer around a `SignalRaw` which makes sure that its `sample` method is only called at
 /// most once per frame. It is "unshared" in the sense that it owns the `SignalRaw` instance that
 /// it is wrapping.
-struct SignalUnshared<T> {
-    signal: Box<dyn SignalRaw<T>>,
+struct SignalUnshared<T, S: SignalRaw<T>> {
+    signal: S,
     buffered_sample: Option<T>,
     next_sample_index: u64,
 }
 
-impl<T: Clone> SignalUnshared<T> {
-    fn new<S: SignalRaw<T> + 'static>(signal: S) -> Self {
+impl<T: Clone, S: SignalRaw<T>> SignalUnshared<T, S> {
+    fn new(signal: S) -> Self {
         Self {
-            signal: Box::new(signal),
+            signal,
             buffered_sample: None,
             next_sample_index: 0,
         }
@@ -120,10 +120,16 @@ impl<T: Clone> SignalUnshared<T> {
     }
 }
 
+impl<T: Clone, S: SignalRaw<T>> SignalRaw<T> for SignalUnshared<T, S> {
+    fn sample(&mut self, ctx: &SignalCtx) -> T {
+        SignalUnshared::sample(self, ctx)
+    }
+}
+
 /// A shared caching layer around an implementation of `SignalRaw<T>` which makes sure that the
 /// `SignalRaw`'s `sample` method is only called at most once per frame. Its `Clone` implementation
 /// is a shallow clone that creates a shared reference to the same underlying signal.
-pub struct Signal<T>(Rc<RefCell<SignalUnshared<T>>>);
+pub struct Signal<T>(Rc<RefCell<dyn SignalRaw<T>>>);
 
 impl<T: Clone + 'static> Clone for Signal<T> {
     fn clone(&self) -> Self {
