@@ -1,4 +1,5 @@
 use crate::signal::{Gate, Sf64, Signal};
+use std::cell::Cell;
 
 pub struct AdsrLinear01 {
     pub gate: Gate,
@@ -26,11 +27,12 @@ impl AdsrLinear01 {
     }
 
     pub fn signal(self) -> Sf64 {
-        let mut current_value = 0.0;
-        let mut crossed_threshold = false;
+        let current = Cell::new(0.0);
+        let crossed_threshold = Cell::new(false);
         Signal::from_fn(move |ctx| {
+            let mut current_value = current.get();
             if self.gate.sample(ctx) {
-                if crossed_threshold {
+                if crossed_threshold.get() {
                     // decay and sustain
                     current_value = (current_value
                         - (1.0 / (self.decay_s.sample(ctx) * ctx.sample_rate_hz as f64)))
@@ -41,16 +43,17 @@ impl AdsrLinear01 {
                         + (1.0 / (self.attack_s.sample(ctx) * ctx.sample_rate_hz as f64)))
                         .min(1.0);
                     if current_value == 1.0 {
-                        crossed_threshold = true;
+                        crossed_threshold.set(true);
                     }
                 }
             } else {
                 // release
-                crossed_threshold = false;
+                crossed_threshold.set(false);
                 current_value = (current_value
                     - (1.0 / (self.release_s.sample(ctx) * ctx.sample_rate_hz as f64)))
                     .max(0.0);
             }
+            current.set(current_value);
             current_value
         })
     }

@@ -33,7 +33,7 @@ impl SignalPlayer {
         })
     }
 
-    pub fn send_signal_with_callback<T: Clone + ToF32 + 'static, F: FnMut(f32)>(
+    pub fn send_signal_with_callback<T: Copy + Default + ToF32 + 'static, F: FnMut(f32)>(
         &mut self,
         signal: &mut Signal<T>,
         mut f: F,
@@ -51,11 +51,14 @@ impl SignalPlayer {
         });
     }
 
-    pub fn send_signal<T: Clone + ToF32 + 'static>(&mut self, signal: &mut Signal<T>) {
+    pub fn send_signal<T: Copy + Default + ToF32 + 'static>(&mut self, signal: &mut Signal<T>) {
         self.send_signal_with_callback(signal, |_| ());
     }
 
-    pub fn play_sample_forever<T: Clone + ToF32 + 'static>(&mut self, mut signal: Signal<T>) -> ! {
+    pub fn play_sample_forever<T: Copy + Default + ToF32 + 'static>(
+        &mut self,
+        mut signal: Signal<T>,
+    ) -> ! {
         const PERIOD: Duration = Duration::from_millis(16);
         loop {
             self.send_signal(&mut signal);

@@ -1,8 +1,9 @@
 use crate::signal::{const_, Sf64, Sfreq, Signal, Trigger};
-use std::f64::consts::PI;
+use std::{cell::Cell, f64::consts::PI};
 
-#[derive(Clone, Copy, Debug)]
+#[derive(Default, Clone, Copy, Debug)]
 pub enum Waveform {
+    #[default]
     Sine,
     Saw,
     Triangle,
@@ -25,9 +26,9 @@ pub struct Oscillator {
 
 impl Oscillator {
     pub fn signal(self) -> Sf64 {
-        let mut state_opt = None;
+        let state_opt = Cell::new(None);
         Signal::from_fn(move |ctx| {
-            let state = match state_opt {
+            let state = match state_opt.get() {
                 None => self.reset_offset_01.sample(ctx),
                 Some(state) => {
                     if self.reset_trigger.sample(ctx) {
@@ -40,7 +41,7 @@ impl Oscillator {
             let state_delta = self.freq.sample(ctx).hz() / ctx.sample_rate_hz;
             let try_state = (state + state_delta).rem_euclid(1.0);
             let state = if try_state.is_nan() { state } else { try_state };
-            state_opt = Some(state);
+            state_opt.set(Some(state));
             match self.waveform.sample(ctx) {
                 Waveform::Sine => (state * PI * 2.0).sin(),
                 Waveform::Saw => (state * 2.0) - 1.0,
