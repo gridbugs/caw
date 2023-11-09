@@ -286,7 +286,8 @@ impl MidiEventSource for TrackEventSource {
 }
 
 impl MidiPlayerRaw {
-    pub fn new(polyphony: usize, mut event_source: impl MidiEventSource + 'static) -> Self {
+    pub fn new(polyphony: usize, event_source: impl MidiEventSource + 'static) -> Self {
+        let event_source = RefCell::new(event_source);
         let states = Rc::new(RefCell::new(
             (0..NUM_MIDI_CHANNELS)
                 .map(|_| MidiPlayerRawState {
@@ -311,7 +312,7 @@ impl MidiPlayerRaw {
                 for state in states.iter_mut() {
                     state.progress_gates();
                 }
-                event_source.for_each_new_event(ctx, |event| {
+                event_source.borrow_mut().for_each_new_event(ctx, |event| {
                     let state = &mut states[event.channel.as_int() as usize];
                     use MidiMessage::*;
                     match event.message {
@@ -458,7 +459,7 @@ struct MidiPlayerMonophonicRawState {
     pitch_bend: u14,
 }
 
-#[derive(Clone)]
+#[derive(Clone, Copy, Default)]
 struct MidiPlayerMonophonicRawVoiceComponents {
     note_index: u7,
     velocity: u7,
@@ -517,12 +518,13 @@ impl MidiPlayerMonophonicRawState {
 }
 
 impl MidiPlayerMonophonicRaw {
-    pub fn new(channel: u4, mut event_source: impl MidiEventSource + 'static) -> Self {
+    pub fn new(channel: u4, event_source: impl MidiEventSource + 'static) -> Self {
         let state = Rc::new(RefCell::new(MidiPlayerMonophonicRawState::new()));
+        let event_source = RefCell::new(event_source);
         let effectful_signal = Signal::from_fn({
             let state = Rc::clone(&state);
             move |ctx| {
-                event_source.for_each_new_event(ctx, |event| {
+                event_source.borrow_mut().for_each_new_event(ctx, |event| {
                     if event.channel == channel {
                         let mut state = state.borrow_mut();
                         use MidiMessage::*;

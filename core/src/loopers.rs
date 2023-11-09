@@ -1,4 +1,5 @@
 use crate::signal::*;
+use std::cell::RefCell;
 
 pub struct ClockedTriggerLooper {
     pub clock: Trigger,
@@ -15,44 +16,54 @@ impl ClockedTriggerLooper {
             remove,
             length,
         } = self;
-        let mut sequence = (0..length).map(|_| false).collect::<Vec<_>>();
-        let mut samples_since_last_clock_pulse = 0;
-        let mut samples_since_last_add = 0;
-        let mut next_index = 0;
+        struct State {
+            sequence: Vec<bool>,
+            samples_since_last_clock_pulse: usize,
+            samples_since_last_add: usize,
+            next_index: usize,
+        }
+        let state = RefCell::new(State {
+            sequence: (0..length).map(|_| false).collect::<Vec<_>>(),
+            samples_since_last_clock_pulse: 0,
+            samples_since_last_add: 0,
+            next_index: 0,
+        });
         let add_trigger = add.to_trigger_rising_edge();
         Signal::from_fn(move |ctx| {
+            let mut state = state.borrow_mut();
             let add_this_sample = add_trigger.sample(ctx);
             let mut output = add_this_sample;
             if add_this_sample {
-                samples_since_last_add = 0;
+                state.samples_since_last_add = 0;
             } else {
-                samples_since_last_add += 1;
+                state.samples_since_last_add += 1;
             }
             if clock.sample(ctx) {
+                let next_index = state.next_index;
                 if remove.sample(ctx) {
-                    sequence[next_index] = false;
+                    state.sequence[next_index] = false;
                 }
                 // Set the output before updating the sequence. The sound plays when a key is
                 // pressed, and on the clock pulse imediately after we don't want to play the sound
                 // a second time. Setting the output here prevents this.
-                output = sequence[next_index];
-                if samples_since_last_add < samples_since_last_clock_pulse / 2 {
-                    sequence[next_index] = true;
+                output = state.sequence[next_index];
+                if state.samples_since_last_add < state.samples_since_last_clock_pulse / 2 {
+                    state.sequence[next_index] = true;
                 } else {
-                    if samples_since_last_add < samples_since_last_clock_pulse {
-                        sequence[(next_index + length - 1) % length] = true;
+                    if state.samples_since_last_add < state.samples_since_last_clock_pulse {
+                        state.sequence[(next_index + length - 1) % length] = true;
                     }
                     if add.sample(ctx) {
-                        sequence[next_index] = true;
+                        state.sequence[next_index] = true;
                         // Explicitly set the output here. When holding a button we fill the
                         // sequence on each clock tick and also play the sound.
                         output = true;
                     }
                 }
-                samples_since_last_clock_pulse = 0;
-                next_index = (next_index + 1) % length;
+                state.samples_since_last_clock_pulse = 0;
+                state.next_index = (state.next_index + 1) % length;
             } else {
-                samples_since_last_clock_pulse += 1;
+                state.samples_since_last_clock_pulse += 1;
             }
             output
         })
@@ -86,82 +97,95 @@ impl ClockedMidiNoteMonophonicLooper {
             key_down: bool,
             key_up: bool,
         }
-        let mut sequence = (0..length)
-            .map(|_| Entry {
-                midi_index: 0,
-                key_down: false,
-                key_up: false,
-            })
-            .collect::<Vec<_>>();
-        let mut samples_since_last_clock_pulse = 0;
-        let mut next_index = 0;
-        let mut gate_state = false;
-        let mut tap = false;
-        let mut output = (false, 0);
-        let mut last_period_samples = 0;
+        struct State {
+            sequence: Vec<Entry>,
+            samples_since_last_clock_pulse: usize,
+            next_index: usize,
+            gate_state: bool,
+            tap: bool,
+            output: (bool, u8),
+            last_period_samples: usize,
+        }
+        let state = RefCell::new(State {
+            sequence: (0..length)
+                .map(|_| Entry {
+                    midi_index: 0,
+                    key_down: false,
+                    key_up: false,
+                })
+                .collect::<Vec<_>>(),
+            samples_since_last_clock_pulse: 0,
+            next_index: 0,
+            gate_state: false,
+            tap: false,
+            output: (false, 0),
+            last_period_samples: 0,
+        });
         let combined_signal = Signal::from_fn(move |ctx| {
-            if tap {
-                tap = false;
-                output.0 = false;
+            let mut state = state.borrow_mut();
+            if state.tap {
+                state.tap = false;
+                state.output.0 = false;
             }
-            samples_since_last_clock_pulse += 1;
+            state.samples_since_last_clock_pulse += 1;
             if clock.sample(ctx) {
+                let next_index = state.next_index;
                 if clear.sample(ctx) {
-                    let entry = &mut sequence[next_index];
+                    let entry = &mut state.sequence[next_index];
                     entry.key_down = false;
                     entry.key_up = true;
                 }
                 if input_gate.sample(ctx) {
-                    let entry = &mut sequence[next_index];
+                    let entry = &mut state.sequence[next_index];
                     entry.midi_index = input_midi_index.sample(ctx);
                     entry.key_down = true;
                     entry.key_up = false;
                 }
-                let entry = sequence[next_index];
+                let entry = state.sequence[next_index];
                 if entry.key_down {
-                    output = (true, entry.midi_index);
+                    state.output = (true, entry.midi_index);
                     if entry.key_up {
-                        tap = true;
+                        state.tap = true;
                     }
                 } else {
-                    output.0 = false;
+                    state.output.0 = false;
                 }
-                next_index = (next_index + 1) % length;
-                last_period_samples = samples_since_last_clock_pulse;
-                samples_since_last_clock_pulse = 0;
+                state.next_index = (next_index + 1) % length;
+                state.last_period_samples = state.samples_since_last_clock_pulse;
+                state.samples_since_last_clock_pulse = 0;
             }
             let next_gate_state = input_gate.sample(ctx);
             if next_gate_state {
-                if !gate_state {
+                if !state.gate_state {
                     // key was just pressed
                     let index_to_update =
-                        if samples_since_last_clock_pulse < last_period_samples / 2 {
-                            (next_index + length - 1) % length
+                        if state.samples_since_last_clock_pulse < state.last_period_samples / 2 {
+                            (state.next_index + length - 1) % length
                         } else {
-                            next_index
+                            state.next_index
                         };
-                    let entry = &mut sequence[index_to_update];
+                    let entry = &mut state.sequence[index_to_update];
                     entry.midi_index = input_midi_index.sample(ctx);
                     entry.key_down = true;
                     entry.key_up = false;
                 }
-                output = (true, input_midi_index.sample(ctx));
+                state.output = (true, input_midi_index.sample(ctx));
             } else {
-                if gate_state {
+                if state.gate_state {
                     // key was just released
-                    output = (false, input_midi_index.sample(ctx));
+                    state.output = (false, input_midi_index.sample(ctx));
                     let index_to_update =
-                        if samples_since_last_clock_pulse < last_period_samples / 2 {
-                            (next_index + length - 1) % length
+                        if state.samples_since_last_clock_pulse < state.last_period_samples / 2 {
+                            (state.next_index + length - 1) % length
                         } else {
-                            next_index
+                            state.next_index
                         };
-                    let entry = &mut sequence[index_to_update];
+                    let entry = &mut state.sequence[index_to_update];
                     entry.key_up = true;
                 }
             }
-            gate_state = next_gate_state;
-            output
+            state.gate_state = next_gate_state;
+            state.output
         });
         let gate = combined_signal.map(|s| s.0).to_gate();
         let midi_index = combined_signal.map(|s| s.1);

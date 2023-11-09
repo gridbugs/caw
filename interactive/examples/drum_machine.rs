@@ -1,4 +1,5 @@
 use currawong_interactive::prelude::*;
+use std::cell::RefCell;
 
 fn midi_index_by_key() -> Vec<(Key, u8)> {
     use Key::*;
@@ -78,25 +79,26 @@ fn synth_gate_and_midi_index(input: &Input, keys: &[(Key, u8)]) -> (Gate, Su8) {
         currently_pressed: bool,
         midi_index: u8,
     }
-    let mut state = keys
-        .into_iter()
-        .map(|&(key, midi_index)| {
-            let gate = input.key(key);
-            Entry {
-                gate,
-                last_pressed: 0,
-                currently_pressed: false,
-                midi_index,
-            }
-        })
-        .collect::<Vec<_>>();
+    let state = RefCell::new(
+        keys.into_iter()
+            .map(|&(key, midi_index)| {
+                let gate = input.key(key);
+                Entry {
+                    gate,
+                    last_pressed: 0,
+                    currently_pressed: false,
+                    midi_index,
+                }
+            })
+            .collect::<Vec<_>>(),
+    );
     let midi_index_and_gate_signal = Signal::from_fn(move |ctx| {
         let mut currently_pressed = false;
         let mut midi_index = 0;
         let mut newest_last_pressed = 0;
         let mut midi_index_all = 0;
         let mut newest_last_pressed_all = 0;
-        for entry in state.iter_mut() {
+        for entry in state.borrow_mut().iter_mut() {
             if entry.gate.sample(ctx) {
                 currently_pressed = true;
                 if !entry.currently_pressed {

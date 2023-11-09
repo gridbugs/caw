@@ -1,4 +1,5 @@
 use crate::signal::{Sf64, Signal, Trigger};
+use std::cell::Cell;
 
 #[derive(Clone)]
 pub struct Sample {
@@ -31,16 +32,18 @@ impl Sampler {
     pub fn signal(self) -> Sf64 {
         let Self {
             sample,
-            mut index,
+            index,
             play,
         } = self;
+        let index = Cell::new(index);
         Signal::from_fn(move |ctx| {
             if play.sample(ctx) {
-                index = 0;
+                index.set(0);
             }
-            if index < sample.samples.len() {
-                let output = sample.samples[index];
-                index += 1;
+            let index_value = index.get();
+            if index_value < sample.samples.len() {
+                let output = sample.samples[index_value];
+                index.set(index_value + 1);
                 output
             } else {
                 0.0

@@ -1,4 +1,5 @@
 use currawong_interactive::prelude::*;
+use std::cell::RefCell;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;
@@ -75,25 +76,27 @@ fn voice(input: Input) -> Sf64 {
         currently_pressed: bool,
         freq_hz: f64,
     }
-    let mut state = freq_hz_by_gate()
-        .into_iter()
-        .map(|(key, freq_hz)| {
-            let gate = input.key(key);
-            Entry {
-                gate,
-                last_pressed: 0,
-                currently_pressed: false,
-                freq_hz,
-            }
-        })
-        .collect::<Vec<_>>();
+    let state = RefCell::new(
+        freq_hz_by_gate()
+            .into_iter()
+            .map(|(key, freq_hz)| {
+                let gate = input.key(key);
+                Entry {
+                    gate,
+                    last_pressed: 0,
+                    currently_pressed: false,
+                    freq_hz,
+                }
+            })
+            .collect::<Vec<_>>(),
+    );
     let freq_hz_and_gate = Signal::from_fn(move |ctx| {
         let mut currently_pressed = false;
         let mut freq_hz = 0.0;
         let mut newest_last_pressed = 0;
         let mut freq_hz_all = 0.0;
         let mut newest_last_pressed_all = 0;
-        for entry in state.iter_mut() {
+        for entry in state.borrow_mut().iter_mut() {
             if entry.gate.sample(ctx) {
                 currently_pressed = true;
                 if !entry.currently_pressed {

@@ -1,5 +1,8 @@
 use crate::signal::{Filter, Sf64, SignalCtx, Trigger};
-use std::collections::VecDeque;
+use std::{
+    cell::{Cell, RefCell},
+    collections::VecDeque,
+};
 
 mod biquad_filter {
     // This is based on the filter designs at:
@@ -262,14 +265,14 @@ mod biquad_filter {
     }
 }
 
-pub struct LowPassButterworth(biquad_filter::butterworth::State);
+pub struct LowPassButterworth(RefCell<biquad_filter::butterworth::State>);
 
 impl LowPassButterworth {
     pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-        LowPassButterworth(biquad_filter::butterworth::State {
+        LowPassButterworth(RefCell::new(biquad_filter::butterworth::State {
             half_power_frequency_hz: cutoff_hz.into(),
             buffer: biquad_filter::Buffer::new(1),
-        })
+        }))
     }
 }
 
@@ -277,19 +280,19 @@ impl Filter for LowPassButterworth {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::butterworth::low_pass::run(&mut self.0, input, ctx)
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        biquad_filter::butterworth::low_pass::run(&mut self.0.borrow_mut(), input, ctx)
     }
 }
 
-pub struct HighPassButterworth(biquad_filter::butterworth::State);
+pub struct HighPassButterworth(RefCell<biquad_filter::butterworth::State>);
 
 impl HighPassButterworth {
     pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-        Self(biquad_filter::butterworth::State {
+        Self(RefCell::new(biquad_filter::butterworth::State {
             half_power_frequency_hz: cutoff_hz.into(),
             buffer: biquad_filter::Buffer::new(1),
-        })
+        }))
     }
 }
 
@@ -297,20 +300,20 @@ impl Filter for HighPassButterworth {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::butterworth::high_pass::run(&mut self.0, input, ctx)
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        biquad_filter::butterworth::high_pass::run(&mut self.0.borrow_mut(), input, ctx)
     }
 }
 
-pub struct LowPassChebyshev(biquad_filter::chebyshev::State);
+pub struct LowPassChebyshev(RefCell<biquad_filter::chebyshev::State>);
 
 impl LowPassChebyshev {
     pub fn new(cutoff_hz: impl Into<Sf64>, resonance: impl Into<Sf64>) -> Self {
-        Self(biquad_filter::chebyshev::State {
+        Self(RefCell::new(biquad_filter::chebyshev::State {
             cutoff_hz: cutoff_hz.into(),
             epsilon: resonance.into(),
             buffer: biquad_filter::Buffer::new(1),
-        })
+        }))
     }
 }
 
@@ -318,20 +321,20 @@ impl Filter for LowPassChebyshev {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::chebyshev::low_pass::run(&mut self.0, input, ctx)
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        biquad_filter::chebyshev::low_pass::run(&mut self.0.borrow_mut(), input, ctx)
     }
 }
 
-pub struct HighPassChebyshev(biquad_filter::chebyshev::State);
+pub struct HighPassChebyshev(RefCell<biquad_filter::chebyshev::State>);
 
 impl HighPassChebyshev {
     pub fn new(cutoff_hz: impl Into<Sf64>, resonance: impl Into<Sf64>) -> Self {
-        Self(biquad_filter::chebyshev::State {
+        Self(RefCell::new(biquad_filter::chebyshev::State {
             cutoff_hz: cutoff_hz.into(),
             epsilon: resonance.into(),
             buffer: biquad_filter::Buffer::new(1),
-        })
+        }))
     }
 }
 
@@ -339,14 +342,14 @@ impl Filter for HighPassChebyshev {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::chebyshev::high_pass::run(&mut self.0, input, ctx)
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        biquad_filter::chebyshev::high_pass::run(&mut self.0.borrow_mut(), input, ctx)
     }
 }
 
 mod moog_ladder_low_pass_filter {
     use crate::signal::{Filter, Sf64, SignalCtx};
-    use std::f64::consts::PI;
+    use std::{cell::RefCell, f64::consts::PI};
 
     // This is the Oberheim Variation Model implementation of the Moog Ladder low pass filter. It's
     // based on a reference implementation by Will Pirkle which can be found here:
@@ -464,7 +467,7 @@ mod moog_ladder_low_pass_filter {
     }
 
     pub struct LowPassMoogLadder {
-        state: OberheimVariationMoogState,
+        state: RefCell<OberheimVariationMoogState>,
         cutoff_hz: Sf64,
         resonance: Sf64,
     }
@@ -472,7 +475,7 @@ mod moog_ladder_low_pass_filter {
     impl LowPassMoogLadder {
         pub fn new(cutoff_hz: impl Into<Sf64>, resonance: impl Into<Sf64>) -> Self {
             Self {
-                state: OberheimVariationMoogState::new(),
+                state: RefCell::new(OberheimVariationMoogState::new()),
                 cutoff_hz: cutoff_hz.into(),
                 resonance: resonance.into(),
             }
@@ -483,21 +486,22 @@ mod moog_ladder_low_pass_filter {
         type Input = f64;
         type Output = f64;
 
-        fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
             let cutoff_hz = self.cutoff_hz.sample(ctx);
             let resonance = self.resonance.sample(ctx);
-            if self.state.sample_rate_hz == ctx.sample_rate_hz {
-                if cutoff_hz != self.state.cutoff_hz {
-                    self.state.set_cutoff_hz(cutoff_hz);
+            let mut state = self.state.borrow_mut();
+            if state.sample_rate_hz == ctx.sample_rate_hz {
+                if cutoff_hz != state.cutoff_hz {
+                    state.set_cutoff_hz(cutoff_hz);
                 }
             } else {
-                self.state.sample_rate_hz = ctx.sample_rate_hz;
-                self.state.set_cutoff_hz(cutoff_hz);
+                state.sample_rate_hz = ctx.sample_rate_hz;
+                state.set_cutoff_hz(cutoff_hz);
             }
-            if resonance != self.state.resonance {
-                self.state.set_resonance(resonance);
+            if resonance != state.resonance {
+                state.set_resonance(resonance);
             }
-            self.state.process_sample(input)
+            state.process_sample(input)
         }
     }
 }
@@ -514,7 +518,7 @@ impl Filter for Saturate {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let scale = self.scale.sample(ctx);
         let min = self.min.sample(ctx);
         let max = self.max.sample(ctx);
@@ -523,14 +527,14 @@ impl Filter for Saturate {
 }
 
 pub struct Delay {
-    samples: VecDeque<f64>,
+    samples: RefCell<VecDeque<f64>>,
     time_s: Sf64,
 }
 
 impl Delay {
     pub fn new(time_s: Sf64) -> Self {
         Self {
-            samples: VecDeque::new(),
+            samples: RefCell::new(VecDeque::new()),
             time_s,
         }
     }
@@ -540,16 +544,17 @@ impl Filter for Delay {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let target_size = (self.time_s.sample(ctx) * ctx.sample_rate_hz) as usize;
-        if self.samples.len() < target_size {
-            self.samples.push_back(input);
+        let mut samples = self.samples.borrow_mut();
+        if samples.len() < target_size {
+            samples.push_back(input);
             0.0
         } else {
-            if self.samples.len() == target_size {
-                self.samples.push_back(input);
+            if samples.len() == target_size {
+                samples.push_back(input);
             }
-            self.samples.pop_front().unwrap_or(0.0)
+            samples.pop_front().unwrap_or(0.0)
         }
     }
 }
@@ -557,7 +562,7 @@ impl Filter for Delay {
 pub struct Echo {
     delay: Delay,
     scale: Sf64,
-    previous_sample: f64,
+    previous_sample: Cell<f64>,
 }
 
 impl Echo {
@@ -565,7 +570,7 @@ impl Echo {
         Self {
             delay: Delay::new(delay_s),
             scale,
-            previous_sample: 0.0,
+            previous_sample: Cell::new(0.0),
         }
     }
 }
@@ -574,25 +579,25 @@ impl Filter for Echo {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let scale = self.scale.sample(ctx);
-        let delay_input = (input + self.previous_sample) * scale;
+        let delay_input = (input + self.previous_sample.get()) * scale;
         let delay_output = self.delay.run(delay_input, ctx);
-        self.previous_sample = delay_output;
+        self.previous_sample.set(delay_output);
         input + delay_output
     }
 }
 
 pub struct SampleAndHold {
     trigger: Trigger,
-    sample: f64,
+    sample: Cell<f64>,
 }
 
 impl SampleAndHold {
     pub fn new(trigger: Trigger) -> Self {
         Self {
             trigger,
-            sample: 0.0,
+            sample: Cell::new(0.0),
         }
     }
 }
@@ -601,10 +606,10 @@ impl Filter for SampleAndHold {
     type Input = f64;
     type Output = f64;
 
-    fn run(&mut self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         if self.trigger.sample(ctx) {
-            self.sample = input;
+            self.sample.set(input);
         }
-        self.sample
+        self.sample.get()
     }
 }
