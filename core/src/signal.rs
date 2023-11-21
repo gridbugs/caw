@@ -339,6 +339,19 @@ impl Signal<f64> {
         self.map(|x| 1.0 - x)
     }
 
+    pub fn lazy_zero(&self, control: &Self) -> Self {
+        let signal = self.clone();
+        let control = control.clone();
+        Signal::from_fn(move |ctx| {
+            let control = control.sample(ctx);
+            if control == 0.0 {
+                0.0
+            } else {
+                signal.sample(ctx)
+            }
+        })
+    }
+
     /// Evaluate `by`, and then only evaluate `self` and multiply it by the value of `by` if `by`
     /// is non-zero. Otherwise just return 0.
     pub fn mul_lazy(&self, by: &Self) -> Self {

@@ -4,26 +4,28 @@ use currawong_interactive::prelude::*;
 #[allow(unused)]
 #[derive(Clone)]
 struct Effects {
-    low_pass_filter_cutoff: Sf64,
+    bass_low_pass_filter_cutoff: Sf64,
+    treble_low_pass_filter_cutoff: Sf64,
     low_pass_filter_resonance: Sf64,
     bass_volume: Sf64,
     detune: Sf64,
     release_bass: Sf64,
     release_treble: Sf64,
-    echo_scale: Sf64,
     sustain_bass: Sf64,
+    bitcrush: Sf64,
 }
 
 impl Effects {
     fn new(controllers: &MidiControllerTable, extra_controllers: &MidiControllerTable) -> Self {
         Self {
-            low_pass_filter_cutoff: extra_controllers.get_01(31).inv_01().exp_01(1.0),
+            bass_low_pass_filter_cutoff: extra_controllers.get_01(31).inv_01().exp_01(1.0),
+            treble_low_pass_filter_cutoff: controllers.modulation().inv_01().exp_01(1.0),
             low_pass_filter_resonance: extra_controllers.get_01(32).exp_01(1.0),
+            bitcrush: extra_controllers.get_01(37),
             bass_volume: extra_controllers.get_01(34),
             detune: extra_controllers.get_01(36),
             release_bass: extra_controllers.get_01(33),
             release_treble: extra_controllers.get_01(35),
-            echo_scale: controllers.modulation(),
             sustain_bass: extra_controllers.get_01(38),
         }
     }
@@ -60,20 +62,37 @@ fn treble_voice(
 ) -> Sf64 {
     let velocity_01 = velocity_01.exp_01(-2.0);
     let Effects {
+        treble_low_pass_filter_cutoff,
+        low_pass_filter_resonance,
         detune,
         release_treble,
+        bitcrush,
         ..
     } = effects;
     let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier_hz.into();
     let mkosc = |note_freq_hz| super_saw_osc(note_freq_hz, detune * 0.02, 7, gate.clone());
     let osc = mkosc(note_freq_hz.clone());
     let env = adsr_linear_01(&gate)
-        .attack_s(0.0)
         .release_s(0.1 + release_treble * 20)
         .build()
         .exp_01(-1.0);
-    let filtered_osc = osc.filter(low_pass_moog_ladder(&env * 20000).build());
-    (filtered_osc * velocity_01 * 2.0).mul_lazy(&env)
+    let filtered_osc = osc.filter(
+        low_pass_moog_ladder(&treble_low_pass_filter_cutoff * 20000)
+            .resonance(low_pass_filter_resonance * 2.0)
+            .build(),
+    );
+    (filtered_osc * velocity_01 * &env * 2.0)
+        .both(&bitcrush)
+        .map(|(x, bitcrush)| {
+            if bitcrush == 0.0 {
+                x
+            } else {
+                let scale = 16.0 - (bitcrush * 15.0);
+                let scaled_sample = (x * scale) as i64;
+                scaled_sample as f64 / scale as f64
+            }
+        })
+        .lazy_zero(&env)
 }
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
@@ -95,7 +114,7 @@ fn bass_voice(
     effects: Effects,
 ) -> Sf64 {
     let Effects {
-        low_pass_filter_cutoff,
+        bass_low_pass_filter_cutoff,
         low_pass_filter_resonance,
         bass_volume,
         detune,
@@ -113,7 +132,6 @@ fn bass_voice(
     };
     let osc = mkosc(note_freq_hz) + mkosc(note_freq_hz / 2.0);
     let env = adsr_linear_01(&gate)
-        .attack_s(0.0)
         .decay_s(0.1)
         .sustain_01(sustain_bass)
         .release_s(0.2 + &release_bass * 20)
@@ -124,7 +142,7 @@ fn bass_voice(
         .build()
         .exp_01(1.0);
     let filtered_osc = osc.filter(
-        low_pass_moog_ladder(sum([low_pass_filter_cutoff * 20000.0 * &env]))
+        low_pass_moog_ladder(sum([bass_low_pass_filter_cutoff * 20000.0 * &env]))
             .resonance(low_pass_filter_resonance * 2.0)
             .build(),
     );
