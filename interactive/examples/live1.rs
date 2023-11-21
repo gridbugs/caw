@@ -4,97 +4,76 @@ use currawong_interactive::prelude::*;
 #[allow(unused)]
 #[derive(Clone)]
 struct Effects {
-    high_pass_filter_cutoff: Sf64,
     low_pass_filter_cutoff: Sf64,
     low_pass_filter_resonance: Sf64,
-    lfo_freq: Sf64,
-    lfo_scale: Sf64,
+    bass_volume: Sf64,
     detune: Sf64,
+    release_bass: Sf64,
+    release_treble: Sf64,
     echo_scale: Sf64,
-    sah_freq: Sf64,
-    sah_scale: Sf64,
-    attack: Sf64,
-    decay: Sf64,
-    sustain: Sf64,
-    release: Sf64,
-    pulse_width: Sf64,
-    squareness: Sf64,
+    sustain_bass: Sf64,
 }
 
 impl Effects {
     fn new(controllers: &MidiControllerTable, extra_controllers: &MidiControllerTable) -> Self {
         Self {
-            high_pass_filter_cutoff: extra_controllers.get_01(35).exp_01(1.0),
             low_pass_filter_cutoff: extra_controllers.get_01(31).inv_01().exp_01(1.0),
             low_pass_filter_resonance: extra_controllers.get_01(32).exp_01(1.0),
-            lfo_freq: extra_controllers.get_01(33),
-            lfo_scale: extra_controllers.get_01(34),
+            bass_volume: extra_controllers.get_01(34),
             detune: extra_controllers.get_01(36),
+            release_bass: extra_controllers.get_01(33),
+            release_treble: extra_controllers.get_01(35),
             echo_scale: controllers.modulation(),
-            sah_freq: controllers.get_01(21),
-            sah_scale: controllers.get_01(22),
-            attack: controllers.get_01(25),
-            decay: controllers.get_01(26),
-            sustain: controllers.get_01(27),
-            release: extra_controllers.get_01(35),
-            pulse_width: controllers.get_01(23),
-            squareness: controllers.get_01(24),
+            sustain_bass: extra_controllers.get_01(38),
         }
     }
 }
 
-fn make_voice(
+fn super_saw_osc(freq_hz: Sf64, detune: Sf64, n: usize, gate: Gate) -> Sf64 {
+    let trigger = gate.to_trigger_rising_edge();
+    (0..n)
+        .map(|i| {
+            let delta_hz = ((i + 1) as f64 * &detune) / n as f64;
+            let osc = oscillator_hz(Waveform::Saw, &freq_hz * (1 + &delta_hz))
+                .reset_offset_01(noise_01())
+                .reset_trigger(&trigger)
+                .build()
+                + oscillator_hz(Waveform::Saw, &freq_hz * (1 - &delta_hz))
+                    .reset_offset_01(noise_01())
+                    .reset_trigger(&trigger)
+                    .build();
+            osc / (i as f64 + 1.0)
+        })
+        .sum::<Sf64>()
+        + oscillator_hz(Waveform::Saw, &freq_hz).build()
+}
+
+fn treble_voice(
     MidiVoice {
         note_freq,
-        velocity_01: _,
+        velocity_01,
         gate,
         ..
     }: MidiVoice,
     pitch_bend_multiplier_hz: impl Into<Sf64>,
     effects: Effects,
 ) -> Sf64 {
-    let velocity_01 = 1.0; // velocity_01.exp_01(-2.0);
+    let velocity_01 = velocity_01.exp_01(-2.0);
     let Effects {
-        high_pass_filter_cutoff,
-        low_pass_filter_cutoff,
-        low_pass_filter_resonance,
-        lfo_freq,
-        lfo_scale,
         detune,
-        echo_scale,
-        sah_freq,
-        sah_scale,
-        attack,
-        decay,
-        sustain,
-        release,
-        pulse_width,
-        squareness: _,
+        release_treble,
+        ..
     } = effects;
-    let env = adsr_linear_01(&gate)
-        .attack_s(attack)
-        .decay_s(decay)
-        .sustain_01(sustain)
-        .release_s(release.clone())
-        .build()
-        .exp_01(1.0);
     let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier_hz.into();
-    let detune = detune * 0.01;
-    let mkosc = |note_freq_hz| {
-        sum([
-            oscillator_hz(Waveform::Saw, &note_freq_hz).build(),
-            oscillator_hz(Waveform::Saw, &note_freq_hz * (1.0 + &detune)).build(),
-            oscillator_hz(Waveform::Saw, &note_freq_hz * (1.0 - &detune)).build(),
-        ])
-    };
+    let mkosc = |note_freq_hz| super_saw_osc(note_freq_hz, detune * 0.02, 7, gate.clone());
     let osc = mkosc(note_freq_hz.clone());
-    let amp_env = adsr_linear_01(&gate)
-        .attack_s(0.05)
-        .release_s(release * 20)
+    let env = adsr_linear_01(&gate)
+        .attack_s(0.0)
+        .release_s(0.1 + release_treble * 20)
         .build()
-        .exp_01(1.0);
-    let filtered_osc = osc;
-    filtered_osc.mul_lazy(&amp_env)
+        .exp_01(-1.0);
+    let filtered_osc = osc.filter(low_pass_moog_ladder(&env * 20000).build());
+    (filtered_osc * velocity_01 * 2.0).mul_lazy(&env)
 }
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
@@ -108,38 +87,22 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
         .collect::<Vec<_>>()
 }
 
-fn single_voice(
+fn bass_voice(
     note_freq_hz: f64,
     gate: Gate,
-    effect_x: Sf64,
-    effect_y: Sf64,
+    _effect_x: Sf64,
+    _effect_y: Sf64,
     effects: Effects,
 ) -> Sf64 {
-    let velocity_01 = 1.0; // velocity_01.exp_01(-2.0);
     let Effects {
-        high_pass_filter_cutoff,
         low_pass_filter_cutoff,
         low_pass_filter_resonance,
-        lfo_freq,
-        lfo_scale,
+        bass_volume,
         detune,
-        echo_scale,
-        sah_freq,
-        sah_scale,
-        attack,
-        decay,
-        sustain,
-        release,
-        pulse_width,
-        squareness: _,
+        release_bass,
+        sustain_bass,
+        ..
     } = effects;
-    let env = adsr_linear_01(&gate)
-        .attack_s(attack)
-        .decay_s(decay)
-        .sustain_01(sustain)
-        .release_s(release.clone())
-        .build()
-        .exp_01(1.0);
     let detune = detune * 0.01;
     let mkosc = |note_freq_hz| {
         sum([
@@ -149,24 +112,30 @@ fn single_voice(
         ])
     };
     let osc = mkosc(note_freq_hz) + mkosc(note_freq_hz / 2.0);
+    let env = adsr_linear_01(&gate)
+        .attack_s(0.0)
+        .decay_s(0.1)
+        .sustain_01(sustain_bass)
+        .release_s(0.2 + &release_bass * 20)
+        .build()
+        .exp_01(1.0);
     let amp_env = adsr_linear_01(&gate)
-        .attack_s(0.05)
-        .release_s(release * 20)
+        .release_s(0.2 + &release_bass * 20)
         .build()
         .exp_01(1.0);
     let filtered_osc = osc.filter(
-        low_pass_moog_ladder(sum([low_pass_filter_cutoff * 20000.0 * amp_env]))
+        low_pass_moog_ladder(sum([low_pass_filter_cutoff * 20000.0 * &env]))
             .resonance(low_pass_filter_resonance * 2.0)
             .build(),
     );
-    filtered_osc * lfo_scale * 2.0
+    (filtered_osc * bass_volume * 2.0).mul_lazy(&amp_env)
 }
 
 fn voice(input: Input, effects: Effects) -> Sf64 {
     freq_hz_by_gate()
         .into_iter()
         .map(|(key, freq_hz)| {
-            single_voice(
+            bass_voice(
                 freq_hz,
                 input.key(key),
                 input.x_01().clone(),
@@ -186,7 +155,8 @@ fn run(signal: Sf64, effects: Effects) -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = voice(window.input(), effects) + signal;
+    let signal = voice(window.input(), effects.clone()) + signal;
+    let signal = signal.filter(high_pass_butterworth(20.0).build());
     window.play(signal * 0.1)
 }
 
@@ -226,7 +196,7 @@ fn main() -> anyhow::Result<()> {
             serial_port,
             serial_baud,
         } => {
-            let MidiPlayer { channels } = midi_live.into_player(midi_port, 8).unwrap();
+            let MidiPlayer { channels } = midi_live.into_player(midi_port, 4).unwrap();
             let MidiChannel {
                 voices,
                 pitch_bend_multiplier_hz,
@@ -240,7 +210,7 @@ fn main() -> anyhow::Result<()> {
             let effects = Effects::new(&controllers, &serial_controllers);
             let signal = voices
                 .into_iter()
-                .map(|voice| make_voice(voice, &pitch_bend_multiplier_hz, effects.clone()))
+                .map(|voice| treble_voice(voice, &pitch_bend_multiplier_hz, effects.clone()))
                 .sum::<Sf64>();
             run(signal, effects.clone())?;
         }
