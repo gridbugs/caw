@@ -57,3 +57,6 @@ name = "sample_playback"
 
 [[example]]
 name = "diy_square_wave"
+
+[[example]]
+name = "wub_wub"
