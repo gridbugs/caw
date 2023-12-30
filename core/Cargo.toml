@@ -2,6 +2,12 @@
 name = "currawong_core"
 version = "0.1.0"
 edition = "2021"
+description = "Core types for currawong software-defined modular synthesizer"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/currawong.git"
+repository = "https://github.com/gridbugs/currawong.git"
+documentation = "https://docs.rs/currawong_core"
 
 [features]
 default = ["midi"]
