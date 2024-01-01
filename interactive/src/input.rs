@@ -58,6 +58,7 @@ pub enum MouseButton {
     Middle,
 }
 
+#[derive(Clone)]
 pub struct KeyboardGeneric<Key> {
     pub a: Key,
     pub b: Key,
@@ -106,6 +107,7 @@ pub struct KeyboardGeneric<Key> {
     pub slash: Key,
 }
 
+#[derive(Clone)]
 pub struct MouseGeneric<Position, Button> {
     pub x_01: Position,
     pub y_01: Position,
@@ -189,6 +191,7 @@ impl Mouse {
     }
 }
 
+#[derive(Clone)]
 pub struct Input {
     pub keyboard: Keyboard,
     pub mouse: Mouse,

@@ -356,6 +356,64 @@ pub mod filter {
         }
     }
 
+    pub struct CompressBuilder {
+        threshold: Option<Sf64>,
+        ratio: Option<Sf64>,
+        scale: Option<Sf64>,
+    }
+
+    impl CompressBuilder {
+        pub fn new() -> Self {
+            Self {
+                threshold: None,
+                ratio: None,
+                scale: None,
+            }
+        }
+
+        pub fn threshold(mut self, threshold: impl Into<Sf64>) -> Self {
+            self.threshold = Some(threshold.into());
+            self
+        }
+
+        pub fn ratio(mut self, ratio: impl Into<Sf64>) -> Self {
+            self.ratio = Some(ratio.into());
+            self
+        }
+
+        pub fn scale(mut self, scale: impl Into<Sf64>) -> Self {
+            self.scale = Some(scale.into());
+            self
+        }
+
+        pub fn build(self) -> Compress {
+            Compress {
+                threshold: self.threshold.unwrap_or_else(|| const_(1.0)),
+                ratio: self.ratio.unwrap_or_else(|| const_(0.0)),
+                scale: self.scale.unwrap_or_else(|| const_(1.0)),
+            }
+        }
+    }
+
+    pub struct DelayBuilder {
+        time_s: Option<Sf64>,
+    }
+
+    impl DelayBuilder {
+        pub fn new() -> Self {
+            Self { time_s: None }
+        }
+
+        pub fn time_s(mut self, time_s: impl Into<Sf64>) -> Self {
+            self.time_s = Some(time_s.into());
+            self
+        }
+
+        pub fn build(self) -> Delay {
+            Delay::new(self.time_s.unwrap_or_else(|| const_(0.0)))
+        }
+    }
+
     pub struct EchoBuilder {
         time_s: Option<Sf64>,
         scale: Option<Sf64>,
@@ -417,6 +475,18 @@ pub mod filter {
 
     pub fn saturate() -> SaturateBuilder {
         SaturateBuilder::new()
+    }
+
+    pub fn compress() -> CompressBuilder {
+        CompressBuilder::new()
+    }
+
+    pub fn delay() -> DelayBuilder {
+        DelayBuilder::new()
+    }
+
+    pub fn delay_s(time_s: impl Into<Sf64>) -> Delay {
+        delay().time_s(time_s).build()
     }
 
     pub fn echo() -> EchoBuilder {

@@ -526,6 +526,30 @@ impl Filter for Saturate {
     }
 }
 
+pub struct Compress {
+    pub threshold: Sf64,
+    pub ratio: Sf64,
+    pub scale: Sf64,
+}
+
+impl Filter for Compress {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let input = input * self.scale.sample(ctx);
+        let input_abs = input.abs();
+        let threshold = self.threshold.sample(ctx);
+        if input_abs > threshold {
+            let delta = input_abs - threshold;
+            let scaled_delta = delta * self.ratio.sample(ctx);
+            (threshold + scaled_delta) * input.signum()
+        } else {
+            input
+        }
+    }
+}
+
 pub struct Delay {
     samples: RefCell<VecDeque<f64>>,
     time_s: Sf64,

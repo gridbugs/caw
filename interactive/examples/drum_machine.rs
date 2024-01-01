@@ -24,25 +24,46 @@ fn midi_index_by_key_bass() -> Vec<(Key, u8)> {
 }
 
 fn kick(trigger: Trigger) -> Sf64 {
-    let gate = trigger.to_gate();
-    let freq_hz = 30.0;
-    let osc = oscillator_hz(Waveform::Pulse, freq_hz)
-        .pulse_width_01(0.5)
-        .build();
-    let env = adsr_linear_01(gate).release_s(0.2).build().exp_01(8.0);
-    let voice = mean([osc.filter(low_pass_moog_ladder(4000 * &env).build())]);
-    voice
+    let clock = trigger.to_gate();
+    let duration_s = 0.1;
+    let freq_hz = adsr_linear_01(&clock)
+        .release_s(duration_s)
+        .build()
+        .exp_01(1.0)
+        * 120;
+    let osc = oscillator_hz(Waveform::Triangle, freq_hz).build();
+    let env_amp = adsr_linear_01(&clock)
+        .release_s(duration_s)
+        .build()
+        .exp_01(1.0)
+        .filter(low_pass_moog_ladder(1000.0).build());
+    osc.mul_lazy(&env_amp)
+        .filter(compress().ratio(0.02).scale(16.0).build())
 }
 
 fn snare(trigger: Trigger) -> Sf64 {
-    let gate = trigger.to_gate();
-    let osc = noise();
-    let env = adsr_linear_01(gate)
-        .release_s(0.1)
+    let clock = trigger.to_gate();
+    let duration_s = 0.1;
+    let noise = noise();
+    let detune = 0.0002;
+    let noise = (&noise
+        + &noise.filter(delay_s(&detune))
+        + &noise.filter(delay_s(&detune * 2.0))
+        + &noise.filter(delay_s(&detune * 3.0)))
+        .filter(compress().ratio(0.2).scale(40.0).build());
+    let env = adsr_linear_01(&clock)
+        .release_s(duration_s * 1.0)
         .build()
-        .filter(low_pass_butterworth(100.0).build());
-    let voice = mean([osc.filter(low_pass_moog_ladder(5000 * &env).resonance(1.0).build())]);
-    voice * 0.5
+        .exp_01(1.0)
+        .filter(low_pass_moog_ladder(1000.0).build());
+    let noise = noise.filter(low_pass_moog_ladder(10000.0).build());
+    let freq_hz = adsr_linear_01(&clock)
+        .release_s(duration_s)
+        .build()
+        .exp_01(1.0)
+        * 240;
+    let osc = oscillator_hz(Waveform::Pulse, freq_hz).build();
+    (noise + osc).mul_lazy(&env)
 }
 
 fn cymbal(trigger: Trigger) -> Sf64 {
@@ -65,8 +86,8 @@ fn drum_looper(clock: &Trigger, input: &Input) -> Sf64 {
             .length(length)
             .build()
     };
-    let kick_loop = kick(mk_loop(Key::Q, Key::N1, 16));
-    let snare_loop = snare(mk_loop(Key::W, Key::N2, 16));
+    let kick_loop = kick(mk_loop(Key::Q, Key::N1, 8));
+    let snare_loop = snare(mk_loop(Key::W, Key::N2, 7));
     let cymbal_loop = cymbal(mk_loop(Key::E, Key::N3, 16));
     sum([kick_loop, snare_loop, cymbal_loop])
         .filter(low_pass_butterworth(input.mouse.x_01() * 10000).build())

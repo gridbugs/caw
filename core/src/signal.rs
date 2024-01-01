@@ -434,6 +434,24 @@ impl Trigger {
         self.0.to_gate()
     }
 
+    pub fn to_gate_with_duration_s(&self, duration_s: impl Into<Sf64>) -> Gate {
+        let trigger = self.clone();
+        let duration_s = duration_s.into();
+        let rem_samples = Cell::new(0.0);
+        Gate::from_fn(move |ctx| {
+            if trigger.sample(ctx) {
+                rem_samples.set(ctx.sample_rate_hz * duration_s.sample(ctx));
+            }
+            let rem_samples_val = rem_samples.get();
+            if rem_samples_val <= 0.0 {
+                false
+            } else {
+                rem_samples.set(rem_samples_val - 1.0);
+                true
+            }
+        })
+    }
+
     pub fn and_fn_ctx<F: Fn(&SignalCtx) -> bool + 'static>(&self, f: F) -> Self {
         Self(self.0.map_ctx(move |value, ctx| value && f(ctx)))
     }
