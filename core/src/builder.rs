@@ -453,6 +453,14 @@ pub mod filter {
         }
     }
 
+    pub struct BitCrushBuilder(BitCrush);
+
+    impl BitCrushBuilder {
+        pub fn build(self) -> BitCrush {
+            self.0
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
     }
@@ -495,6 +503,10 @@ pub mod filter {
 
     pub fn sample_and_hold(trigger: Trigger) -> SampleAndHoldBuilder {
         SampleAndHoldBuilder(SampleAndHold::new(trigger))
+    }
+
+    pub fn bit_crush(resolution: impl Into<Sf64>) -> BitCrushBuilder {
+        BitCrushBuilder(BitCrush::new(resolution))
     }
 }
 

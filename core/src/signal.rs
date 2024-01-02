@@ -272,6 +272,11 @@ impl From<&f32> for Sf64 {
         const_(*value as f64)
     }
 }
+impl From<u32> for Signal<u32> {
+    fn from(value: u32) -> Self {
+        const_(value)
+    }
+}
 
 impl Signal<bool> {
     /// Treat `self` as a trigger without performing any gate-to-trigger conversion.
@@ -422,6 +427,20 @@ impl Trigger {
     pub fn never() -> Self {
         Self(const_(false))
     }
+
+    pub fn any(triggers: impl IntoIterator<Item = Trigger> + 'static) -> Self {
+        let triggers = triggers.into_iter().collect::<Vec<_>>();
+        Signal::from_fn(move |ctx| {
+            for trigger in &triggers {
+                if trigger.sample(ctx) {
+                    return true;
+                }
+            }
+            false
+        })
+        .to_trigger_raw()
+    }
+
     pub fn sample(&self, ctx: &SignalCtx) -> bool {
         self.0.sample(ctx)
     }
@@ -452,6 +471,22 @@ impl Trigger {
         })
     }
 
+    pub fn on<T: Copy + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<Option<T>> {
+        self.0.map(move |x| if x { Some(f()) } else { None })
+    }
+
+    pub fn on_ctx<T: Copy + 'static, F: Fn(&SignalCtx) -> T + 'static>(
+        &self,
+        f: F,
+    ) -> Signal<Option<T>> {
+        self.0
+            .map_ctx(move |x, ctx| if x { Some(f(ctx)) } else { None })
+    }
+
+    pub fn and_fn<F: Fn() -> bool + 'static>(&self, f: F) -> Self {
+        Self(self.0.map(move |value| value && f()))
+    }
+
     pub fn and_fn_ctx<F: Fn(&SignalCtx) -> bool + 'static>(&self, f: F) -> Self {
         Self(self.0.map_ctx(move |value, ctx| value && f(ctx)))
     }
@@ -462,6 +497,16 @@ impl Trigger {
 
     pub fn debug_print(&self) -> Self {
         self.to_signal().debug_print().to_trigger_raw()
+    }
+
+    pub fn divide(&self, by: impl Into<Signal<u32>> + 'static) -> Self {
+        let by = by.into();
+        let count = Cell::new(0);
+        self.and_fn_ctx(move |ctx| {
+            let count_val = count.get();
+            count.set((count_val + 1) % by.sample(ctx).max(1));
+            count_val == 0
+        })
     }
 }
 

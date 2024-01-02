@@ -65,3 +65,9 @@ name = "diy_square_wave"
 
 [[example]]
 name = "wub_wub"
+
+[[example]]
+name = "drum_sequencer"
+
+[[example]]
+name = "basic_drum_sounds"

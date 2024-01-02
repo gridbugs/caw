@@ -637,3 +637,25 @@ impl Filter for SampleAndHold {
         self.sample.get()
     }
 }
+
+pub struct BitCrush {
+    pub resolution: Sf64,
+}
+
+impl BitCrush {
+    pub fn new(resolution: impl Into<Sf64>) -> Self {
+        Self {
+            resolution: resolution.into(),
+        }
+    }
+}
+
+impl Filter for BitCrush {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let resolution = self.resolution.sample(ctx);
+        ((input * resolution) as i64) as f64 / resolution
+    }
+}
