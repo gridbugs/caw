@@ -22,9 +22,9 @@ pub mod prelude {
     pub use crate::{
         builder::{
             filter::{
-                bit_crush, compress, delay, delay_s, echo, high_pass_butterworth,
+                compress, delay, delay_s, down_sample, echo, high_pass_butterworth,
                 high_pass_chebyshev, low_pass_butterworth, low_pass_chebyshev,
-                low_pass_moog_ladder, sample_and_hold, saturate,
+                low_pass_moog_ladder, quantize, sample_and_hold, saturate,
             },
             gate::{
                 periodic_gate, periodic_gate_hz, periodic_gate_s, periodic_trigger,

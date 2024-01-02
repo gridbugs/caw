@@ -28,7 +28,9 @@ fn snare(trigger: &Trigger, input: Input) -> Sf64 {
     let osc = oscillator_hz(Waveform::Pulse, freq_hz)
         .reset_trigger(trigger)
         .build();
-    (noise + osc).mul_lazy(&env)
+    (noise + osc)
+        .filter(down_sample(input.mouse.y_01() * 20.0).build())
+        .mul_lazy(&env)
 }
 
 fn voice(trigger: Trigger, input: Input) -> Sf64 {

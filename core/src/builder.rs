@@ -453,10 +453,18 @@ pub mod filter {
         }
     }
 
-    pub struct BitCrushBuilder(BitCrush);
+    pub struct QuantizeBuilder(Quantize);
 
-    impl BitCrushBuilder {
-        pub fn build(self) -> BitCrush {
+    impl QuantizeBuilder {
+        pub fn build(self) -> Quantize {
+            self.0
+        }
+    }
+
+    pub struct DownSampleBuilder(DownSample);
+
+    impl DownSampleBuilder {
+        pub fn build(self) -> DownSample {
             self.0
         }
     }
@@ -505,8 +513,12 @@ pub mod filter {
         SampleAndHoldBuilder(SampleAndHold::new(trigger))
     }
 
-    pub fn bit_crush(resolution: impl Into<Sf64>) -> BitCrushBuilder {
-        BitCrushBuilder(BitCrush::new(resolution))
+    pub fn quantize(resolution: impl Into<Sf64>) -> QuantizeBuilder {
+        QuantizeBuilder(Quantize::new(resolution))
+    }
+
+    pub fn down_sample(scale: impl Into<Sf64>) -> DownSampleBuilder {
+        DownSampleBuilder(DownSample::new(scale))
     }
 }
 

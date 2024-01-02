@@ -42,19 +42,14 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
 }
 
 fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
-    let vibrato_hz = oscillator_s(Waveform::Saw, 0.1).build() * (freq_hz * 0.02);
-    let freq_hz = const_(freq_hz) + vibrato_hz;
+    let freq_hz = const_(freq_hz);
     let oscillator = oscillator_hz(Waveform::Saw, &freq_hz).build()
-        + oscillator_hz(Waveform::Saw, &freq_hz * 1.01).build()
-        + oscillator_hz(Waveform::Pulse, &freq_hz * 2.0).build() * 0.3
-        + oscillator_hz(Waveform::Pulse, &freq_hz * 2.004).build() * 0.3
-        + oscillator_hz(Waveform::Pulse, &freq_hz * 2.003).build() * 0.3
         + oscillator_hz(Waveform::Saw, &freq_hz)
             .reset_offset_01(0.5)
             .build();
     let amp_env = adsr_linear_01(&gate).release_s(0.5).build();
     let filter_env = adsr_linear_01(&gate)
-        .attack_s(0.5)
+        .attack_s(0.0)
         .decay_s(0.1)
         .sustain_01(0.6)
         .release_s(0.5)
@@ -81,7 +76,7 @@ fn voice(input: Input) -> Sf64 {
             )
         })
         .sum::<Sf64>()
-        .filter(saturate().scale(2.0).min(-1.0).max(2.0).build())
+        .filter(compress().ratio(0.1).scale(2.0).build())
 }
 
 fn main() -> anyhow::Result<()> {

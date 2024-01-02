@@ -37,6 +37,9 @@ name = "periodic_gate"
 name = "keyboard_and_mouse"
 
 [[example]]
+name = "keyboard_and_mouse_lofi"
+
+[[example]]
 name = "keyboard_and_mouse_monophonic"
 
 [[example]]

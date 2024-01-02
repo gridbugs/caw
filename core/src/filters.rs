@@ -638,11 +638,11 @@ impl Filter for SampleAndHold {
     }
 }
 
-pub struct BitCrush {
+pub struct Quantize {
     pub resolution: Sf64,
 }
 
-impl BitCrush {
+impl Quantize {
     pub fn new(resolution: impl Into<Sf64>) -> Self {
         Self {
             resolution: resolution.into(),
@@ -650,12 +650,46 @@ impl BitCrush {
     }
 }
 
-impl Filter for BitCrush {
+impl Filter for Quantize {
     type Input = f64;
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let resolution = self.resolution.sample(ctx);
         ((input * resolution) as i64) as f64 / resolution
+    }
+}
+
+pub struct DownSample {
+    scale: Sf64,
+    last_sample: Cell<f64>,
+    until_next_sample: Cell<f64>,
+}
+
+impl DownSample {
+    pub fn new(scale: impl Into<Sf64>) -> Self {
+        Self {
+            scale: scale.into(),
+            last_sample: Cell::new(0.0),
+            until_next_sample: Cell::new(0.0),
+        }
+    }
+}
+
+impl Filter for DownSample {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let period = self.scale.sample(ctx).max(1.0).recip();
+        let until_next_sample = self.until_next_sample.get() - period;
+        if until_next_sample <= 0.0 {
+            self.until_next_sample.set(1.0);
+            self.last_sample.set(input);
+            input
+        } else {
+            self.until_next_sample.set(until_next_sample);
+            self.last_sample.get()
+        }
     }
 }
