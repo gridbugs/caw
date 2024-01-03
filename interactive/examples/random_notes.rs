@@ -114,6 +114,7 @@ fn synth_signal(trigger: Trigger, _input: Input) -> Sf64 {
         const_(0.5),
     );
     let gate = trigger.to_gate_with_duration_s(0.1);
+    let modulate = oscillator_s(Waveform::Triangle, 20.0).build();
     voice(freq, gate)
 }
 
