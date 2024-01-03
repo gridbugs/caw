@@ -44,7 +44,7 @@ fn voice(freq: Sfreq, gate: Gate) -> Sf64 {
     let freq_hz = freq.hz();
     let osc = super_saw_osc(freq_hz.clone(), const_(0.01), 1, gate.clone())
         + super_saw_osc(freq_hz.clone() * 2.0, const_(0.01), 1, gate.clone())
-        + super_saw_osc(freq_hz.clone() * 1.5, const_(0.01), 1, gate.clone());
+        + super_saw_osc(freq_hz.clone() * 1.25, const_(0.01), 1, gate.clone());
     let env_amp = adsr_linear_01(&gate).attack_s(0.1).release_s(8.0).build();
     let env_lpf = adsr_linear_01(&gate)
         .attack_s(0.1)
@@ -108,17 +108,31 @@ fn synth_signal(trigger: Trigger, _input: Input) -> Sf64 {
             }
             .freq(),
         ),
-        random_note_c_major(const_(50.0), const_(200.0)),
+        random_note_c_major(const_(80.0), const_(200.0)),
         4,
         const_(0.1),
         const_(0.5),
     );
     let gate = trigger.to_gate_with_duration_s(0.1);
-    let modulate = oscillator_s(Waveform::Triangle, 20.0).build();
+    let modulate = 1.0
+        - oscillator_s(Waveform::Triangle, 60.0)
+            .build()
+            .signed_to_01();
+    let lfo = oscillator_hz(Waveform::Sine, &modulate * 8.0).build();
     voice(freq, gate)
+        .filter(down_sample(1.0 + &modulate * 10.0).build())
+        .filter(low_pass_moog_ladder(10000.0 + &lfo * 2000.0).build())
+        .filter(
+            compress()
+                .threshold(2.0)
+                .scale(1.0 + &modulate * 2.0)
+                .ratio(0.1)
+                .build(),
+        )
+        .filter(high_pass_butterworth(10.0).build())
 }
 
-fn drum_signal(trigger: Trigger, _input: Input) -> Sf64 {
+fn drum_signal(trigger: Trigger) -> Sf64 {
     const CYMBAL: usize = 0;
     const SNARE: usize = 1;
     const KICK: usize = 2;
@@ -157,8 +171,7 @@ fn drum_signal(trigger: Trigger, _input: Input) -> Sf64 {
 }
 
 fn signal(trigger: Trigger, input: Input) -> Sf64 {
-    (synth_signal(trigger.divide(8), input.clone()) + drum_signal(trigger.clone(), input.clone()))
-        * 0.2
+    (synth_signal(trigger.divide(16), input.clone()) + drum_signal(trigger.divide(1))) * 0.2
 }
 
 fn main() -> anyhow::Result<()> {
@@ -169,7 +182,7 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = signal(periodic_trigger_hz(2.0).build(), window.input());
+    let signal = signal(periodic_trigger_hz(4.0).build(), window.input());
     window.play(signal)
 }
 
