@@ -2,26 +2,28 @@ use currawong_interactive::prelude::*;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;
-    let top_row_base = Note::new(NoteName::B, 2).to_midi_index();
+    let top_row_base = Note::new(NoteName::A, 2).to_midi_index();
     let top_row = vec![
+        N1,
         Q,
+        N2,
         W,
-        N3,
         E,
         N4,
         R,
-        T,
         N5,
+        T,
         Y,
         N7,
         U,
         N8,
         I,
+        N9,
         O,
-        N0,
         P,
         Minus,
         LeftBracket,
+        Equals,
         RightBracket,
     ];
     let bottom_row_base = Note::new(NoteName::B, 1).to_midi_index();
@@ -49,29 +51,29 @@ fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf6
     let filter_env = adsr_linear_01(&gate)
         .attack_s(0.0)
         .decay_s(0.1)
-        .sustain_01(0.6)
+        .sustain_01(0.2)
         .release_s(0.5)
         .build();
     oscillator
         .filter(
-            low_pass_moog_ladder(&filter_env * 12000.0 * effect_x)
-                .resonance(effect_y * 4.0)
+            low_pass_moog_ladder(&filter_env * 5000.0)
+                .resonance(4.0)
                 .build(),
         )
+        .filter(quantize(1.0 + 10.0 * effect_y).build())
+        .filter(down_sample(1.0 + (100.0 * effect_x)).build())
+        .filter(low_pass_moog_ladder(10000.0).build())
         .mul_lazy(&amp_env)
         .force_lazy(&filter_env)
 }
 
 fn voice(input: Input) -> Sf64 {
+    let effect_x = input.mouse.x_01();
+    let effect_y = input.mouse.y_01();
     freq_hz_by_gate()
         .into_iter()
         .map(|(key, freq_hz)| {
-            single_voice(
-                freq_hz,
-                input.key(key),
-                input.x_01().clone(),
-                input.y_01().clone(),
-            )
+            single_voice(freq_hz, input.key(key), effect_x.clone(), effect_y.clone())
         })
         .sum::<Sf64>()
         .filter(compress().ratio(0.1).scale(2.0).build())

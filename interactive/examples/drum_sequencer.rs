@@ -114,12 +114,12 @@ fn voice(trigger: Trigger) -> Sf64 {
             let drum_signal = sum(drum_signals);
             let completion_trigger = Trigger::any(completion_triggers);
             #[rustfmt::skip]
-        let pattern_index_weights = vec![
-            (1 << 0, const_(4.0)),
-            (1 << 1, const_(1.0)),
-            (1 << 2, const_(1.0)),
-            (1 << 3, const_(0.5)),
-        ];
+            let pattern_index_weights = vec![
+                (1 << 0, const_(4.0)),
+                (1 << 1, const_(1.0)),
+                (1 << 2, const_(1.0)),
+                (1 << 3, const_(0.5)),
+            ];
             let loop_selection = generic_sample_and_hold(
                 weighted_random_choice(pattern_index_weights),
                 completion_trigger,

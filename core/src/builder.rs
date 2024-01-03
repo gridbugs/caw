@@ -209,7 +209,7 @@ pub mod gate {
 pub mod filter {
     use crate::{
         filters::*,
-        signal::{const_, Sf64, Trigger},
+        signal::{const_, Sf64, Sfreq, Trigger},
     };
 
     /// Included for consistency with other filters even though `LowPassButterworth` doesn't
@@ -469,6 +469,14 @@ pub mod filter {
         }
     }
 
+    pub struct QuantizeToScaleBuilder(QuantizeToScale);
+
+    impl QuantizeToScaleBuilder {
+        pub fn build(self) -> QuantizeToScale {
+            self.0
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
     }
@@ -519,6 +527,10 @@ pub mod filter {
 
     pub fn down_sample(scale: impl Into<Sf64>) -> DownSampleBuilder {
         DownSampleBuilder(DownSample::new(scale))
+    }
+
+    pub fn quantize_to_scale(notes: Vec<Sfreq>) -> QuantizeToScaleBuilder {
+        QuantizeToScaleBuilder(QuantizeToScale::new(notes))
     }
 }
 

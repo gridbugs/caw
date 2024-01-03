@@ -138,6 +138,11 @@ impl<T: Copy + Default + 'static> Signal<T> {
         Self::new(SignalRawFn(f))
     }
 
+    pub fn from_fn_mut<F: FnMut(&SignalCtx) -> T + 'static>(f: F) -> Self {
+        let cell = RefCell::new(f);
+        Self::from_fn(move |ctx| (cell.borrow_mut())(ctx))
+    }
+
     pub fn sample(&self, ctx: &SignalCtx) -> T {
         self.0.sample(ctx)
     }
@@ -408,6 +413,9 @@ impl Signal<Freq> {
     pub fn s(&self) -> Sf64 {
         self.map(|s| s.s())
     }
+    pub fn sample_hz(&self, ctx: &SignalCtx) -> f64 {
+        self.sample(ctx).hz
+    }
 }
 
 impl Signal<u8> {
@@ -507,6 +515,12 @@ impl Trigger {
             count.set((count_val + 1) % by.sample(ctx).max(1));
             count_val == 0
         })
+    }
+
+    pub fn random_skip(&self, probability_01: impl Into<Signal<f64>>) -> Self {
+        let probability_01 = probability_01.into();
+        let noise = noise_01();
+        self.and_fn_ctx(move |ctx| noise.sample(ctx) > probability_01.sample(ctx))
     }
 }
 

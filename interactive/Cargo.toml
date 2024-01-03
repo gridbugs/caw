@@ -23,6 +23,7 @@ sdl2 = "0.36"
 [dev-dependencies]
 clap = { version = "4.4", features = ["derive"] }
 env_logger = "0.10"
+rand = "0.8"
 
 [[example]]
 name = "saw"
@@ -74,3 +75,6 @@ name = "drum_sequencer"
 
 [[example]]
 name = "basic_drum_sounds"
+
+[[example]]
+name = "random_notes"

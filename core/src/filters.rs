@@ -1,4 +1,4 @@
-use crate::signal::{Filter, Sf64, SignalCtx, Trigger};
+use crate::signal::{freq_hz, Filter, Freq, Sf64, Sfreq, SignalCtx, Trigger};
 use std::{
     cell::{Cell, RefCell},
     collections::VecDeque,
@@ -682,14 +682,59 @@ impl Filter for DownSample {
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let period = self.scale.sample(ctx).max(1.0).recip();
-        let until_next_sample = self.until_next_sample.get() - period;
-        if until_next_sample <= 0.0 {
-            self.until_next_sample.set(1.0);
+        self.until_next_sample
+            .set(self.until_next_sample.get() - period);
+        if self.until_next_sample.get() < 0.0 {
+            while self.until_next_sample.get() < 0.0 {
+                self.until_next_sample
+                    .set(self.until_next_sample.get() + 1.0);
+            }
             self.last_sample.set(input);
             input
         } else {
-            self.until_next_sample.set(until_next_sample);
             self.last_sample.get()
         }
+    }
+}
+
+pub struct QuantizeToScale {
+    pub notes: Vec<Sfreq>,
+}
+
+impl QuantizeToScale {
+    pub fn new(notes: Vec<Sfreq>) -> Self {
+        assert!(!notes.is_empty(), "notes may not be empty");
+        Self { notes }
+    }
+
+    fn quantize_to_note(freq_hz: f64, note_base_freq_hz: f64) -> f64 {
+        let mut note_freq_hz = note_base_freq_hz;
+        loop {
+            let next_note_freq_hz = note_freq_hz * 2.0;
+            if next_note_freq_hz > freq_hz {
+                return note_freq_hz;
+            }
+            note_freq_hz = next_note_freq_hz;
+        }
+    }
+}
+
+impl Filter for QuantizeToScale {
+    type Input = Freq;
+    type Output = Freq;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let input_hz = input.hz();
+        let mut best = Self::quantize_to_note(input_hz, self.notes[0].sample_hz(ctx));
+        let mut best_delta = input_hz - best;
+        for note in &self.notes[1..] {
+            let quantized = Self::quantize_to_note(input_hz, note.sample_hz(ctx));
+            let delta = input_hz - quantized;
+            if delta < best_delta {
+                best_delta = delta;
+                best = quantized;
+            }
+        }
+        freq_hz(best)
     }
 }

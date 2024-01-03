@@ -24,7 +24,7 @@ pub mod prelude {
             filter::{
                 compress, delay, delay_s, down_sample, echo, high_pass_butterworth,
                 high_pass_chebyshev, low_pass_butterworth, low_pass_chebyshev,
-                low_pass_moog_ladder, quantize, sample_and_hold, saturate,
+                low_pass_moog_ladder, quantize, quantize_to_scale, sample_and_hold, saturate,
             },
             gate::{
                 periodic_gate, periodic_gate_hz, periodic_gate_s, periodic_trigger,
