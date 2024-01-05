@@ -2,7 +2,6 @@ use crate::{
     sample_player::SamplePlayer,
     signal::{Signal, SignalCtx},
 };
-use std::{thread, time::Duration};
 
 pub struct SignalPlayer {
     sample_player: SamplePlayer<f32>,
@@ -55,10 +54,12 @@ impl SignalPlayer {
         self.send_signal_with_callback(signal, |_| ());
     }
 
+    #[cfg(not(feature = "web"))]
     pub fn play_sample_forever<T: Copy + Default + ToF32 + 'static>(
         &mut self,
         mut signal: Signal<T>,
     ) -> ! {
+        use std::{thread, time::Duration};
         const PERIOD: Duration = Duration::from_millis(16);
         loop {
             self.send_signal(&mut signal);
