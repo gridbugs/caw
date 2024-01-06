@@ -78,3 +78,9 @@ name = "basic_drum_sounds"
 
 [[example]]
 name = "random_notes"
+
+[[example]]
+name = "reverb_test"
+
+[[example]]
+name = "drum_reverb"

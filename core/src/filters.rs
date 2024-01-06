@@ -1,5 +1,5 @@
 use crate::{
-    biquad_filter, moog_ladder_low_pass_filter,
+    biquad_filter, freeverb, moog_ladder_low_pass_filter,
     signal::{freq_hz, Filter, Freq, Sf64, Sfreq, SignalCtx, Trigger},
 };
 use std::{
@@ -319,5 +319,47 @@ impl Filter for QuantizeToScale {
             }
         }
         freq_hz(best)
+    }
+}
+
+pub struct Reverb {
+    freeverb: RefCell<freeverb::ReverbModel>,
+    room_size: Sf64,
+    room_size_prev: Cell<f64>,
+    damping: Sf64,
+    damping_prev: Cell<f64>,
+}
+
+impl Reverb {
+    pub const DEFAULT_ROOM_SIZE: f64 = freeverb::INITIAL_ROOM_SIZE;
+    pub const DEFAULT_DAMPING: f64 = freeverb::INITIAL_DAMPING;
+    pub fn new(room_size: Sf64, damping: Sf64) -> Self {
+        Self {
+            freeverb: RefCell::new(freeverb::ReverbModel::new()),
+            room_size,
+            room_size_prev: Self::DEFAULT_ROOM_SIZE.into(),
+            damping,
+            damping_prev: Self::DEFAULT_DAMPING.into(),
+        }
+    }
+}
+
+impl Filter for Reverb {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        let mut freeverb = self.freeverb.borrow_mut();
+        let room_size = self.room_size.sample(ctx);
+        if room_size != self.room_size_prev.get() {
+            self.room_size_prev.set(room_size);
+            freeverb.set_room_size(room_size);
+        }
+        let damping = self.damping.sample(ctx);
+        if damping != self.damping_prev.get() {
+            self.damping_prev.set(damping);
+            freeverb.set_damping(damping);
+        }
+        freeverb.process(input)
     }
 }

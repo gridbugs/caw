@@ -477,6 +477,39 @@ pub mod filter {
         }
     }
 
+    pub struct ReverbBuilder {
+        damping: Option<Sf64>,
+        room_size: Option<Sf64>,
+    }
+
+    impl ReverbBuilder {
+        pub fn new() -> Self {
+            Self {
+                room_size: None,
+                damping: None,
+            }
+        }
+
+        pub fn room_size(mut self, room_size: impl Into<Sf64>) -> Self {
+            self.room_size = Some(room_size.into());
+            self
+        }
+
+        pub fn damping(mut self, damping: impl Into<Sf64>) -> Self {
+            self.damping = Some(damping.into());
+            self
+        }
+
+        pub fn build(self) -> Reverb {
+            Reverb::new(
+                self.room_size
+                    .unwrap_or_else(|| const_(Reverb::DEFAULT_ROOM_SIZE)),
+                self.damping
+                    .unwrap_or_else(|| const_(Reverb::DEFAULT_DAMPING)),
+            )
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
     }
@@ -531,6 +564,10 @@ pub mod filter {
 
     pub fn quantize_to_scale(notes: Vec<Sfreq>) -> QuantizeToScaleBuilder {
         QuantizeToScaleBuilder(QuantizeToScale::new(notes))
+    }
+
+    pub fn reverb() -> ReverbBuilder {
+        ReverbBuilder::new()
     }
 }
 
