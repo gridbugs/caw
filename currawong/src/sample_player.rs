@@ -1,6 +1,6 @@
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    Device, OutputCallbackInfo, SizedSample, Stream, StreamConfig,
+    Device, OutputCallbackInfo, Stream, StreamConfig,
 };
 use std::sync::{mpsc, Arc, RwLock};
 
@@ -30,12 +30,13 @@ impl SamplePlayerCore {
     }
 }
 
-pub struct SamplePlayer<T> {
+pub struct SamplePlayer {
     core: SamplePlayerCore,
     #[allow(unused)]
     stream: Stream,
-    sender: mpsc::Sender<T>,
+    sender: mpsc::Sender<f32>,
     sink_cursor: Arc<RwLock<u64>>,
+    volume: Arc<RwLock<f32>>,
     /// The target amount to over-fill the buffer to prevent gaps in the sample stream presented to
     /// the audio device. Increasing this value will increase the latency between updating the
     /// stream and hearing the result, but will reduce the chance that the device will run out of
@@ -48,22 +49,25 @@ pub struct SamplePlayer<T> {
     downsample: u32,
 }
 
-impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
+impl SamplePlayer {
     fn new_with_downsample(downsample: u32) -> anyhow::Result<Self> {
         assert!(downsample > 0, "downsample must be positive");
-        let (sender, receiver) = mpsc::channel::<T>();
+        let (sender, receiver) = mpsc::channel::<f32>();
         let sink_cursor = Arc::new(RwLock::new(0));
         let sink_cursor_for_cpal_thread = Arc::clone(&sink_cursor);
+        let volume = Arc::new(RwLock::new(1.0));
+        let volume_for_cpal_thread = Arc::clone(&volume);
         let core = SamplePlayerCore::new()?;
         let channels = core.config.channels;
         let stream = core.device.build_output_stream(
             &core.config,
-            move |data: &mut [T], _: &OutputCallbackInfo| {
+            move |data: &mut [f32], _: &OutputCallbackInfo| {
                 let mut sink_cursor = sink_cursor_for_cpal_thread.write().unwrap();
+                let volume = *volume_for_cpal_thread.read().unwrap();
                 for output in data.chunks_mut(channels as usize * downsample as usize) {
                     if let Ok(input) = receiver.try_recv() {
                         for element in output {
-                            *element = input;
+                            *element = input * volume;
                         }
                         *sink_cursor += 1;
                     } else {
@@ -82,6 +86,7 @@ impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
             stream,
             sender,
             sink_cursor,
+            volume,
             source_cursor: 0,
             downsample,
         })
@@ -95,7 +100,7 @@ impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
         self.core.config.sample_rate.0 / self.downsample
     }
 
-    fn play_sample(&mut self, sample: T) {
+    fn play_sample(&mut self, sample: f32) {
         if let Err(_) = self.sender.send(sample) {
             log::error!("failed to send data to cpal thread");
         }
@@ -108,10 +113,14 @@ impl<T: SizedSample + Send + 'static> SamplePlayer<T> {
         target_source_cursor - self.source_cursor
     }
 
-    pub fn play_stream<S: FnMut() -> T>(&mut self, mut stream: S) {
+    pub fn play_stream<S: FnMut() -> f32>(&mut self, mut stream: S) {
         // only send data once per channel
         for _ in 0..(self.samples_behind()) {
             self.play_sample(stream())
         }
+    }
+
+    pub fn set_volume(&self, volume: f32) {
+        *self.volume.write().unwrap() = volume;
     }
 }

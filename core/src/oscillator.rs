@@ -27,7 +27,13 @@ pub struct Oscillator {
 impl Oscillator {
     pub fn signal(self) -> Sf64 {
         let state_opt = Cell::new(None);
+        let prev_sample_inedx = Cell::new(0);
         Signal::from_fn(move |ctx| {
+            let sample_index_delta = ctx.sample_index - prev_sample_inedx.get();
+            prev_sample_inedx.set(ctx.sample_index);
+            if sample_index_delta == 0 {
+                return 0.0;
+            }
             let state = match state_opt.get() {
                 None => self.reset_offset_01.sample(ctx),
                 Some(state) => {
@@ -38,7 +44,8 @@ impl Oscillator {
                     }
                 }
             };
-            let state_delta = self.freq.sample(ctx).hz() / ctx.sample_rate_hz;
+            let state_delta =
+                (sample_index_delta as f64 * self.freq.sample(ctx).hz()) / ctx.sample_rate_hz;
             let try_state = (state + state_delta).rem_euclid(1.0);
             let state = if try_state.is_nan() { state } else { try_state };
             state_opt.set(Some(state));

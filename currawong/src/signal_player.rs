@@ -4,7 +4,7 @@ use crate::{
 };
 
 pub struct SignalPlayer {
-    sample_player: SamplePlayer<f32>,
+    sample_player: SamplePlayer,
     sample_index: u64,
 }
 
@@ -65,5 +65,9 @@ impl SignalPlayer {
             self.send_signal(&mut signal);
             thread::sleep(PERIOD);
         }
+    }
+
+    pub fn set_volume(&self, volume: f32) {
+        self.sample_player.set_volume(volume);
     }
 }

@@ -43,28 +43,25 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
 }
 
 fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
-    let lfo = oscillator_hz(Waveform::Sine, 128.0 * effect_y)
+    let freq_hz = freq_hz.filter(low_pass_butterworth(20.0 * effect_x).build());
+    let lfo = oscillator_hz(Waveform::Sine, 20.0 * effect_y)
         .build()
         .signed_to_01();
-    let oscillator = oscillator_hz(Waveform::Saw, &freq_hz).build();
+    let oscillator = oscillator_hz(Waveform::Pulse, &freq_hz)
+        .pulse_width_01(0.1 + lfo * 0.3)
+        .build();
     let env = adsr_linear_01(&gate)
+        .attack_s(1.0)
         .decay_s(0.5)
         .sustain_01(0.5)
-        .release_s(10.0)
+        .release_s(1.0)
         .build()
         .exp_01(2.0);
-    let lfo_env = adsr_linear_01(&gate)
-        .attack_s(1.0)
-        .release_s(5.0)
-        .build()
-        .exp_01(4.0);
     oscillator
         .filter(
-            low_pass_moog_ladder(
-                (env * (20000.0 - (lfo * lfo_env * 20000.0 * effect_x))).clamp_non_negative(),
-            )
-            .resonance(1.3)
-            .build(),
+            low_pass_chebyshev((env * 10000.0).clamp_non_negative())
+                .resonance(4.0)
+                .build(),
         )
         .map(|x| (x * 8.0).tanh())
 }
