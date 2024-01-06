@@ -1,6 +1,6 @@
 [package]
 name = "currawong_core"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2021"
 description = "Core types for currawong software-defined modular synthesizer"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
