@@ -32,6 +32,13 @@ impl SignalPlayer {
         })
     }
 
+    pub fn new_with_downsample(downsample: u32) -> anyhow::Result<Self> {
+        Ok(Self {
+            sample_player: SamplePlayer::new_with_downsample(downsample)?,
+            sample_index: 0,
+        })
+    }
+
     pub fn send_signal_with_callback<T: Copy + Default + ToF32 + 'static, F: FnMut(f32)>(
         &mut self,
         signal: &mut Signal<T>,

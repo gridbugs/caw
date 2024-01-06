@@ -43,7 +43,8 @@ pub mod prelude {
             Gate, Sf64, Sfreq, Signal, Su8, Trigger,
         },
         util::{
-            bitwise_trigger_router_64, generic_sample_and_hold, weighted_random_choice, with_fix,
+            bitwise_trigger_router_64, generic_sample_and_hold, trigger_split_cycle,
+            weighted_random_choice, with_fix,
         },
     };
 }

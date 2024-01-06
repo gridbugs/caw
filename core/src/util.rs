@@ -64,3 +64,18 @@ pub fn with_fix<
     *signal_cell.borrow_mut() = Some(new_signal);
     output
 }
+
+pub fn trigger_split_cycle(trigger: Trigger, n: usize) -> Vec<Trigger> {
+    let count = Rc::new(RefCell::new(0));
+    (0..n)
+        .map(move |i| {
+            let count = Rc::clone(&count);
+            trigger.and_fn(move || {
+                let mut count = count.borrow_mut();
+                let output = *count == i;
+                *count = (*count + 1) % n;
+                output
+            })
+        })
+        .collect()
+}
