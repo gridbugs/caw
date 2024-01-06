@@ -7,8 +7,10 @@ pub mod sampler;
 pub mod sequencers;
 pub mod util;
 
+mod biquad_filter;
 #[cfg(feature = "midi")]
 pub mod midi;
+mod moog_ladder_low_pass_filter;
 pub mod music;
 pub mod oscillator;
 pub mod signal;
