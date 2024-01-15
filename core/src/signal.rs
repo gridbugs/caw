@@ -194,6 +194,10 @@ impl<T: Clone + Default + 'static> Signal<T> {
             signal.sample(ctx)
         })
     }
+
+    pub fn with<F: FnOnce(Self) -> Self>(&self, f: F) -> Self {
+        f(self.clone())
+    }
 }
 
 impl<T: Clone + Default + std::fmt::Debug + 'static> Signal<T> {
@@ -403,6 +407,10 @@ impl Signal<f64> {
             }
             signal_value
         })
+    }
+
+    pub fn mix<F: FnOnce(Self) -> Self>(&self, f: F) -> Self {
+        self.with(move |dry| dry.clone() + f(dry))
     }
 }
 

@@ -63,7 +63,7 @@ fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf6
 }
 
 fn voice(input: Input) -> Sf64 {
-    let dry = freq_hz_by_gate()
+    freq_hz_by_gate()
         .into_iter()
         .map(|(key, freq_hz)| {
             single_voice(
@@ -74,8 +74,8 @@ fn voice(input: Input) -> Sf64 {
             )
         })
         .sum::<Sf64>()
-        .filter(compress().ratio(0.1).scale(2.0).build());
-    dry.filter(reverb().room_size(1.0).build()) + dry
+        .filter(compress().ratio(0.1).scale(2.0).build())
+        .mix(|dry| dry.filter(reverb().room_size(1.0).build()))
 }
 
 fn main() -> anyhow::Result<()> {
