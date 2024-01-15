@@ -1,9 +1,40 @@
-use crate::signal::SignalCtx;
+use crate::signal::{Signal, SignalCtx};
 pub use currawong_core::midi::*;
 use midir::{MidiInput, MidiInputConnection, MidiInputPort};
 use midly::{live::LiveEvent, Format, Smf};
 use nix::sys::termios::BaudRate;
 use std::{fs, os::fd::OwnedFd, path::Path, sync::mpsc};
+
+pub struct EventSourceSignalBuilder<E: MidiEventSource> {
+    event_source: E,
+}
+
+impl<E: MidiEventSource + 'static> EventSourceSignalBuilder<E> {
+    pub fn build(self) -> Signal<MidiEvents> {
+        event_source_to_signal(self.event_source)
+    }
+
+    pub fn single_channel(self, channel: u8) -> EventSourceSingleChannelSignalBuilder<E> {
+        EventSourceSingleChannelSignalBuilder {
+            event_source_signal_builder: self,
+            channel,
+        }
+    }
+}
+
+pub struct EventSourceSingleChannelSignalBuilder<E: MidiEventSource> {
+    event_source_signal_builder: EventSourceSignalBuilder<E>,
+    channel: u8,
+}
+
+impl<E: MidiEventSource + 'static> EventSourceSingleChannelSignalBuilder<E> {
+    pub fn build(self) -> Signal<MidiMessages> {
+        event_source_to_signal_single_channel(
+            self.event_source_signal_builder.event_source,
+            self.channel,
+        )
+    }
+}
 
 pub struct MidiFile {
     smf: Smf<'static>,
@@ -98,8 +129,16 @@ impl MidiLive {
             MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
         Ok(MidiPlayerMonophonic::new(channel.into(), event_source))
     }
-}
 
+    pub fn signal_builder(
+        self,
+        port_index: usize,
+    ) -> anyhow::Result<EventSourceSignalBuilder<impl MidiEventSource>> {
+        let event_source =
+            MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
+        Ok(EventSourceSignalBuilder { event_source })
+    }
+}
 pub struct MidiLiveSerial {
     owned_fd: OwnedFd,
 }
@@ -188,6 +227,11 @@ impl MidiLiveSerial {
     pub fn into_player_single_channel(self, channel: u8, polyphony: usize) -> MidiChannel {
         let MidiPlayer { channels } = self.into_player(polyphony);
         channels[channel as usize].clone()
+    }
+
+    pub fn signal_builder(self) -> EventSourceSignalBuilder<impl MidiEventSource> {
+        let event_source = MidiLiveSerialEventSource::new(self);
+        EventSourceSignalBuilder { event_source }
     }
 }
 

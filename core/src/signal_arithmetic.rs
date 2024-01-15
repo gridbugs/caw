@@ -9,83 +9,83 @@ macro_rules! impl_binary_op {
         // applying the operator pairwise between two signals
         impl<T> $trait for Signal<T>
         where
-            T: $trait + Copy + Default + 'static,
-            <T as $trait>::Output: Copy + Default,
+            T: $trait + Clone + Default + 'static,
+            <T as $trait>::Output: Clone + Default,
         {
             type Output = Signal<<T as $trait>::Output>;
 
             fn $fn(self, rhs: Self) -> Self::Output {
-                self.both(&rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
+                self.zip(&rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
             }
         }
 
         // applying the operator pairwise between two signals (lhs is a reference)
         impl<T> $trait<Signal<T>> for &Signal<T>
         where
-            T: $trait + Copy + Default + 'static,
-            <T as $trait>::Output: Copy + Default,
+            T: $trait + Clone + Default + 'static,
+            <T as $trait>::Output: Clone + Default,
         {
             type Output = Signal<<T as $trait>::Output>;
 
             fn $fn(self, rhs: Signal<T>) -> Self::Output {
-                self.both(&rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
+                self.zip(&rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
             }
         }
 
         // applying the operator pairwise between two signals (rhs is a reference)
         impl<T> $trait<&Signal<T>> for Signal<T>
         where
-            T: $trait + Copy + Default + 'static,
-            <T as $trait>::Output: Copy + Default,
+            T: $trait + Clone + Default + 'static,
+            <T as $trait>::Output: Clone + Default,
         {
             type Output = Signal<<T as $trait>::Output>;
 
             fn $fn(self, rhs: &Self) -> Self::Output {
-                self.both(rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
+                self.zip(rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
             }
         }
 
         // applying the operator pairwise between two references to signals
         impl<T> $trait<&Signal<T>> for &Signal<T>
         where
-            T: $trait + Copy + Default + 'static,
-            <T as $trait>::Output: Copy + Default,
+            T: $trait + Clone + Default + 'static,
+            <T as $trait>::Output: Clone + Default,
         {
             type Output = Signal<<T as $trait>::Output>;
 
             fn $fn(self, rhs: &Signal<T>) -> Self::Output {
-                self.both(rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
+                self.zip(rhs).map(|(lhs, rhs)| lhs.$fn(rhs))
             }
         }
 
         // applying the operator between the signal and a scalar
         impl<T> $trait<T> for Signal<T>
         where
-            T: $trait + Copy + Default + 'static,
-            <T as $trait>::Output: Copy + Default,
+            T: $trait + Clone + Default + 'static,
+            <T as $trait>::Output: Clone + Default,
         {
             type Output = Signal<<T as $trait>::Output>;
             fn $fn(self, rhs: T) -> Self::Output {
-                self.map(move |lhs| lhs.$fn(rhs))
+                self.map(move |lhs| lhs.$fn(rhs.clone()))
             }
         }
 
         // applying the operator between a reference to the signal and a scalar
         impl<T> $trait<T> for &Signal<T>
         where
-            T: $trait + Copy + Default + 'static,
-            <T as $trait>::Output: Copy + Default,
+            T: $trait + Clone + Default + 'static,
+            <T as $trait>::Output: Clone + Default,
         {
             type Output = Signal<<T as $trait>::Output>;
             fn $fn(self, rhs: T) -> Self::Output {
-                self.map(move |lhs| lhs.$fn(rhs))
+                self.map(move |lhs| lhs.$fn(rhs.clone()))
             }
         }
 
         // implement assignment trait
         impl<T> $trait_assign for Signal<T>
         where
-            T: $trait<Output = T> + Copy + Default + 'static,
+            T: $trait<Output = T> + Clone + Default + 'static,
         {
             fn $fn_assign(&mut self, rhs: Self) {
                 *self = (&*self).$fn(rhs);
@@ -95,7 +95,7 @@ macro_rules! impl_binary_op {
         // implement assignment trait for references
         impl<T> $trait_assign<&Self> for Signal<T>
         where
-            T: $trait<Output = T> + Copy + Default + 'static,
+            T: $trait<Output = T> + Clone + Default + 'static,
         {
             fn $fn_assign(&mut self, rhs: &Self) {
                 *self = (&*self).$fn(rhs);

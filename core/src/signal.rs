@@ -85,34 +85,34 @@ impl<T, F: Fn(&SignalCtx) -> T> SignalRaw<T> for SignalRawFn<T, F> {
 /// Caching layer around a `SignalRaw` which makes sure that its `sample` method is only called at
 /// most once per frame. It is "unshared" in the sense that it owns the `SignalRaw` instance that
 /// it is wrapping.
-struct SignalUnshared<T: Copy + Default, S: SignalRaw<T>> {
+struct SignalUnshared<T: Clone + Default, S: SignalRaw<T>> {
     signal: S,
-    buffered_sample: Cell<T>,
+    buffered_sample: RefCell<T>,
     next_sample_index: Cell<u64>,
 }
 
-impl<T: Copy + Default, S: SignalRaw<T>> SignalUnshared<T, S> {
+impl<T: Clone + Default, S: SignalRaw<T>> SignalUnshared<T, S> {
     fn new(signal: S) -> Self {
         Self {
             signal,
-            buffered_sample: Cell::new(T::default()),
+            buffered_sample: RefCell::new(T::default()),
             next_sample_index: Cell::new(0),
         }
     }
 
     fn sample(&self, ctx: &SignalCtx) -> T {
         if ctx.sample_index < self.next_sample_index.get() {
-            self.buffered_sample.get()
+            self.buffered_sample.borrow().clone()
         } else {
             self.next_sample_index.set(ctx.sample_index + 1);
             let sample = self.signal.sample(ctx);
-            self.buffered_sample.set(sample);
+            *self.buffered_sample.borrow_mut() = sample.clone();
             sample
         }
     }
 }
 
-impl<T: Copy + Default, S: SignalRaw<T>> SignalRaw<T> for SignalUnshared<T, S> {
+impl<T: Clone + Default, S: SignalRaw<T>> SignalRaw<T> for SignalUnshared<T, S> {
     fn sample(&self, ctx: &SignalCtx) -> T {
         SignalUnshared::sample(self, ctx)
     }
@@ -129,7 +129,7 @@ impl<T> Clone for Signal<T> {
     }
 }
 
-impl<T: Copy + Default + 'static> Signal<T> {
+impl<T: Clone + Default + 'static> Signal<T> {
     pub fn new<S: SignalRaw<T> + 'static>(signal: S) -> Self {
         Self(Rc::new(SignalUnshared::new(signal)))
     }
@@ -147,12 +147,12 @@ impl<T: Copy + Default + 'static> Signal<T> {
         self.0.sample(ctx)
     }
 
-    pub fn map<U: Copy + Default + 'static, F: Fn(T) -> U + 'static>(&self, f: F) -> Signal<U> {
+    pub fn map<U: Clone + Default + 'static, F: Fn(T) -> U + 'static>(&self, f: F) -> Signal<U> {
         let signal = self.clone();
         Signal::from_fn(move |ctx| f(signal.sample(ctx)))
     }
 
-    pub fn map_ctx<U: Copy + Default + 'static, F: Fn(T, &SignalCtx) -> U + 'static>(
+    pub fn map_ctx<U: Clone + Default + 'static, F: Fn(T, &SignalCtx) -> U + 'static>(
         &self,
         f: F,
     ) -> Signal<U> {
@@ -160,7 +160,7 @@ impl<T: Copy + Default + 'static> Signal<T> {
         Signal::from_fn(move |ctx| f(signal.sample(ctx), ctx))
     }
 
-    pub fn both<U: Copy + Default + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
+    pub fn zip<U: Clone + Default + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
         let signal = self.clone();
         let other = other.clone();
         Signal::from_fn(move |ctx| {
@@ -172,14 +172,14 @@ impl<T: Copy + Default + 'static> Signal<T> {
 
     pub fn filter<F: Filter<Input = T> + 'static>(&self, filter: F) -> Signal<F::Output>
     where
-        F::Output: Copy + Default + 'static,
+        F::Output: Clone + Default + 'static,
     {
         self.map_ctx(move |x, ctx| filter.run(x, ctx))
     }
 
     pub fn debug<F: Fn(T) + 'static>(&self, f: F) -> Self {
         self.map(move |x| {
-            f(x);
+            f(x.clone());
             x
         })
     }
@@ -196,7 +196,7 @@ impl<T: Copy + Default + 'static> Signal<T> {
     }
 }
 
-impl<T: Copy + Default + std::fmt::Debug + 'static> Signal<T> {
+impl<T: Clone + Default + std::fmt::Debug + 'static> Signal<T> {
     pub fn debug_print(&self) -> Self {
         self.debug(|x| println!("{:?}", x))
     }
@@ -208,8 +208,8 @@ pub type Sf32 = Signal<f32>;
 pub type Sbool = Signal<bool>;
 pub type Su8 = Signal<u8>;
 
-pub fn const_<T: Copy + Default + 'static>(value: T) -> Signal<T> {
-    Signal::from_fn(move |_| value)
+pub fn const_<T: Clone + Default + 'static>(value: T) -> Signal<T> {
+    Signal::from_fn(move |_| value.clone())
 }
 
 impl From<Freq> for Sfreq {
@@ -307,10 +307,10 @@ impl Signal<bool> {
 
 impl Signal<f64> {
     pub fn max(&self, rhs: impl Into<Sf64>) -> Self {
-        self.both(&rhs.into()).map(|(x, y)| x.max(y))
+        self.zip(&rhs.into()).map(|(x, y)| x.max(y))
     }
     pub fn min(&self, rhs: impl Into<Sf64>) -> Self {
-        self.both(&rhs.into()).map(|(x, y)| x.min(y))
+        self.zip(&rhs.into()).map(|(x, y)| x.min(y))
     }
 
     pub fn clamp_non_negative(&self) -> Self {
@@ -323,7 +323,7 @@ impl Signal<f64> {
     ///   k < 0  => -(ln(x + b) / k) + a
     /// ...where a and b are chosen so that f(0) = 0 and f(1) = 1.
     /// The k parameter controls how sharp the curve is.
-    /// The functions when k != 0 are inverses of each other and both approach linearity as k
+    /// The functions when k != 0 are inverses of each other and zip approach linearity as k
     /// approaches 0.
     pub fn exp_01(&self, k: impl Into<Sf64>) -> Self {
         let k = k.into();
@@ -479,11 +479,11 @@ impl Trigger {
         })
     }
 
-    pub fn on<T: Copy + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<Option<T>> {
+    pub fn on<T: Clone + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<Option<T>> {
         self.0.map(move |x| if x { Some(f()) } else { None })
     }
 
-    pub fn on_ctx<T: Copy + 'static, F: Fn(&SignalCtx) -> T + 'static>(
+    pub fn on_ctx<T: Clone + 'static, F: Fn(&SignalCtx) -> T + 'static>(
         &self,
         f: F,
     ) -> Signal<Option<T>> {
@@ -604,7 +604,7 @@ pub trait SignalLike<T> {
     fn sample(&self, ctx: &SignalCtx) -> T;
 }
 
-impl<T: Copy + Default + 'static> SignalLike<T> for Signal<T> {
+impl<T: Clone + Default + 'static> SignalLike<T> for Signal<T> {
     fn sample(&self, ctx: &SignalCtx) -> T {
         Signal::sample(self, ctx)
     }

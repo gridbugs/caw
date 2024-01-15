@@ -15,6 +15,50 @@ pub struct MidiEvent {
     pub message: MidiMessage,
 }
 
+#[derive(Debug, Clone, Default)]
+pub struct MidiEvents {
+    events: Vec<MidiEvent>,
+}
+
+impl MidiEvents {
+    fn add(&mut self, midi_event: MidiEvent) {
+        self.events.push(midi_event);
+    }
+
+    pub fn for_each_event<F: FnMut(MidiEvent)>(&self, f: F) {
+        self.events.iter().cloned().for_each(f)
+    }
+
+    pub fn for_each_message_on_channel<F: FnMut(MidiMessage)>(&self, channel: u8, mut f: F) {
+        self.for_each_event(|event| {
+            if event.channel.as_int() == channel {
+                f(event.message);
+            }
+        })
+    }
+
+    pub fn filter_channel(&self, channel: u8) -> MidiMessages {
+        let mut midi_messages = MidiMessages::default();
+        self.for_each_message_on_channel(channel, |message| midi_messages.add(message));
+        midi_messages
+    }
+}
+
+#[derive(Debug, Clone, Default)]
+pub struct MidiMessages {
+    messages: Vec<MidiMessage>,
+}
+
+impl MidiMessages {
+    fn add(&mut self, midi_message: MidiMessage) {
+        self.messages.push(midi_message);
+    }
+
+    pub fn for_each<F: FnMut(MidiMessage)>(&self, f: F) {
+        self.messages.iter().cloned().for_each(f)
+    }
+}
+
 pub struct MidiVoiceRaw {
     pub note_index: Signal<u7>,
     pub velocity: Signal<u7>,
@@ -615,4 +659,39 @@ impl MidiPlayerMonophonic {
     pub fn new(channel: u4, event_source: impl MidiEventSource + 'static) -> Self {
         MidiPlayerMonophonicRaw::new(channel, event_source).to_player()
     }
+}
+
+pub fn event_source_to_signal(event_source: impl MidiEventSource + 'static) -> Signal<MidiEvents> {
+    let event_source = RefCell::new(event_source);
+    Signal::from_fn(move |ctx| {
+        let mut midi_events = MidiEvents::default();
+        event_source
+            .borrow_mut()
+            .for_each_new_event(ctx, |midi_event| midi_events.add(midi_event));
+        midi_events
+    })
+}
+
+impl Signal<MidiEvents> {
+    pub fn filter_channel(&self, channel: u8) -> Signal<MidiMessages> {
+        self.map(move |events| events.filter_channel(channel))
+    }
+}
+
+pub fn event_source_to_signal_single_channel(
+    event_source: impl MidiEventSource + 'static,
+    channel: u8,
+) -> Signal<MidiMessages> {
+    let event_source = RefCell::new(event_source);
+    Signal::from_fn(move |ctx| {
+        let mut midi_messages = MidiMessages::default();
+        event_source
+            .borrow_mut()
+            .for_each_new_event(ctx, |midi_event| {
+                if midi_event.channel == channel {
+                    midi_messages.add(midi_event.message);
+                }
+            });
+        midi_messages
+    })
 }
