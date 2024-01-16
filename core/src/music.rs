@@ -1,6 +1,6 @@
 use crate::signal::Freq;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub enum NoteName {
     C,
     CSharp,
@@ -14,6 +14,12 @@ pub enum NoteName {
     A,
     ASharp,
     B,
+}
+
+impl Default for NoteName {
+    fn default() -> Self {
+        Self::C
+    }
 }
 
 use NoteName::*;
@@ -53,9 +59,19 @@ pub fn semitone_ratio(num_semitones: f64) -> f64 {
 }
 
 /// Definition of notes based on MIDI tuned to A440
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Note {
-    pub name: NoteName,
     pub octave: u8,
+    pub name: NoteName,
+}
+
+impl Default for Note {
+    fn default() -> Self {
+        Self {
+            name: Default::default(),
+            octave: 4,
+        }
+    }
 }
 
 impl Note {
@@ -75,7 +91,8 @@ impl Note {
         Freq::from_hz(self.freq_hz())
     }
 
-    pub const fn from_midi_index(midi_index: u8) -> Self {
+    pub fn from_midi_index(midi_index: impl Into<u8>) -> Self {
+        let midi_index = midi_index.into();
         let name = ALL_NOTE_NAMES_IN_INDEX_ORDER[(midi_index % NOTES_PER_OCTAVE) as usize];
         let octave = midi_index / NOTES_PER_OCTAVE;
         Self::new(name, octave)

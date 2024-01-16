@@ -436,6 +436,25 @@ impl Signal<u8> {
     }
 }
 
+impl<A: Clone + Default + 'static, B: Clone + Default + 'static> Signal<(A, B)> {
+    pub fn unzip(&self) -> (Signal<A>, Signal<B>) {
+        let a = self.map(|x| x.0);
+        let b = self.map(|x| x.1);
+        (a, b)
+    }
+}
+
+impl<A: Clone + Default + 'static, B: Clone + Default + 'static, C: Clone + Default + 'static>
+    Signal<(A, B, C)>
+{
+    pub fn unzip(&self) -> (Signal<A>, Signal<B>, Signal<C>) {
+        let a = self.map(|x| x.0);
+        let b = self.map(|x| x.1);
+        let c = self.map(|x| x.2);
+        (a, b, c)
+    }
+}
+
 #[derive(Clone)]
 pub struct Trigger(Sbool);
 
@@ -568,6 +587,12 @@ impl Gate {
 
     pub fn from_fn<F: Fn(&SignalCtx) -> bool + 'static>(f: F) -> Self {
         Self(Signal::new(SignalRawFn(f)))
+    }
+
+    pub fn and(&self, other: impl Into<Self>) -> Self {
+        let signal = self.clone();
+        let other = other.into();
+        Self::from_fn(move |ctx| signal.sample(ctx) && other.sample(ctx))
     }
 }
 

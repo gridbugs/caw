@@ -1,6 +1,6 @@
 use crate::{
     music,
-    signal::{Freq, Gate, Sf64, Sfreq, Signal, SignalCtx},
+    signal::{Freq, Gate, Sf64, Sfreq, Signal, SignalCtx, Su8},
 };
 pub use midly::{
     num::{u14, u4, u7},
@@ -694,4 +694,88 @@ pub fn event_source_to_signal_single_channel(
             });
         midi_messages
     })
+}
+
+pub struct MidiMonophonic {
+    pub note_index: Su8,
+    pub velocity_01: Sf64,
+    pub gate: Gate,
+}
+
+impl Signal<MidiMessages> {
+    pub fn controller_table(&self) -> MidiControllerTable {
+        let table = Rc::new(RefCell::new(vec![0.0; 128]));
+        let update_table = Signal::from_fn({
+            let table = Rc::clone(&table);
+            let signal = self.clone();
+            move |ctx| {
+                let mut table = table.borrow_mut();
+                signal.sample(ctx).for_each(|message| match message {
+                    MidiMessage::Controller { controller, value } => {
+                        table[controller.as_int() as usize] = value.as_int() as f64 / 127.0;
+                    }
+                    _ => (),
+                });
+            }
+        });
+        MidiControllerTable {
+            values_01: (0..128)
+                .map(|i| {
+                    update_table.map({
+                        let table = Rc::clone(&table);
+                        move |()| {
+                            let x = table.borrow()[i];
+                            x
+                        }
+                    })
+                })
+                .collect(),
+        }
+    }
+
+    pub fn monophonic(&self) -> MidiMonophonic {
+        struct State {
+            note_index: u8,
+            velocity_01: f64,
+            key_down: bool,
+        }
+        let state = Rc::new(RefCell::new(State {
+            note_index: 0,
+            velocity_01: 0.0,
+            key_down: false,
+        }));
+        let update_state = self.map({
+            let state = Rc::clone(&state);
+            move |messages| {
+                let mut state = state.borrow_mut();
+                messages.for_each(|message| match message {
+                    MidiMessage::NoteOn { key, vel } => {
+                        state.velocity_01 = vel.as_int() as f64 / 127.0;
+                        state.note_index = key.as_int();
+                        state.key_down = true;
+                    }
+                    MidiMessage::NoteOff { key, vel } => {
+                        state.velocity_01 = vel.as_int() as f64 / 127.0;
+                        state.note_index = key.as_int();
+                        state.key_down = false;
+                    }
+                    _ => (),
+                });
+            }
+        });
+        let (note_index, velocity_01, gate) = update_state
+            .map({
+                let state = Rc::clone(&state);
+                move |()| {
+                    let state = state.borrow();
+                    (state.note_index, state.velocity_01, state.key_down)
+                }
+            })
+            .unzip();
+        MidiMonophonic {
+            note_index,
+            velocity_01,
+            gate: gate.to_gate(),
+        }
+    }
 }
