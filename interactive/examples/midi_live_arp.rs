@@ -259,11 +259,20 @@ impl<T: PartialOrd> SortedVec<T> {
     }
 }
 
-#[derive(Default)]
 struct ArpState {
     pressed_keys: SortedVec<Note>,
     index: usize,
     current_note: Note,
+}
+
+impl Default for ArpState {
+    fn default() -> Self {
+        Self {
+            pressed_keys: Default::default(),
+            index: Default::default(),
+            current_note: Note::new(NoteName::C, 4),
+        }
+    }
 }
 
 fn midi_keyboard_arp(

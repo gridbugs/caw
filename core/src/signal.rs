@@ -594,6 +594,18 @@ impl Gate {
         let other = other.into();
         Self::from_fn(move |ctx| signal.sample(ctx) && other.sample(ctx))
     }
+
+    pub fn on<T: Clone + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<Option<T>> {
+        self.0.map(move |x| if x { Some(f()) } else { None })
+    }
+
+    pub fn on_ctx<T: Clone + 'static, F: Fn(&SignalCtx) -> T + 'static>(
+        &self,
+        f: F,
+    ) -> Signal<Option<T>> {
+        self.0
+            .map_ctx(move |x, ctx| if x { Some(f(ctx)) } else { None })
+    }
 }
 
 impl From<Signal<bool>> for Gate {
@@ -671,4 +683,21 @@ impl From<&Trigger> for Trigger {
     fn from(value: &Trigger) -> Self {
         value.clone()
     }
+}
+
+impl<T: Clone + 'static> Signal<Option<T>> {
+    pub fn or(&self, other: &Self) -> Self {
+        let other = other.clone();
+        self.map_ctx(move |x, ctx| x.or(other.sample(ctx)))
+    }
+}
+
+pub fn first_some<T: Clone + 'static>(
+    signals: impl IntoIterator<Item = Signal<Option<T>>>,
+) -> Signal<Option<T>> {
+    let mut out = const_(None);
+    for signal in signals {
+        out = signal.or(&out);
+    }
+    out
 }

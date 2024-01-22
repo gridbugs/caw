@@ -14,7 +14,7 @@ const C_MAJOR_SCALE: &[NoteName] = &[
 fn make_scale_base_freqs(note_names: &[NoteName]) -> Vec<Sfreq> {
     note_names
         .into_iter()
-        .map(|&name| const_(Note { name, octave: 0 }.freq()))
+        .map(|&name| const_(name.in_octave(0).freq()))
         .collect()
 }
 
@@ -101,13 +101,7 @@ fn random_replace_loop(
 fn synth_signal(trigger: Trigger, _input: Input) -> Sf64 {
     let freq = random_replace_loop(
         trigger.clone(),
-        const_(
-            Note {
-                name: NoteName::A,
-                octave: 1,
-            }
-            .freq(),
-        ),
+        const_(NoteName::A.in_octave(1).freq()),
         random_note_c_major(const_(80.0), const_(200.0)),
         4,
         const_(0.1),
