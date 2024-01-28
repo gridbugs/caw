@@ -14,6 +14,8 @@ impl Freq {
         Self { hz }
     }
 
+    pub const ZERO_HZ: Self = Self::from_hz(0.0);
+
     pub fn from_s(s: f64) -> Self {
         Self::from_hz(1.0 / s)
     }
@@ -605,6 +607,11 @@ impl Gate {
     ) -> Signal<Option<T>> {
         self.0
             .map_ctx(move |x, ctx| if x { Some(f(ctx)) } else { None })
+    }
+
+    pub fn to_01(&self) -> Sf64 {
+        let gate = self.clone();
+        Signal::from_fn(move |ctx| if gate.sample(ctx) { 1.0 } else { 0.0 })
     }
 }
 

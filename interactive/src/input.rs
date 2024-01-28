@@ -193,8 +193,8 @@ impl Mouse {
 
 #[derive(Clone)]
 pub struct Input {
-    pub keyboard: Keyboard,
-    pub mouse: Mouse,
+    pub keyboard: Box<Keyboard>,
+    pub mouse: Box<Mouse>,
 }
 
 impl Input {
@@ -372,8 +372,8 @@ impl InputState {
 
     pub fn input(&self) -> Input {
         Input {
-            keyboard: self.keyboard(),
-            mouse: self.mouse(),
+            keyboard: Box::new(self.keyboard()),
+            mouse: Box::new(self.mouse()),
         }
     }
 }

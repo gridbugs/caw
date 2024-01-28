@@ -3,28 +3,26 @@ use std::cell::RefCell;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;
-    let top_row_base = Note::new(NoteName::A, 2).to_midi_index();
+    let top_row_base = Note::new(NoteName::B, 2).to_midi_index();
     let top_row = vec![
-        N1,
         Q,
-        N2,
         W,
+        N3,
         E,
         N4,
         R,
-        N5,
         T,
+        N5,
         Y,
         N7,
         U,
         N8,
         I,
-        N9,
         O,
+        N0,
         P,
         Minus,
         LeftBracket,
-        Equals,
         RightBracket,
     ];
     let bottom_row_base = Note::new(NoteName::B, 1).to_midi_index();

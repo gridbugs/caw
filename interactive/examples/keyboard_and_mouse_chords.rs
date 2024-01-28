@@ -92,11 +92,7 @@ fn chords_to_voice_descs(
 }
 
 fn synth(freq: Sfreq, gate: Gate, vel: Sf64, input: &Input) -> Sf64 {
-    let freq_hz = freq.hz();
-    let osc = mean([
-        oscillator_hz(Waveform::Saw, &freq_hz).build(),
-        oscillator_hz(Waveform::Saw, &freq_hz * 1.005).build(),
-    ]);
+    let osc = supersaw(freq).build();
     let env = adsr_linear_01(&gate).attack_s(0.0).release_s(0.0).build();
     osc.filter(
         low_pass_moog_ladder(&env * 6000.0 * input.mouse.x_01())

@@ -723,10 +723,7 @@ impl Signal<MidiMessages> {
                 .map(|i| {
                     update_table.map({
                         let table = Rc::clone(&table);
-                        move |()| {
-                            let x = table.borrow()[i];
-                            x
-                        }
+                        move |()| table.borrow()[i]
                     })
                 })
                 .collect(),

@@ -16,6 +16,7 @@ midi = ["currawong/midi"]
 [dependencies]
 anyhow = "1.0"
 currawong = { version = "0.4", path = "../currawong" }
+currawong_core = { version = "0.4", path = "../core" }
 line_2d = "0.5"
 rgb_int = "0.1"
 sdl2 = "0.36"
@@ -90,3 +91,6 @@ name = "reverb_test"
 
 [[example]]
 name = "drum_reverb"
+
+[[example]]
+name = "pulse_wave_bass"

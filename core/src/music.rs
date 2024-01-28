@@ -44,6 +44,8 @@ impl NoteName {
     }
 }
 
+/// Duplicated from `NoteName` so it's possible to bring all note names into scope by using this
+/// module.
 pub mod note_name {
     pub use super::NoteName;
     pub const C: NoteName = NoteName::C;
@@ -61,7 +63,8 @@ pub mod note_name {
 }
 
 const A4_FREQ_HZ: f64 = 440.0;
-const A4_MIDI_INDEX: u8 = 57;
+const C0_MIDI_INDEX: u8 = 12;
+const A4_MIDI_INDEX: u8 = C0_MIDI_INDEX + 57;
 
 pub fn freq_hz_of_midi_index(midi_index: u8) -> f64 {
     A4_FREQ_HZ
@@ -81,7 +84,7 @@ pub struct Note {
 impl Note {
     pub const fn new(name: NoteName, octave: u8) -> Self {
         Self {
-            midi_index: (octave * NOTES_PER_OCTAVE) + name.to_index(),
+            midi_index: C0_MIDI_INDEX + (octave * NOTES_PER_OCTAVE) + name.to_index(),
         }
     }
 
@@ -105,6 +108,16 @@ impl Note {
 
     pub fn octave(self) -> u8 {
         self.midi_index / NOTES_PER_OCTAVE
+    }
+
+    pub fn add_semitones(self, num_semitones: i16) -> Self {
+        Self {
+            midi_index: (self.midi_index as i16 + num_semitones) as u8,
+        }
+    }
+
+    pub fn add_octaves(self, num_octaves: i8) -> Self {
+        self.add_semitones(num_octaves as i16 * NOTES_PER_OCTAVE as i16)
     }
 }
 
@@ -211,4 +224,138 @@ impl AbstractChord {
         self.with_notes_in_octave(octave_base, |note| ret.push(note));
         ret
     }
+}
+
+impl Note {
+    pub const C0: Self = Self::new(NoteName::C, 0);
+    pub const C1: Self = Self::new(NoteName::C, 1);
+    pub const C2: Self = Self::new(NoteName::C, 2);
+    pub const C3: Self = Self::new(NoteName::C, 3);
+    pub const C4: Self = Self::new(NoteName::C, 4);
+    pub const C5: Self = Self::new(NoteName::C, 5);
+    pub const C6: Self = Self::new(NoteName::C, 6);
+    pub const C7: Self = Self::new(NoteName::C, 7);
+    pub const C8: Self = Self::new(NoteName::C, 8);
+    pub const D0: Self = Self::new(NoteName::D, 0);
+    pub const D1: Self = Self::new(NoteName::D, 1);
+    pub const D2: Self = Self::new(NoteName::D, 2);
+    pub const D3: Self = Self::new(NoteName::D, 3);
+    pub const D4: Self = Self::new(NoteName::D, 4);
+    pub const D5: Self = Self::new(NoteName::D, 5);
+    pub const D6: Self = Self::new(NoteName::D, 6);
+    pub const D7: Self = Self::new(NoteName::D, 7);
+    pub const D8: Self = Self::new(NoteName::D, 8);
+    pub const E0: Self = Self::new(NoteName::E, 0);
+    pub const E1: Self = Self::new(NoteName::E, 1);
+    pub const E2: Self = Self::new(NoteName::E, 2);
+    pub const E3: Self = Self::new(NoteName::E, 3);
+    pub const E4: Self = Self::new(NoteName::E, 4);
+    pub const E5: Self = Self::new(NoteName::E, 5);
+    pub const E6: Self = Self::new(NoteName::E, 6);
+    pub const E7: Self = Self::new(NoteName::E, 7);
+    pub const E8: Self = Self::new(NoteName::E, 8);
+    pub const F0: Self = Self::new(NoteName::F, 0);
+    pub const F1: Self = Self::new(NoteName::F, 1);
+    pub const F2: Self = Self::new(NoteName::F, 2);
+    pub const F3: Self = Self::new(NoteName::F, 3);
+    pub const F4: Self = Self::new(NoteName::F, 4);
+    pub const F5: Self = Self::new(NoteName::F, 5);
+    pub const F6: Self = Self::new(NoteName::F, 6);
+    pub const F7: Self = Self::new(NoteName::F, 7);
+    pub const F8: Self = Self::new(NoteName::F, 8);
+    pub const G0: Self = Self::new(NoteName::G, 0);
+    pub const G1: Self = Self::new(NoteName::G, 1);
+    pub const G2: Self = Self::new(NoteName::G, 2);
+    pub const G3: Self = Self::new(NoteName::G, 3);
+    pub const G4: Self = Self::new(NoteName::G, 4);
+    pub const G5: Self = Self::new(NoteName::G, 5);
+    pub const G6: Self = Self::new(NoteName::G, 6);
+    pub const G7: Self = Self::new(NoteName::G, 7);
+    pub const G8: Self = Self::new(NoteName::G, 8);
+    pub const A0: Self = Self::new(NoteName::A, 0);
+    pub const A1: Self = Self::new(NoteName::A, 1);
+    pub const A2: Self = Self::new(NoteName::A, 2);
+    pub const A3: Self = Self::new(NoteName::A, 3);
+    pub const A4: Self = Self::new(NoteName::A, 4);
+    pub const A5: Self = Self::new(NoteName::A, 5);
+    pub const A6: Self = Self::new(NoteName::A, 6);
+    pub const A7: Self = Self::new(NoteName::A, 7);
+    pub const A8: Self = Self::new(NoteName::A, 8);
+    pub const B0: Self = Self::new(NoteName::B, 0);
+    pub const B1: Self = Self::new(NoteName::B, 1);
+    pub const B2: Self = Self::new(NoteName::B, 2);
+    pub const B3: Self = Self::new(NoteName::B, 3);
+    pub const B4: Self = Self::new(NoteName::B, 4);
+    pub const B5: Self = Self::new(NoteName::B, 5);
+    pub const B6: Self = Self::new(NoteName::B, 6);
+    pub const B7: Self = Self::new(NoteName::B, 7);
+    pub const B8: Self = Self::new(NoteName::B, 8);
+}
+
+/// Duplicated from `Note` so it's possible to bring all notes into scope by using this module.
+pub mod note {
+    pub use super::Note;
+    pub const C0: Note = Note::C0;
+    pub const C1: Note = Note::C1;
+    pub const C2: Note = Note::C2;
+    pub const C3: Note = Note::C3;
+    pub const C4: Note = Note::C4;
+    pub const C5: Note = Note::C5;
+    pub const C6: Note = Note::C6;
+    pub const C7: Note = Note::C7;
+    pub const C8: Note = Note::C8;
+    pub const D0: Note = Note::D0;
+    pub const D1: Note = Note::D1;
+    pub const D2: Note = Note::D2;
+    pub const D3: Note = Note::D3;
+    pub const D4: Note = Note::D4;
+    pub const D5: Note = Note::D5;
+    pub const D6: Note = Note::D6;
+    pub const D7: Note = Note::D7;
+    pub const D8: Note = Note::D8;
+    pub const E0: Note = Note::E0;
+    pub const E1: Note = Note::E1;
+    pub const E2: Note = Note::E2;
+    pub const E3: Note = Note::E3;
+    pub const E4: Note = Note::E4;
+    pub const E5: Note = Note::E5;
+    pub const E6: Note = Note::E6;
+    pub const E7: Note = Note::E7;
+    pub const E8: Note = Note::E8;
+    pub const F0: Note = Note::F0;
+    pub const F1: Note = Note::F1;
+    pub const F2: Note = Note::F2;
+    pub const F3: Note = Note::F3;
+    pub const F4: Note = Note::F4;
+    pub const F5: Note = Note::F5;
+    pub const F6: Note = Note::F6;
+    pub const F7: Note = Note::F7;
+    pub const F8: Note = Note::F8;
+    pub const G0: Note = Note::G0;
+    pub const G1: Note = Note::G1;
+    pub const G2: Note = Note::G2;
+    pub const G3: Note = Note::G3;
+    pub const G4: Note = Note::G4;
+    pub const G5: Note = Note::G5;
+    pub const G6: Note = Note::G6;
+    pub const G7: Note = Note::G7;
+    pub const G8: Note = Note::G8;
+    pub const A0: Note = Note::A0;
+    pub const A1: Note = Note::A1;
+    pub const A2: Note = Note::A2;
+    pub const A3: Note = Note::A3;
+    pub const A4: Note = Note::A4;
+    pub const A5: Note = Note::A5;
+    pub const A6: Note = Note::A6;
+    pub const A7: Note = Note::A7;
+    pub const A8: Note = Note::A8;
+    pub const B0: Note = Note::B0;
+    pub const B1: Note = Note::B1;
+    pub const B2: Note = Note::B2;
+    pub const B3: Note = Note::B3;
+    pub const B4: Note = Note::B4;
+    pub const B5: Note = Note::B5;
+    pub const B6: Note = Note::B6;
+    pub const B7: Note = Note::B7;
+    pub const B8: Note = Note::B8;
 }

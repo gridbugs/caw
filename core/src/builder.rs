@@ -1,55 +1,8 @@
-pub mod signal {
+pub mod env {
     use crate::{
         envelope::AdsrLinear01,
-        oscillator::{Oscillator, Waveform},
-        signal::{const_, sfreq_hz, sfreq_s, Gate, Sf64, Sfreq, Signal, Trigger},
+        signal::{const_, Gate, Sf64},
     };
-
-    pub struct OscillatorBuilder {
-        waveform: Signal<Waveform>,
-        freq: Sfreq,
-        pulse_width_01: Option<Sf64>,
-        reset_trigger: Option<Trigger>,
-        reset_offset_01: Option<Sf64>,
-    }
-
-    impl OscillatorBuilder {
-        pub fn new(waveform: impl Into<Signal<Waveform>>, freq: impl Into<Sfreq>) -> Self {
-            Self {
-                waveform: waveform.into(),
-                freq: freq.into(),
-                pulse_width_01: None,
-                reset_trigger: None,
-                reset_offset_01: None,
-            }
-        }
-
-        pub fn pulse_width_01(mut self, pulse_width_01: impl Into<Sf64>) -> Self {
-            self.pulse_width_01 = Some(pulse_width_01.into());
-            self
-        }
-
-        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
-            self.reset_trigger = Some(reset_trigger.into());
-            self
-        }
-
-        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
-            self.reset_offset_01 = Some(reset_offset_01.into());
-            self
-        }
-
-        pub fn build(self) -> Sf64 {
-            Oscillator {
-                waveform: self.waveform,
-                freq: self.freq,
-                pulse_width_01: self.pulse_width_01.unwrap_or_else(|| const_(0.5)),
-                reset_trigger: self.reset_trigger.unwrap_or_else(|| Trigger::never()),
-                reset_offset_01: self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
-            }
-            .signal()
-        }
-    }
 
     pub struct AdsrLinear01Builder {
         gate: Gate,
@@ -102,6 +55,63 @@ pub mod signal {
         }
     }
 
+    pub fn adsr_linear_01(gate: impl Into<Gate>) -> AdsrLinear01Builder {
+        AdsrLinear01Builder::new(gate)
+    }
+}
+
+pub mod oscillator {
+    use crate::{
+        oscillator::{Oscillator, Waveform},
+        signal::{const_, sfreq_hz, sfreq_s, Sf64, Sfreq, Signal, Trigger},
+    };
+
+    pub struct OscillatorBuilder {
+        waveform: Signal<Waveform>,
+        freq: Sfreq,
+        pulse_width_01: Option<Sf64>,
+        reset_trigger: Option<Trigger>,
+        reset_offset_01: Option<Sf64>,
+    }
+
+    impl OscillatorBuilder {
+        pub fn new(waveform: impl Into<Signal<Waveform>>, freq: impl Into<Sfreq>) -> Self {
+            Self {
+                waveform: waveform.into(),
+                freq: freq.into(),
+                pulse_width_01: None,
+                reset_trigger: None,
+                reset_offset_01: None,
+            }
+        }
+
+        pub fn pulse_width_01(mut self, pulse_width_01: impl Into<Sf64>) -> Self {
+            self.pulse_width_01 = Some(pulse_width_01.into());
+            self
+        }
+
+        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+            self.reset_trigger = Some(reset_trigger.into());
+            self
+        }
+
+        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+            self.reset_offset_01 = Some(reset_offset_01.into());
+            self
+        }
+
+        pub fn build(self) -> Sf64 {
+            Oscillator {
+                waveform: self.waveform,
+                freq: self.freq,
+                pulse_width_01: self.pulse_width_01.unwrap_or_else(|| const_(0.5)),
+                reset_trigger: self.reset_trigger.unwrap_or_else(|| Trigger::never()),
+                reset_offset_01: self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+            }
+            .signal()
+        }
+    }
+
     pub fn oscillator(
         waveform: impl Into<Signal<Waveform>>,
         freq: impl Into<Sfreq>,
@@ -121,10 +131,6 @@ pub mod signal {
         freq_s: impl Into<Sf64>,
     ) -> OscillatorBuilder {
         OscillatorBuilder::new(waveform, sfreq_s(freq_s))
-    }
-
-    pub fn adsr_linear_01(gate: impl Into<Gate>) -> AdsrLinear01Builder {
-        AdsrLinear01Builder::new(gate)
     }
 }
 
@@ -719,5 +725,136 @@ pub mod sampler {
 
     pub fn sampler(sample: &Sample) -> SamplerBuilder {
         SamplerBuilder::new(sample)
+    }
+}
+
+pub mod patches {
+    use crate::{
+        patches,
+        signal::{const_, sfreq_hz, Sf64, Sfreq, Trigger},
+    };
+
+    pub struct SupersawBuilder {
+        resolution: Option<usize>,
+        freq: Sfreq,
+        ratio: Option<Sf64>,
+        reset_trigger: Option<Trigger>,
+        reset_offset_01: Option<Sf64>,
+    }
+
+    impl SupersawBuilder {
+        pub fn new(freq: impl Into<Sfreq>) -> Self {
+            Self {
+                resolution: None,
+                freq: freq.into(),
+                ratio: None,
+                reset_trigger: None,
+                reset_offset_01: None,
+            }
+        }
+
+        pub fn resolution(mut self, resolution: impl Into<usize>) -> Self {
+            self.resolution = Some(resolution.into());
+            self
+        }
+
+        pub fn ratio(mut self, ratio: impl Into<Sf64>) -> Self {
+            self.ratio = Some(ratio.into());
+            self
+        }
+
+        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+            self.reset_trigger = Some(reset_trigger.into());
+            self
+        }
+
+        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+            self.reset_offset_01 = Some(reset_offset_01.into());
+            self
+        }
+
+        pub fn build(self) -> Sf64 {
+            patches::supersaw(
+                self.resolution.unwrap_or(1),
+                self.freq,
+                self.ratio.unwrap_or_else(|| const_(0.01)),
+                self.reset_trigger.unwrap_or_else(|| Trigger::never()),
+                self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+            )
+        }
+    }
+
+    pub fn supersaw(freq: impl Into<Sfreq>) -> SupersawBuilder {
+        SupersawBuilder::new(freq)
+    }
+
+    pub fn supersaw_hz(freq_hz: impl Into<Sf64>) -> SupersawBuilder {
+        supersaw(sfreq_hz(freq_hz))
+    }
+
+    pub struct PulsePwmBuilder {
+        osc_freq: Sfreq,
+        pwm_freq: Option<Sfreq>,
+        offset_01: Option<Sf64>,
+        scale_01: Option<Sf64>,
+        reset_trigger: Option<Trigger>,
+        reset_offset_01: Option<Sf64>,
+    }
+
+    impl PulsePwmBuilder {
+        pub fn new(osc_freq: impl Into<Sfreq>) -> Self {
+            Self {
+                osc_freq: osc_freq.into(),
+                pwm_freq: None,
+                offset_01: None,
+                scale_01: None,
+                reset_trigger: None,
+                reset_offset_01: None,
+            }
+        }
+
+        pub fn pwm_freq(mut self, pwm_freq: impl Into<Sfreq>) -> Self {
+            self.pwm_freq = Some(pwm_freq.into());
+            self
+        }
+
+        pub fn offset_01(mut self, offset_01: impl Into<Sf64>) -> Self {
+            self.offset_01 = Some(offset_01.into());
+            self
+        }
+
+        pub fn scale_01(mut self, scale_01: impl Into<Sf64>) -> Self {
+            self.scale_01 = Some(scale_01.into());
+            self
+        }
+
+        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+            self.reset_trigger = Some(reset_trigger.into());
+            self
+        }
+
+        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+            self.reset_offset_01 = Some(reset_offset_01.into());
+            self
+        }
+
+        pub fn build(self) -> Sf64 {
+            patches::pulse_pwm(
+                self.osc_freq,
+                self.pwm_freq.unwrap_or_else(|| sfreq_hz(const_(1.0))),
+                self.offset_01.unwrap_or_else(|| const_(0.5)),
+                self.scale_01.unwrap_or_else(|| const_(0.5)),
+                self.reset_trigger.unwrap_or_else(|| Trigger::never()),
+                self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+            )
+        }
+    }
+
+    pub fn pulse_pwm(freq: impl Into<Sfreq>) -> PulsePwmBuilder {
+        PulsePwmBuilder::new(freq)
+    }
+
+    pub fn pulse_pwm_hz(freq_hz: impl Into<Sf64>) -> PulsePwmBuilder {
+        pulse_pwm(sfreq_hz(freq_hz))
     }
 }

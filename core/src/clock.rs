@@ -24,7 +24,7 @@ impl PeriodicGate {
     }
 
     pub fn gate(self) -> Gate {
-        builder::signal::oscillator(Waveform::Pulse, self.freq)
+        builder::oscillator::oscillator(Waveform::Pulse, self.freq)
             .pulse_width_01(self.duty_01)
             .reset_offset_01(self.offset_01)
             .build()
@@ -43,7 +43,7 @@ impl PeriodicTrigger {
     }
 
     pub fn trigger(self) -> Trigger {
-        builder::signal::oscillator(Waveform::Pulse, self.freq)
+        builder::oscillator::oscillator(Waveform::Pulse, self.freq)
             .build()
             .map(|x| x < 0.0)
             .to_trigger_rising_edge()

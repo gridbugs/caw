@@ -2,9 +2,12 @@ pub mod builder;
 pub mod clock;
 pub mod envelope;
 pub mod filters;
+pub mod keyboard;
 pub mod loopers;
+pub mod patches;
 pub mod sampler;
 pub mod sequencers;
+pub mod templates;
 pub mod util;
 
 mod biquad_filter;
@@ -25,6 +28,7 @@ pub mod prelude {
     };
     pub use crate::{
         builder::{
+            env::adsr_linear_01,
             filter::{
                 compress, delay, delay_s, down_sample, echo, high_pass_butterworth,
                 high_pass_chebyshev, low_pass_butterworth, low_pass_chebyshev,
@@ -36,9 +40,11 @@ pub mod prelude {
                 periodic_trigger_hz, periodic_trigger_s,
             },
             loopers::{clocked_midi_note_monophonic_looper, clocked_trigger_looper},
+            oscillator::{oscillator, oscillator_hz, oscillator_s},
+            patches::{pulse_pwm, pulse_pwm_hz, supersaw, supersaw_hz},
             sampler::sampler,
-            signal::{adsr_linear_01, oscillator, oscillator_hz, oscillator_s},
         },
+        keyboard::{KeyEvent, VoiceDesc},
         music::{freq_hz_of_midi_index, note_name, semitone_ratio, AbstractChord, Note, NoteName},
         oscillator::Waveform,
         sampler::{Sample, Sampler},
