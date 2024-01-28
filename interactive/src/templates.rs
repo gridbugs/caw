@@ -13,7 +13,7 @@ fn opinionated_freq_hz_by_key(start_note: Note) -> Vec<(Key, f64)> {
         N4,
         R,
         T,
-        N5,
+        N6,
         Y,
         N7,
         U,
