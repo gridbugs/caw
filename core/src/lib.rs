@@ -7,7 +7,6 @@ pub mod loopers;
 pub mod patches;
 pub mod sampler;
 pub mod sequencers;
-pub mod sf64_filter_builder_trait;
 pub mod templates;
 pub mod util;
 
