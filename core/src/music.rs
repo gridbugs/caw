@@ -1,4 +1,4 @@
-use crate::signal::Freq;
+use crate::signal::{Freq, Sf64, Sfreq, Signal};
 
 /// A note without an octave
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
@@ -118,6 +118,23 @@ impl Note {
 
     pub fn add_octaves(self, num_octaves: i8) -> Self {
         self.add_semitones(num_octaves as i16 * NOTES_PER_OCTAVE as i16)
+    }
+}
+
+/// Returns the note C4. This is only `Default` so that a `Signal<Note>` can be constructed.
+impl Default for Note {
+    fn default() -> Self {
+        Self::C4
+    }
+}
+
+impl Signal<Note> {
+    pub fn freq(&self) -> Sfreq {
+        self.map(|note| note.freq())
+    }
+
+    pub fn freq_hz(&self) -> Sf64 {
+        self.map(|note| note.freq_hz())
     }
 }
 

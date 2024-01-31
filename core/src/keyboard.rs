@@ -1,16 +1,19 @@
-use crate::signal::{Freq, Gate, Sf64, Sfreq, Signal};
+use crate::{
+    music::Note,
+    signal::{Gate, Sf64, Signal},
+};
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone)]
 pub struct VoiceDesc {
-    pub freq: Sfreq,
+    pub note: Signal<Note>,
     pub gate: Gate,
     pub velocity_01: Sf64,
 }
 
-#[derive(Clone, Copy, Debug, Default)]
+#[derive(Clone, Copy, Debug)]
 pub struct KeyEvent {
-    pub freq: Freq,
+    pub note: Note,
     pub pressed: bool,
     pub velocity_01: f64,
 }
@@ -19,14 +22,14 @@ impl VoiceDesc {
     pub fn monophonic_from_key_events(key_events: Signal<Vec<KeyEvent>>) -> Self {
         #[derive(Clone, Copy, Default)]
         struct HeldKey {
-            freq: Freq,
+            note: Note,
             velocity_01: f64,
         }
 
         impl HeldKey {
             fn from_key_event(key_event: &KeyEvent) -> Self {
                 Self {
-                    freq: key_event.freq,
+                    note: key_event.note,
                     velocity_01: key_event.velocity_01,
                 }
             }
@@ -44,7 +47,7 @@ impl VoiceDesc {
                 // Remove the held key if it already exists. This assumes there are no duplicate
                 // keys in the vector.
                 for (i, held_key) in self.held_keys.iter().enumerate() {
-                    if held_key.freq == key_event.freq {
+                    if held_key.note == key_event.note {
                         self.held_keys.remove(i);
                         break;
                     }
@@ -68,14 +71,14 @@ impl VoiceDesc {
                 }
             }
         });
-        let freq = update_state.map({
+        let note = update_state.map({
             let state = Rc::clone(&state);
             move |()| {
                 let state = state.borrow();
                 if let Some(last) = state.last() {
-                    last.freq
+                    last.note
                 } else {
-                    state.sticky.freq
+                    state.sticky.note
                 }
             }
         });
@@ -97,7 +100,7 @@ impl VoiceDesc {
             }
         });
         Self {
-            freq,
+            note,
             gate,
             velocity_01,
         }

@@ -2,9 +2,9 @@ use crate::input::{Input, Key};
 use currawong_core::prelude::*;
 use std::cell::RefCell;
 
-fn opinionated_freq_hz_by_key(start_note: Note) -> Vec<(Key, f64)> {
+fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
     use Key::*;
-    let top_row_base = start_note.add_octaves(1).to_midi_index();
+    let top_row_base = start_note.add_octaves(1);
     let top_row = vec![
         Q,
         W,
@@ -26,17 +26,16 @@ fn opinionated_freq_hz_by_key(start_note: Note) -> Vec<(Key, f64)> {
         LeftBracket,
         RightBracket,
     ];
-    let bottom_row_base = start_note.to_midi_index();
     let bottom_row = vec![Z, X, D, C, F, V, B, H, N, J, M, K, Comma, Period];
     top_row
         .into_iter()
         .enumerate()
-        .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + top_row_base)))
+        .map(|(i, key)| (key, top_row_base.add_semitones(i as i16)))
         .chain(
             bottom_row
                 .into_iter()
                 .enumerate()
-                .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + bottom_row_base))),
+                .map(|(i, key)| (key, start_note.add_semitones(i as i16))),
         )
         .collect::<Vec<_>>()
 }
@@ -48,20 +47,20 @@ pub fn opinionated_key_events(
 ) -> Signal<Vec<KeyEvent>> {
     let velocity_01 = velocity_01.into();
     let state = RefCell::new(
-        opinionated_freq_hz_by_key(start_note)
+        opinionated_note_by_key(start_note)
             .into_iter()
-            .map(|(key, freq_hz_)| (key, freq_hz(freq_hz_), false))
+            .map(|(key, note)| (key, note, false))
             .collect::<Vec<_>>(),
     );
     Signal::from_fn(move |ctx| {
         let mut state = state.borrow_mut();
         let mut ret = Vec::new();
-        for (key, freq, pressed) in state.iter_mut() {
+        for (key, note, pressed) in state.iter_mut() {
             let current = input.key(*key).sample(ctx);
             if current != *pressed {
                 *pressed = current;
                 ret.push(KeyEvent {
-                    freq: *freq,
+                    note: *note,
                     pressed: *pressed,
                     velocity_01: velocity_01.sample(ctx),
                 });

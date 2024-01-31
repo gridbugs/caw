@@ -1,7 +1,7 @@
 use currawong_interactive::prelude::*;
 
-fn voice(VoiceDesc { freq, gate, .. }: VoiceDesc, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
-    pulse_pwm(freq)
+fn voice(VoiceDesc { note, gate, .. }: VoiceDesc, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
+    pulse_pwm(note.freq())
         .offset_01(effect_x)
         .scale_01(effect_y)
         .reset_trigger(gate.to_trigger_rising_edge())
