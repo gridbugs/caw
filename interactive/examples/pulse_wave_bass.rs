@@ -1,12 +1,21 @@
 use currawong_interactive::prelude::*;
 
-fn voice(VoiceDesc { note, gate, .. }: VoiceDesc, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
+fn voice(
+    VoiceDesc {
+        note,
+        key_down,
+        key_press,
+        ..
+    }: VoiceDesc,
+    effect_x: Sf64,
+    effect_y: Sf64,
+) -> Sf64 {
     pulse_pwm(note.freq())
         .offset_01(effect_x)
         .scale_01(effect_y)
-        .reset_trigger(gate.to_trigger_rising_edge())
+        .reset_trigger(key_press)
         .build()
-        * gate.to_01()
+        * key_down.to_01()
 }
 
 fn make_voice(input: Input) -> Sf64 {

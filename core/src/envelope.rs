@@ -1,8 +1,9 @@
-use crate::signal::{Gate, Sf64, Signal};
+use crate::signal::{Gate, Sf64, Signal, Trigger};
 use std::cell::Cell;
 
 pub struct AdsrLinear01 {
-    pub gate: Gate,
+    pub key_down: Gate,
+    pub key_press: Trigger,
     pub attack_s: Sf64,
     pub decay_s: Sf64,
     pub sustain_01: Sf64,
@@ -10,28 +11,15 @@ pub struct AdsrLinear01 {
 }
 
 impl AdsrLinear01 {
-    pub fn new(
-        gate: impl Into<Gate>,
-        attack_s: impl Into<Sf64>,
-        decay_s: impl Into<Sf64>,
-        sustain_01: impl Into<Sf64>,
-        release_s: impl Into<Sf64>,
-    ) -> Self {
-        Self {
-            gate: gate.into(),
-            attack_s: attack_s.into(),
-            decay_s: decay_s.into(),
-            sustain_01: sustain_01.into(),
-            release_s: release_s.into(),
-        }
-    }
-
     pub fn signal(self) -> Sf64 {
         let current = Cell::new(0.0);
         let crossed_threshold = Cell::new(false);
         Signal::from_fn(move |ctx| {
+            if self.key_press.sample(ctx) {
+                crossed_threshold.set(false);
+            }
             let mut current_value = current.get();
-            if self.gate.sample(ctx) {
+            if self.key_down.sample(ctx) {
                 if crossed_threshold.get() {
                     // decay and sustain
                     current_value = (current_value

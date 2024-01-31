@@ -1,11 +1,12 @@
 pub mod env {
     use crate::{
         envelope::AdsrLinear01,
-        signal::{const_, Gate, Sf64},
+        signal::{const_, Gate, Sf64, Trigger},
     };
 
     pub struct AdsrLinear01Builder {
-        gate: Gate,
+        key_down: Gate,
+        key_press: Option<Trigger>,
         attack_s: Option<Sf64>,
         decay_s: Option<Sf64>,
         sustain_01: Option<Sf64>,
@@ -15,12 +16,18 @@ pub mod env {
     impl AdsrLinear01Builder {
         pub fn new(gate: impl Into<Gate>) -> Self {
             Self {
-                gate: gate.into(),
+                key_down: gate.into(),
+                key_press: None,
                 attack_s: None,
                 decay_s: None,
                 sustain_01: None,
                 release_s: None,
             }
+        }
+
+        pub fn key_press(mut self, key_press: impl Into<Trigger>) -> Self {
+            self.key_press = Some(key_press.into());
+            self
         }
 
         pub fn attack_s(mut self, attack_s: impl Into<Sf64>) -> Self {
@@ -45,7 +52,10 @@ pub mod env {
 
         pub fn build(self) -> Sf64 {
             AdsrLinear01 {
-                gate: self.gate,
+                key_press: self
+                    .key_press
+                    .unwrap_or_else(|| self.key_down.to_trigger_rising_edge()),
+                key_down: self.key_down,
                 attack_s: self.attack_s.unwrap_or_else(|| const_(0.0)),
                 decay_s: self.decay_s.unwrap_or_else(|| const_(0.0)),
                 sustain_01: self.sustain_01.unwrap_or_else(|| const_(1.0)),
@@ -55,8 +65,8 @@ pub mod env {
         }
     }
 
-    pub fn adsr_linear_01(gate: impl Into<Gate>) -> AdsrLinear01Builder {
-        AdsrLinear01Builder::new(gate)
+    pub fn adsr_linear_01(key_down: impl Into<Gate>) -> AdsrLinear01Builder {
+        AdsrLinear01Builder::new(key_down)
     }
 }
 

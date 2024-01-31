@@ -1,13 +1,14 @@
 use crate::{
     music::Note,
-    signal::{Gate, Sf64, Signal},
+    signal::{Gate, Sf64, Signal, Trigger},
 };
 use std::{cell::RefCell, rc::Rc};
 
 #[derive(Clone)]
 pub struct VoiceDesc {
     pub note: Signal<Note>,
-    pub gate: Gate,
+    pub key_down: Gate,
+    pub key_press: Trigger,
     pub velocity_01: Sf64,
 }
 
@@ -40,6 +41,7 @@ impl VoiceDesc {
             held_keys: Vec<HeldKey>,
             /// The information to use when no key is held
             sticky: HeldKey,
+            key_just_pressed: bool,
         }
 
         impl State {
@@ -55,6 +57,7 @@ impl VoiceDesc {
                 self.sticky = HeldKey::from_key_event(key_event);
                 if key_event.pressed {
                     self.held_keys.push(self.sticky);
+                    self.key_just_pressed = true;
                 }
             }
             fn last(&self) -> Option<&HeldKey> {
@@ -82,12 +85,23 @@ impl VoiceDesc {
                 }
             }
         });
-        let gate = update_state
+        let key_down = update_state
             .map({
                 let state = Rc::clone(&state);
                 move |()| state.borrow().last().is_some()
             })
             .to_gate();
+        let key_press = update_state
+            .map({
+                let state = Rc::clone(&state);
+                move |()| {
+                    let mut state = state.borrow_mut();
+                    let key_press = state.key_just_pressed;
+                    state.key_just_pressed = false;
+                    key_press
+                }
+            })
+            .to_trigger_raw();
         let velocity_01 = update_state.map({
             let state = Rc::clone(&state);
             move |()| {
@@ -101,7 +115,8 @@ impl VoiceDesc {
         });
         Self {
             note,
-            gate,
+            key_down,
+            key_press,
             velocity_01,
         }
     }
