@@ -438,6 +438,12 @@ impl Signal<u8> {
     }
 }
 
+impl Signal<()> {
+    pub fn then<T: Clone + Default + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<T> {
+        self.map(move |()| f())
+    }
+}
+
 impl<A: Clone + Default + 'static, B: Clone + Default + 'static> Signal<(A, B)> {
     pub fn unzip(&self) -> (Signal<A>, Signal<B>) {
         let a = self.map(|x| x.0);
