@@ -155,23 +155,22 @@ fn cymbal(trigger: Trigger) -> Sf64 {
 }
 
 fn make_drum_voice(
-    MidiMonophonic {
-        note_index, gate, ..
-    }: MidiMonophonic,
+    VoiceDesc {
+        note, key_press, ..
+    }: VoiceDesc,
     effects: &Effects,
 ) -> Sf64 {
-    let trigger = gate.to_trigger_rising_edge();
-    let kick_trigger = trigger.and_fn_ctx({
-        let note_index = note_index.clone();
-        move |ctx| note_index.sample(ctx) == 36
+    let kick_trigger = key_press.and_fn_ctx({
+        let note = note.clone();
+        move |ctx| note.sample(ctx).to_midi_index() == 36
     });
-    let snare_trigger = trigger.and_fn_ctx({
-        let note_index = note_index.clone();
-        move |ctx| note_index.sample(ctx) == 37
+    let snare_trigger = key_press.and_fn_ctx({
+        let note = note.clone();
+        move |ctx| note.sample(ctx).to_midi_index() == 37
     });
-    let cymbal_trigger = trigger.and_fn_ctx({
-        let note_index = note_index.clone();
-        move |ctx| note_index.sample(ctx) == 38
+    let cymbal_trigger = key_press.and_fn_ctx({
+        let note = note.clone();
+        move |ctx| note.sample(ctx).to_midi_index() == 38
     });
     (kick(kick_trigger) + snare(snare_trigger) + cymbal(cymbal_trigger))
         .filter(low_pass_moog_ladder(&effects.drum_low_pass_filter_cutoff * 20_000).build())
@@ -368,7 +367,13 @@ fn main() -> anyhow::Result<()> {
                 .to_gate_with_duration_s(arp_period_s * &effects.arp_period_scale)
                 .and(arp_gate);
             let synth_signal = make_synth_voice(synth_freq, synth_gate, &effects);
-            let drum_signal = make_drum_voice(midi_events.filter_channel(9).monophonic(), &effects);
+            let drum_signal = make_drum_voice(
+                midi_events
+                    .filter_channel(9)
+                    .key_events()
+                    .voice_desc_monophonic(),
+                &effects,
+            );
             run(synth_signal + drum_signal, &effects)?;
         }
     }

@@ -24,7 +24,7 @@ pub mod prelude {
     #[cfg(feature = "midi")]
     pub use crate::midi::{
         MidiChannel, MidiControllerTable, MidiEvent, MidiEvents, MidiMessage, MidiMessages,
-        MidiMonophonic, MidiPlayer, MidiPlayerMonophonic, MidiVoice,
+        MidiPlayer, MidiPlayerMonophonic, MidiVoice,
     };
     pub use crate::{
         builder::{

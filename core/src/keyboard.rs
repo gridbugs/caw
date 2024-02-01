@@ -172,9 +172,9 @@ impl VoiceDesc {
                 }
             }
         });
-        let note = update_state.map({
+        let note = update_state.then({
             let state = Rc::clone(&state);
-            move |()| {
+            move || {
                 let state = state.borrow();
                 if let Some(last) = state.last() {
                     last.note
@@ -184,23 +184,23 @@ impl VoiceDesc {
             }
         });
         let key_down = update_state
-            .map({
+            .then({
                 let state = Rc::clone(&state);
-                move |()| state.borrow().last().is_some()
+                move || state.borrow().last().is_some()
             })
             .to_gate();
         let key_press = update_state
-            .map({
+            .then({
                 let state = Rc::clone(&state);
-                move |()| {
+                move || {
                     let mut state = state.borrow_mut();
                     mem::replace(&mut state.key_just_pressed, false)
                 }
             })
             .to_trigger_raw();
-        let velocity_01 = update_state.map({
+        let velocity_01 = update_state.then({
             let state = Rc::clone(&state);
-            move |()| {
+            move || {
                 let state = state.borrow();
                 if let Some(last) = state.last() {
                     last.velocity_01
