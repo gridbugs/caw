@@ -44,9 +44,9 @@ struct PolyphonicVoice {
     key_press_sample_index: u64,
 }
 
-/// Choose the next voice to use to play a note. There are multiple implementations of this because
-/// there's no one way to choose which voice to use to play a note when all available voices are
-/// currently playing notes.
+/// Choose the next voice to use to play a note. There may be multiple implementations of this
+/// because there's no one way to choose which voice to use to play a note when all available
+/// voices are currently playing notes.
 trait PolyphonicVoiceReusePolicy {
     fn choose_voice_index(&mut self, voices: &[PolyphonicVoice]) -> Option<usize>;
 }
@@ -54,99 +54,6 @@ trait PolyphonicVoiceReusePolicy {
 mod polyphonic_voice_reuse_policy {
     use super::{PolyphonicVoice, PolyphonicVoiceReusePolicy};
     use std::collections::BinaryHeap;
-
-    /// Don't reuse any voices. New notes will only be played if there is an available voice. If
-    /// there are available voices, the oldest one will be chosen to give envelopes as much time as
-    /// possible to play their releases.
-    pub struct NoReuse;
-    impl PolyphonicVoiceReusePolicy for NoReuse {
-        fn choose_voice_index(&mut self, voices: &[PolyphonicVoice]) -> Option<usize> {
-            let mut oldest_available_voice = None;
-            for (i, voice) in voices.iter().enumerate() {
-                if !voice.key_down {
-                    if let Some((_, sample_index)) = oldest_available_voice {
-                        if voice.key_press_sample_index < sample_index {
-                            oldest_available_voice = Some((i, voice.key_press_sample_index));
-                        }
-                    } else {
-                        oldest_available_voice = Some((i, voice.key_press_sample_index));
-                    }
-                }
-            }
-            oldest_available_voice.map(|(index, _)| index)
-        }
-    }
-
-    /// If all voices are in use, reuse the least recently allocated (ie. the oldest). This is less
-    /// likely to interrupt very dynamic key presses with the drawback that it's impossible to hold
-    /// a single note indefinitely while also pressing other keys repeatedly. If there are
-    /// available voices, the oldest one will be chosen to give envelopes as much time as possible
-    /// to play their releases.
-    pub struct Fifo;
-    impl PolyphonicVoiceReusePolicy for Fifo {
-        fn choose_voice_index(&mut self, voices: &[PolyphonicVoice]) -> Option<usize> {
-            let mut oldest_available_voice = None;
-            let mut oldest_unavailable_voice = None;
-            for (i, voice) in voices.iter().enumerate() {
-                if voice.key_down {
-                    if let Some((_, sample_index)) = oldest_unavailable_voice {
-                        if voice.key_press_sample_index < sample_index {
-                            oldest_unavailable_voice = Some((i, voice.key_press_sample_index));
-                        }
-                    } else {
-                        oldest_available_voice = Some((i, voice.key_press_sample_index));
-                    }
-                } else {
-                    if let Some((_, sample_index)) = oldest_available_voice {
-                        if voice.key_press_sample_index < sample_index {
-                            oldest_available_voice = Some((i, voice.key_press_sample_index));
-                        }
-                    } else {
-                        oldest_available_voice = Some((i, voice.key_press_sample_index));
-                    }
-                }
-            }
-            // Favour available voices but fall back to unavailable ones if necessary.
-            oldest_available_voice
-                .or(oldest_unavailable_voice)
-                .map(|(index, _)| index)
-        }
-    }
-
-    /// If all voices are in use, reuse the most recently allocated. This allows keys to be held
-    /// indefinitely with the drawback that it's more likely to interrupt notes when playing
-    /// dynamically. If there are available voices, the oldest one will be chosen to give envelopes
-    /// as much time as possible to play their releases.
-    pub struct Lifo;
-    impl PolyphonicVoiceReusePolicy for Lifo {
-        fn choose_voice_index(&mut self, voices: &[PolyphonicVoice]) -> Option<usize> {
-            let mut oldest_available_voice = None;
-            let mut newest_unavailable_voice = None;
-            for (i, voice) in voices.iter().enumerate() {
-                if voice.key_down {
-                    if let Some((_, sample_index)) = newest_unavailable_voice {
-                        if voice.key_press_sample_index > sample_index {
-                            newest_unavailable_voice = Some((i, voice.key_press_sample_index));
-                        }
-                    } else {
-                        oldest_available_voice = Some((i, voice.key_press_sample_index));
-                    }
-                } else {
-                    if let Some((_, sample_index)) = oldest_available_voice {
-                        if voice.key_press_sample_index < sample_index {
-                            oldest_available_voice = Some((i, voice.key_press_sample_index));
-                        }
-                    } else {
-                        oldest_available_voice = Some((i, voice.key_press_sample_index));
-                    }
-                }
-            }
-            // Favour available voices but fall back to unavailable ones if necessary.
-            oldest_available_voice
-                .or(newest_unavailable_voice)
-                .map(|(index, _)| index)
-        }
-    }
 
     #[derive(PartialEq, Eq)]
     struct GenerationalEntry {
