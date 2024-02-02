@@ -44,7 +44,6 @@ fn voice(
             .resonance(4.0 * effects.low_pass_resonance)
             .build(),
     )
-    .mix(|dry| dry.filter(reverb().room_size(0.5).damping(0.5).build()))
 }
 
 fn make_voice(

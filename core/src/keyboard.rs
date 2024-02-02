@@ -329,4 +329,16 @@ impl Signal<Vec<KeyEvent>> {
             self,
         )
     }
+
+    pub fn polyphonic_with<F: Fn(VoiceDesc) -> Sf64>(
+        self,
+        num_persistent_voices: usize,
+        num_transient_voices: usize,
+        f: F,
+    ) -> Sf64 {
+        self.voice_descs_polyphonic(num_persistent_voices, num_transient_voices)
+            .into_iter()
+            .map(f)
+            .sum()
+    }
 }

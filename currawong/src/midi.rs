@@ -73,6 +73,24 @@ impl MidiFile {
             )
         }
     }
+
+    pub fn signal_builder(
+        &self,
+        track_index: usize,
+        default_s_per_beat: f64,
+    ) -> anyhow::Result<EventSourceSignalBuilder<impl MidiEventSource>> {
+        if let Some(events) = self.smf.tracks.get(track_index) {
+            let event_source =
+                TrackEventSource::new(events, self.smf.header.timing, default_s_per_beat);
+            Ok(EventSourceSignalBuilder { event_source })
+        } else {
+            anyhow::bail!(
+                "Track index {} is out of range (there are {} tracks)",
+                track_index,
+                self.num_tracks()
+            )
+        }
+    }
 }
 
 pub struct MidiLive {
