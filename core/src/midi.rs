@@ -8,7 +8,10 @@ pub use midly::{
     MidiMessage,
 };
 use midly::{MetaMessage, PitchBend, Timing, TrackEvent, TrackEventKind};
-use std::{cell::RefCell, rc::Rc};
+use std::{
+    cell::{Cell, RefCell},
+    rc::Rc,
+};
 
 #[derive(Debug, Clone, Copy)]
 pub struct MidiEvent {
@@ -709,6 +712,11 @@ fn midi_note_message_to_key_event(key: u7, vel: u7, pressed: bool) -> KeyEvent {
     }
 }
 
+fn midi_pitch_bend_to_pitch_bend_multiplier_hz(midi_pitch_bend: u14) -> f64 {
+    music::TONE_RATIO
+        .powf(((midi_pitch_bend.as_int() as i32 - 0x2000) as f64 * 2.0) / 0x3FFF as f64)
+}
+
 impl Signal<MidiMessages> {
     pub fn key_events(&self) -> Signal<Vec<KeyEvent>> {
         self.map(|messages| {
@@ -723,6 +731,25 @@ impl Signal<MidiMessages> {
                 _ => (),
             });
             ret
+        })
+    }
+
+    pub fn pitch_bend_multiplier_hz(&self) -> Sf64 {
+        let state = Rc::new(Cell::new(1.0));
+        self.map({
+            let state = Rc::clone(&state);
+            move |messages| {
+                messages.for_each(|message| match message {
+                    MidiMessage::PitchBend {
+                        bend: PitchBend(pitch_bend),
+                    } => state.set(midi_pitch_bend_to_pitch_bend_multiplier_hz(pitch_bend)),
+                    _ => (),
+                });
+            }
+        })
+        .then({
+            let state = Rc::clone(&state);
+            move || state.get()
         })
     }
 

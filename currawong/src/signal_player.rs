@@ -3,6 +3,8 @@ use crate::{
     signal::{Signal, SignalCtx},
 };
 
+const SAFETY_VOLUME_THRESHOLD: f32 = 10.0;
+
 pub struct SignalPlayer {
     sample_player: SamplePlayer,
     sample_index: u64,
@@ -50,7 +52,10 @@ impl SignalPlayer {
                 sample_index: self.sample_index,
                 sample_rate_hz: sample_rate_hz as f64,
             };
-            let sample = signal.sample(&ctx).to_f32();
+            let sample = signal
+                .sample(&ctx)
+                .to_f32()
+                .clamp(-SAFETY_VOLUME_THRESHOLD, SAFETY_VOLUME_THRESHOLD);
             f(sample);
             self.sample_index += 1;
             sample

@@ -130,12 +130,14 @@ impl LowPassMoogLadder {
     }
 }
 
+const MAX_CUTOFF_FREQ_HZ: f64 = 20_000.0;
+
 impl Filter for LowPassMoogLadder {
     type Input = f64;
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        let cutoff_hz = self.cutoff_hz.sample(ctx);
+        let cutoff_hz = self.cutoff_hz.sample(ctx).clamp(0.0, MAX_CUTOFF_FREQ_HZ);
         let resonance = self.resonance.sample(ctx);
         let mut state = self.state.borrow_mut();
         if state.sample_rate_hz == ctx.sample_rate_hz {

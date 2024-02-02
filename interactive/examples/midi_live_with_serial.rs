@@ -1,131 +1,92 @@
 use clap::{Parser, Subcommand};
 use currawong_interactive::prelude::*;
 
+#[derive(Clone)]
 struct Effects {
-    high_pass_filter_cutoff: Sf64,
-    low_pass_filter_cutoff: Sf64,
-    low_pass_filter_resonance: Sf64,
-    lfo_freq: Sf64,
-    lfo_scale: Sf64,
-    detune: Sf64,
-    echo_scale: Sf64,
-    sah_freq: Sf64,
-    sah_scale: Sf64,
-    attack: Sf64,
-    decay: Sf64,
-    sustain: Sf64,
-    release: Sf64,
+    low_pass_cutoff: Sf64,
+    low_pass_resonance: Sf64,
 }
 
 impl Effects {
-    fn new(controllers: &MidiControllerTable, extra_controllers: &MidiControllerTable) -> Self {
+    fn new(
+        _controllers: MidiControllerTable,
+        _extra_controllers: MidiControllerTable,
+        input: Input,
+    ) -> Self {
         Self {
-            high_pass_filter_cutoff: extra_controllers.get_01(35).exp_01(1.0),
-            low_pass_filter_cutoff: extra_controllers.get_01(31).inv_01().exp_01(1.0),
-            low_pass_filter_resonance: extra_controllers.get_01(32).exp_01(1.0),
-            lfo_freq: extra_controllers.get_01(33),
-            lfo_scale: extra_controllers.get_01(34),
-            detune: extra_controllers.get_01(36),
-            echo_scale: controllers.modulation(),
-            sah_freq: controllers.get_01(21),
-            sah_scale: controllers.get_01(22),
-            attack: controllers.get_01(25),
-            decay: controllers.get_01(26),
-            sustain: controllers.get_01(27),
-            release: controllers.get_01(28),
+            low_pass_cutoff: input.mouse.x_01(),
+            low_pass_resonance: input.mouse.y_01(),
         }
     }
 }
 
-fn make_voice(
-    MidiVoice {
-        note_freq,
-        velocity_01,
-        gate,
+fn voice(
+    VoiceDesc {
+        note,
+        key_down,
+        key_press,
         ..
-    }: MidiVoice,
-    pitch_bend_multiplier_hz: impl Into<Sf64>,
-    controllers: &MidiControllerTable,
-    serial_controllers: &MidiControllerTable,
+    }: VoiceDesc,
+    pitch_bend_multiplier_hz: Sf64,
+    effects: Effects,
 ) -> Sf64 {
-    let velocity_01 = velocity_01.exp_01(-2.0);
-    let Effects {
-        high_pass_filter_cutoff,
-        low_pass_filter_cutoff,
-        low_pass_filter_resonance,
-        lfo_freq,
-        lfo_scale,
-        detune,
-        echo_scale,
-        sah_freq,
-        sah_scale,
-        attack,
-        decay,
-        sustain,
-        release,
-    } = Effects::new(controllers, serial_controllers);
-    let note_freq_hz = sfreq_to_hz(note_freq) * pitch_bend_multiplier_hz.into();
-    let waveform = Waveform::Saw;
-    let osc = mean([
-        oscillator_hz(waveform, &note_freq_hz)
-            .reset_trigger(gate.to_trigger_rising_edge())
-            .build(),
-        oscillator_hz(waveform, &note_freq_hz * ((&detune * 0.02) + 1.0))
-            .reset_trigger(gate.to_trigger_rising_edge())
-            .build(),
-        oscillator_hz(waveform, &note_freq_hz * ((&detune * -0.02) + 1.0))
-            .reset_trigger(gate.to_trigger_rising_edge())
-            .build(),
-        oscillator_hz(Waveform::Pulse, &note_freq_hz / semitone_ratio(19.0))
-            .reset_trigger(gate.to_trigger_rising_edge())
-            .build(),
-    ]);
-    let sah_clock = periodic_gate_s(sah_freq + 0.01)
-        .build()
-        .to_trigger_rising_edge();
-    let sah = noise()
-        .signed_to_01()
-        .filter(sample_and_hold(sah_clock.clone()).build());
-    let env = adsr_linear_01(&gate)
-        .attack_s(attack)
-        .decay_s(decay)
-        .sustain_01(sustain)
-        .release_s(release)
+    let osc = oscillator_hz(Waveform::Saw, note.freq_hz() * pitch_bend_multiplier_hz).build();
+    let env = adsr_linear_01(&key_down)
+        .key_press(key_press)
+        .attack_s(0.0)
+        .decay_s(0.2)
+        .sustain_01(0.5)
+        .release_s(4.0)
         .build()
         .exp_01(1.0);
-    let lfo_lfo = noise()
-        .filter(sample_and_hold(periodic_gate_s(0.5).build().to_trigger_rising_edge()).build())
-        .signed_to_01();
-    let lfo = (oscillator_hz(Waveform::Saw, lfo_freq * (5.0 + lfo_lfo * 10.0))
-        .reset_trigger(gate.to_trigger_rising_edge())
-        .build()
-        * 1)
-    .signed_to_01()
-        * lfo_scale;
-    let filtered_osc = osc
-        .filter(
-            low_pass_moog_ladder(sum([
-                200.0.into(),
-                &env * (low_pass_filter_cutoff * 10_000.0),
-                lfo * 10_000.0,
-                (sah * sah_scale * 5000),
-            ]))
-            .resonance(low_pass_filter_resonance * 4.0)
+    osc.filter(
+        low_pass_moog_ladder(env * (30 * note.freq_hz() * effects.low_pass_cutoff))
+            .resonance(4.0 * effects.low_pass_resonance)
             .build(),
-        )
-        .filter(high_pass_butterworth(high_pass_filter_cutoff * 4000.0 + 10.0).build());
-    (filtered_osc.mul_lazy(&env) * velocity_01).filter(echo().time_s(0.2).scale(echo_scale).build())
+    )
+    .mix(|dry| dry.filter(reverb().room_size(0.5).damping(0.5).build()))
 }
 
-fn run(signal: Sf64) -> anyhow::Result<()> {
+fn make_voice(
+    midi_messages: Signal<MidiMessages>,
+    serial_midi_messages: Signal<MidiMessages>,
+    input: Input,
+) -> Sf64 {
+    let pitch_bend_multiplier_hz = midi_messages.pitch_bend_multiplier_hz();
+    let effects = Effects::new(
+        midi_messages.controller_table(),
+        serial_midi_messages.controller_table(),
+        input,
+    );
+    midi_messages
+        .key_events()
+        .voice_descs_polyphonic(3, 5)
+        .into_iter()
+        .map(|voice_desc| {
+            voice(
+                voice_desc,
+                pitch_bend_multiplier_hz.clone(),
+                effects.clone(),
+            )
+        })
+        .sum::<Sf64>()
+        .mix(|dry| dry.filter(reverb().room_size(1.0).damping(0.5).build()))
+        .filter(high_pass_butterworth(10.0).build())
+}
+
+fn run(
+    midi_messages: Signal<MidiMessages>,
+    serial_midi_messages: Signal<MidiMessages>,
+) -> anyhow::Result<()> {
     let window = Window::builder()
-        .scale(10.0)
+        .scale(1.0)
         .stable(true)
-        .spread(2)
+        .spread(1)
         .line_width(4)
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
+    let signal = make_voice(midi_messages, serial_midi_messages, window.input());
     window.play(signal * 0.1)
 }
 
@@ -165,35 +126,15 @@ fn main() -> anyhow::Result<()> {
             serial_port,
             serial_baud,
         } => {
-            let MidiPlayer { channels } = midi_live.into_player(midi_port, 8).unwrap();
-            let MidiChannel {
-                voices,
-                pitch_bend_multiplier_hz,
-                controllers,
-                ..
-            } = channels[0].clone();
-            let MidiChannel {
-                controllers: serial_controllers,
-                ..
-            } = MidiLiveSerial::new(serial_port, serial_baud)?.into_player_single_channel(0, 0);
-            let signal = voices
-                .into_iter()
-                .map(|voice| {
-                    make_voice(
-                        voice,
-                        &pitch_bend_multiplier_hz,
-                        &controllers,
-                        &serial_controllers,
-                    )
-                })
-                .sum::<Sf64>()
-                .filter(
-                    saturate()
-                        .scale((serial_controllers.get_01(37) * 9.0) + 1.0)
-                        .threshold((serial_controllers.get_01(38).inv_01() * 3.9) + 0.1)
-                        .build(),
-                );
-            run(signal)?;
+            let midi_messages = midi_live
+                .signal_builder(midi_port)?
+                .single_channel(0)
+                .build();
+            let serial_midi_messages = MidiLiveSerial::new(serial_port, serial_baud)?
+                .signal_builder()
+                .single_channel(0)
+                .build();
+            run(midi_messages, serial_midi_messages)?
         }
     }
     Ok(())

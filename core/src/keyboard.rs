@@ -317,7 +317,7 @@ impl Signal<Vec<KeyEvent>> {
         VoiceDesc::monophonic_from_key_events(self)
     }
 
-    pub fn voice_descs_polyphonic_generational(
+    pub fn voice_descs_polyphonic(
         self,
         num_persistent_voices: usize,
         num_transient_voices: usize,

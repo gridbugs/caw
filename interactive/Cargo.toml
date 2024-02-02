@@ -57,9 +57,6 @@ name = "midi_live"
 name = "midi_live_with_serial"
 
 [[example]]
-name = "midi_live_arp"
-
-[[example]]
 name = "midi_live_with_serial_monophonic"
 
 [[example]]

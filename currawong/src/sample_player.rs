@@ -79,7 +79,7 @@ impl SamplePlayer {
             None,
         )?;
         stream.play()?;
-        let buffer_padding = core.config.sample_rate.0 as u64 / 30;
+        let buffer_padding = core.config.sample_rate.0 as u64 / 20;
         Ok(Self {
             core,
             buffer_padding,
