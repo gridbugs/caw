@@ -22,10 +22,7 @@ pub mod signal_arithmetic;
 
 pub mod prelude {
     #[cfg(feature = "midi")]
-    pub use crate::midi::{
-        MidiChannel, MidiControllerTable, MidiEvent, MidiEvents, MidiMessage, MidiMessages,
-        MidiPlayer, MidiPlayerMonophonic, MidiVoice,
-    };
+    pub use crate::midi::{MidiControllerTable, MidiEvent, MidiEvents, MidiMessage, MidiMessages};
     pub use crate::{
         builder::{
             env::adsr_linear_01,

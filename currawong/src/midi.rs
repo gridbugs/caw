@@ -55,25 +55,6 @@ impl MidiFile {
         self.smf.tracks.len()
     }
 
-    pub fn track_player(
-        &self,
-        track_index: usize,
-        polyphony: usize,
-        default_s_per_beat: f64,
-    ) -> anyhow::Result<MidiPlayer> {
-        if let Some(events) = self.smf.tracks.get(track_index) {
-            let event_source =
-                TrackEventSource::new(events, self.smf.header.timing, default_s_per_beat);
-            Ok(MidiPlayer::new(polyphony, event_source))
-        } else {
-            anyhow::bail!(
-                "Track index {} is out of range (there are {} tracks)",
-                track_index,
-                self.num_tracks()
-            )
-        }
-    }
-
     pub fn signal_builder(
         &self,
         track_index: usize,
@@ -119,33 +100,6 @@ impl MidiLive {
                     None
                 }
             })
-    }
-
-    pub fn into_player(self, port_index: usize, polyphony: usize) -> anyhow::Result<MidiPlayer> {
-        let event_source =
-            MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
-        Ok(MidiPlayer::new(polyphony, event_source))
-    }
-
-    pub fn into_player_single_channel(
-        self,
-        channel: u8,
-        port_index: usize,
-        polyphony: usize,
-    ) -> anyhow::Result<MidiChannel> {
-        let MidiPlayer { channels } = self.into_player(port_index, polyphony)?;
-        let channel = channels[channel as usize].clone();
-        Ok(channel)
-    }
-
-    pub fn into_player_monophonic(
-        self,
-        port_index: usize,
-        channel: u8,
-    ) -> anyhow::Result<MidiPlayerMonophonic> {
-        let event_source =
-            MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
-        Ok(MidiPlayerMonophonic::new(channel.into(), event_source))
     }
 
     pub fn signal_builder(
@@ -235,16 +189,6 @@ impl MidiLiveSerial {
             buf.push(byte);
         }
         Ok(())
-    }
-
-    pub fn into_player(self, polyphony: usize) -> MidiPlayer {
-        let event_source = MidiLiveSerialEventSource::new(self);
-        MidiPlayer::new(polyphony, event_source)
-    }
-
-    pub fn into_player_single_channel(self, channel: u8, polyphony: usize) -> MidiChannel {
-        let MidiPlayer { channels } = self.into_player(polyphony);
-        channels[channel as usize].clone()
     }
 
     pub fn signal_builder(self) -> EventSourceSignalBuilder<impl MidiEventSource> {
