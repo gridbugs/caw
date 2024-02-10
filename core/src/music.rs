@@ -140,108 +140,172 @@ impl Signal<Note> {
     }
 }
 
-#[derive(Clone, Copy, Debug)]
-pub enum ThirdMod {
-    Major,
-    Minor,
-    Open,
-    Sus2,
-    Sus4,
-    Sus24,
-}
+pub mod chord {
+    use super::{Note, NoteName};
 
-#[derive(Clone, Copy, Debug)]
-pub struct AbstractChord {
-    pub root: NoteName,
-    pub third_mod: ThirdMod,
-    pub diminished: bool,
-}
-
-impl AbstractChord {
-    pub const fn major(root: NoteName) -> Self {
-        Self {
-            root,
-            third_mod: ThirdMod::Major,
-            diminished: false,
-        }
+    #[derive(Clone, Copy, Debug)]
+    pub enum Third {
+        Major,
+        Minor,
+        Sus2,
+        Sus4,
     }
 
-    pub const fn minor(root: NoteName) -> Self {
-        Self {
-            root,
-            third_mod: ThirdMod::Minor,
-            diminished: false,
-        }
+    #[derive(Clone, Copy, Debug)]
+    pub enum Fifth {
+        Perfect,
+        Diminished,
     }
 
-    pub const fn diminished(root: NoteName) -> Self {
-        Self {
-            root,
-            third_mod: ThirdMod::Minor,
-            diminished: true,
-        }
+    #[derive(Clone, Copy, Debug)]
+    pub enum Seventh {
+        Major,
+        Minor,
     }
 
-    pub const fn sus2(root: NoteName) -> Self {
-        Self {
-            root,
-            third_mod: ThirdMod::Sus2,
-            diminished: false,
-        }
+    #[derive(Clone, Copy, Debug)]
+    pub struct ChordType {
+        pub third: Option<Third>,
+        pub fifth: Option<Fifth>,
+        pub seventh: Option<Seventh>,
     }
 
-    pub const fn sus4(root: NoteName) -> Self {
-        Self {
-            root,
-            third_mod: ThirdMod::Sus4,
-            diminished: false,
-        }
-    }
-
-    pub fn with_note_names<F: FnMut(NoteName)>(self, mut f: F) {
-        f(self.root);
-        use ThirdMod::*;
-        match self.third_mod {
-            Major => f(self.root.wrapping_add_semitones(4)),
-            Minor => f(self.root.wrapping_add_semitones(3)),
-            Open => (),
-            Sus2 => f(self.root.wrapping_add_semitones(2)),
-            Sus4 => f(self.root.wrapping_add_semitones(5)),
-            Sus24 => {
-                f(self.root.wrapping_add_semitones(2));
-                f(self.root.wrapping_add_semitones(5));
+    impl ChordType {
+        pub const fn major_7(self) -> Self {
+            Self {
+                seventh: Some(Seventh::Major),
+                ..self
             }
         }
-        if self.diminished {
-            f(self.root.wrapping_add_semitones(6));
-        } else {
-            f(self.root.wrapping_add_semitones(7));
+
+        pub const fn minor_7(self) -> Self {
+            Self {
+                seventh: Some(Seventh::Minor),
+                ..self
+            }
+        }
+
+        pub const fn infer_7(self) -> Self {
+            let seventh = Some(match self.third {
+                Some(Third::Minor) => Seventh::Minor,
+                _ => Seventh::Major,
+            });
+            Self { seventh, ..self }
+        }
+
+        pub const fn flat_5(self) -> Self {
+            Self {
+                fifth: Some(Fifth::Diminished),
+                ..self
+            }
+        }
+
+        pub fn with_semitones_above_root<F: FnMut(i8)>(&self, mut f: F) {
+            f(0);
+            if let Some(third) = self.third {
+                match third {
+                    Third::Major => f(4),
+                    Third::Minor => f(3),
+                    Third::Sus2 => f(2),
+                    Third::Sus4 => f(5),
+                }
+            }
+            if let Some(fifth) = self.fifth {
+                match fifth {
+                    Fifth::Perfect => f(7),
+                    Fifth::Diminished => f(6),
+                }
+            }
+            if let Some(seventh) = self.seventh {
+                match seventh {
+                    Seventh::Major => f(11),
+                    Seventh::Minor => f(10),
+                }
+            }
         }
     }
 
-    pub fn with_notes_in_octave<F: FnMut(Note)>(self, octave_base: Note, mut f: F) {
-        let octave_base_index = octave_base.to_midi_index() as i16;
+    pub const MAJOR: ChordType = ChordType {
+        third: Some(Third::Major),
+        fifth: Some(Fifth::Perfect),
+        seventh: None,
+    };
+
+    pub const MINOR: ChordType = ChordType {
+        third: Some(Third::Minor),
+        fifth: Some(Fifth::Perfect),
+        seventh: None,
+    };
+
+    pub const DIMINISHED: ChordType = ChordType {
+        third: Some(Third::Minor),
+        fifth: Some(Fifth::Diminished),
+        seventh: None,
+    };
+
+    pub const SUS_2: ChordType = ChordType {
+        third: Some(Third::Sus2),
+        fifth: Some(Fifth::Perfect),
+        seventh: None,
+    };
+
+    pub const SUS_4: ChordType = ChordType {
+        third: Some(Third::Sus4),
+        fifth: Some(Fifth::Perfect),
+        seventh: None,
+    };
+
+    pub const OPEN: ChordType = ChordType {
+        third: None,
+        fifth: Some(Fifth::Perfect),
+        seventh: None,
+    };
+
+    fn wrap_note_within_octave(octave_base: Note, root: NoteName, semitones_above: i8) -> Note {
+        let octave_base_index = octave_base.to_midi_index();
         let multiple_of_12_gte_base_index_delta = if octave_base_index == 0 {
             0
         } else {
             ((((octave_base_index - 1) / 12) + 1) * 12) - octave_base_index
         } as i8;
+        let note_name = root.wrapping_add_semitones(semitones_above);
         assert!(multiple_of_12_gte_base_index_delta < 12);
         assert!(multiple_of_12_gte_base_index_delta >= 0);
-        self.with_note_names(|note_name| {
-            f(Note::from_midi_index(
-                octave_base.to_midi_index()
-                    + note_name
-                        .wrapping_add_semitones(multiple_of_12_gte_base_index_delta)
-                        .to_index(),
-            ));
-        });
+        Note::from_midi_index(
+            octave_base_index
+                + note_name
+                    .wrapping_add_semitones(multiple_of_12_gte_base_index_delta)
+                    .to_index(),
+        )
     }
 
-    pub fn notes_in_octave(self, octave_base: Note) -> Vec<Note> {
-        let mut ret = Vec::new();
-        self.with_notes_in_octave(octave_base, |note| ret.push(note));
-        ret
+    #[derive(Clone, Copy, Debug)]
+    pub struct Chord {
+        pub root: NoteName,
+        pub typ: ChordType,
+    }
+
+    impl Chord {
+        pub fn new(root: NoteName, typ: ChordType) -> Self {
+            Self { root, typ }
+        }
+
+        pub fn with_notes_in_octave<F: FnMut(Note)>(self, octave_base: Note, mut f: F) {
+            self.typ.with_semitones_above_root(|semitones_above| {
+                let note = wrap_note_within_octave(octave_base, self.root, semitones_above);
+                f(note);
+            });
+        }
+
+        pub fn notes_in_octave(self, octave_base: Note) -> Vec<Note> {
+            let mut ret = Vec::new();
+            self.with_notes_in_octave(octave_base, |note| ret.push(note));
+            ret
+        }
+    }
+
+    pub fn chord(root: NoteName, typ: ChordType) -> Chord {
+        Chord::new(root, typ)
     }
 }
 

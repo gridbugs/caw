@@ -42,7 +42,10 @@ pub mod prelude {
             sampler::sampler,
         },
         keyboard::{KeyEvent, VoiceDesc},
-        music::{freq_hz_of_midi_index, note_name, semitone_ratio, AbstractChord, Note, NoteName},
+        music::{
+            chord::{chord, Chord, ChordType, DIMINISHED, MAJOR, MINOR, OPEN, SUS_2, SUS_4},
+            freq_hz_of_midi_index, note_name, semitone_ratio, Note, NoteName,
+        },
         oscillator::Waveform,
         sampler::{Sample, Sampler},
         sequencers::bitwise_pattern_triggers_8,

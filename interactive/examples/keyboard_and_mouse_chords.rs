@@ -1,47 +1,55 @@
 use currawong_interactive::prelude::*;
 use std::{cell::RefCell, rc::Rc};
 
-fn key_to_chord(input: &Input) -> Signal<Option<AbstractChord>> {
+fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
     use note_name::*;
-    use AbstractChord as AC;
-    first_some([
-        input.key(Key::Z).on(move || AC::major(C)),
-        input.key(Key::S).on(move || AC::minor(C)),
-        input.key(Key::X).on(move || AC::minor(D)),
-        input.key(Key::D).on(move || AC::major(D)),
-        input.key(Key::C).on(move || AC::minor(E)),
-        input.key(Key::F).on(move || AC::major(E)),
-        input.key(Key::V).on(move || AC::major(F)),
-        input.key(Key::G).on(move || AC::minor(F)),
-        input.key(Key::B).on(move || AC::major(G)),
-        input.key(Key::H).on(move || AC::minor(G)),
-        input.key(Key::N).on(move || AC::minor(A)),
-        input.key(Key::J).on(move || AC::major(A)),
-        input.key(Key::M).on(move || AC::diminished(B)),
-        input.key(Key::Q).on(move || AC::sus2(C)),
-        input.key(Key::W).on(move || AC::sus2(D)),
-        input.key(Key::E).on(move || AC::sus2(E)),
-        input.key(Key::R).on(move || AC::sus2(F)),
-        input.key(Key::T).on(move || AC::sus2(G)),
-        input.key(Key::Y).on(move || AC::sus2(A)),
-        input.key(Key::U).on(move || AC::sus2(B)),
-        input.key(Key::N1).on(move || AC::sus4(C)),
-        input.key(Key::N2).on(move || AC::sus4(D)),
-        input.key(Key::N3).on(move || AC::sus4(E)),
-        input.key(Key::N4).on(move || AC::sus4(F)),
-        input.key(Key::N5).on(move || AC::sus4(G)),
-        input.key(Key::N6).on(move || AC::sus4(A)),
-        input.key(Key::N7).on(move || AC::sus4(B)),
-    ])
+    let key = |key, note_name, chord_type: ChordType| {
+        [
+            input.key(key).on(move || chord(note_name, chord_type)),
+            input
+                .key(key)
+                .and(input.key(Key::Comma))
+                .on(move || chord(note_name, chord_type.infer_7())),
+            input
+                .key(key)
+                .and(input.key(Key::Period))
+                .on(move || chord(note_name, SUS_2)),
+            input
+                .key(key)
+                .and(input.key(Key::Slash))
+                .on(move || chord(note_name, SUS_4)),
+        ]
+    };
+    first_some(
+        [
+            key(Key::Z, C, MAJOR),
+            key(Key::X, D, MINOR),
+            key(Key::C, E, MINOR),
+            key(Key::V, F, MAJOR),
+            key(Key::B, G, MAJOR),
+            key(Key::N, A, MINOR),
+            key(Key::M, B, DIMINISHED),
+            key(Key::A, C, MINOR),
+            key(Key::S, D, MAJOR),
+            key(Key::D, E, MAJOR),
+            key(Key::F, F, MINOR),
+            key(Key::G, G, MINOR),
+            key(Key::H, A, MAJOR),
+            key(Key::J, B, MAJOR),
+            key(Key::K, B, MINOR),
+        ]
+        .into_iter()
+        .flatten(),
+    )
 }
 
 fn chords_to_voice_descs(
-    chords: Signal<Option<AbstractChord>>,
+    chords: Signal<Option<Chord>>,
     arp_on: bool,
     arp_s: Sf64,
+    octave_base_input: Sf64,
     max: usize,
 ) -> Vec<(Sfreq, Gate, Sf64)> {
-    use note_name::*;
     let state = Rc::new(RefCell::new(
         (0..max).map(|_| (0.0, false, 0.0)).collect::<Vec<_>>(),
     ));
@@ -54,7 +62,9 @@ fn chords_to_voice_descs(
             let mut state = state.borrow_mut();
             let mut arp_state = arp_state.borrow_mut();
             if let Some(chord) = chord {
-                let notes = chord.notes_in_octave(C.in_octave(4));
+                let octave_base =
+                    Note::from_midi_index((octave_base_input.sample(ctx) * 40.0 + 40.0) as u8);
+                let notes = chord.notes_in_octave(octave_base);
                 for (i, state) in state.iter_mut().enumerate() {
                     if let Some(note) = notes.get(i) {
                         let gate_state = !arp_on || *arp_state % notes.len() == i;
@@ -63,8 +73,6 @@ fn chords_to_voice_descs(
                         state.1 = false;
                     }
                 }
-                let bass_note = chord.root.in_octave(2);
-                *state.last_mut().unwrap() = (bass_note.freq().hz(), true, 1.5);
             } else {
                 for state in state.iter_mut() {
                     state.1 = false;
@@ -91,24 +99,26 @@ fn chords_to_voice_descs(
         .collect::<Vec<_>>()
 }
 
-fn synth(freq: Sfreq, gate: Gate, vel: Sf64, input: &Input) -> Sf64 {
-    let osc = supersaw(freq).build();
-    let env = adsr_linear_01(&gate).attack_s(0.0).release_s(0.0).build();
-    osc.filter(
-        low_pass_moog_ladder(&env * 6000.0 * input.mouse.x_01())
-            .resonance(0.0)
-            .build(),
-    ) * vel
+fn synth(freq: Sfreq, gate: Gate, vel: Sf64, _input: &Input) -> Sf64 {
+    let osc = oscillator(Waveform::Saw, freq).build();
+    let env = adsr_linear_01(&gate).attack_s(0.0).release_s(0.5).build();
+    osc.filter(low_pass_moog_ladder(&env * 3000.0).resonance(0.0).build()) * vel
 }
 
 fn voice(input: Input) -> Sf64 {
-    let voice_descs = chords_to_voice_descs(key_to_chord(&input), false, input.mouse.y_01(), 4);
+    let voice_descs = chords_to_voice_descs(
+        key_to_chord(&input),
+        false,
+        input.mouse.y_01(),
+        input.mouse.x_01(),
+        5,
+    );
     let synths = voice_descs
         .iter()
         .map(|(freq, gate, vel)| synth(freq.clone(), gate.clone(), vel.clone(), &input))
         .collect::<Vec<_>>();
     sum(synths)
-        .mix(|dry| 2.0 * dry.filter(reverb().room_size(0.9).damping(0.1).build()))
+        .mix(|dry| 2.0 * dry.filter(reverb().room_size(0.9).damping(0.8).build()))
         .filter(high_pass_butterworth(20.0).build())
 }
 
