@@ -43,8 +43,13 @@ pub mod prelude {
         },
         keyboard::{KeyEvent, VoiceDesc},
         music::{
-            chord::{chord, Chord, ChordType, DIMINISHED, MAJOR, MINOR, OPEN, SUS_2, SUS_4},
-            freq_hz_of_midi_index, note_name, semitone_ratio, Note, NoteName,
+            chord::{
+                chord, Chord, ChordPosition, ChordType, Inversion, DIMINISHED, MAJOR, MINOR, OPEN,
+                SUS_2, SUS_4,
+            },
+            freq_hz_of_midi_index, note_name,
+            octave::*,
+            semitone_ratio, Note, NoteName, Octave,
         },
         oscillator::Waveform,
         sampler::{Sample, Sampler},

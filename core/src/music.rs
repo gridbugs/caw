@@ -1,5 +1,41 @@
 use crate::signal::{Freq, Sf64, Sfreq, Signal};
 
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+pub struct Octave(u8);
+
+impl Octave {
+    pub const MAX_OCTAVE: u8 = 8;
+
+    pub fn new(i: u8) -> Self {
+        assert!(i <= Self::MAX_OCTAVE);
+        Self(i)
+    }
+
+    pub const OCTAVE_0: Self = Self(0);
+    pub const OCTAVE_1: Self = Self(1);
+    pub const OCTAVE_2: Self = Self(2);
+    pub const OCTAVE_3: Self = Self(3);
+    pub const OCTAVE_4: Self = Self(4);
+    pub const OCTAVE_5: Self = Self(5);
+    pub const OCTAVE_6: Self = Self(6);
+    pub const OCTAVE_7: Self = Self(7);
+    pub const OCTAVE_8: Self = Self(8);
+}
+
+pub mod octave {
+    use super::Octave;
+
+    pub const OCTAVE_0: Octave = Octave::OCTAVE_0;
+    pub const OCTAVE_1: Octave = Octave::OCTAVE_1;
+    pub const OCTAVE_2: Octave = Octave::OCTAVE_2;
+    pub const OCTAVE_3: Octave = Octave::OCTAVE_3;
+    pub const OCTAVE_4: Octave = Octave::OCTAVE_4;
+    pub const OCTAVE_5: Octave = Octave::OCTAVE_5;
+    pub const OCTAVE_6: Octave = Octave::OCTAVE_6;
+    pub const OCTAVE_7: Octave = Octave::OCTAVE_7;
+    pub const OCTAVE_8: Octave = Octave::OCTAVE_8;
+}
+
 /// A note without an octave
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct NoteName {
@@ -39,7 +75,7 @@ impl NoteName {
         )
     }
 
-    pub const fn in_octave(self, octave: u8) -> Note {
+    pub const fn in_octave(self, octave: Octave) -> Note {
         Note::new(self, octave)
     }
 }
@@ -84,9 +120,9 @@ pub struct Note {
 }
 
 impl Note {
-    pub const fn new(name: NoteName, octave: u8) -> Self {
+    pub const fn new(name: NoteName, octave: Octave) -> Self {
         Self {
-            midi_index: C0_MIDI_INDEX + (octave * NOTES_PER_OCTAVE) + name.to_index(),
+            midi_index: C0_MIDI_INDEX + (octave.0 * NOTES_PER_OCTAVE) + name.to_index(),
         }
     }
 
@@ -108,8 +144,8 @@ impl Note {
         }
     }
 
-    pub fn octave(self) -> u8 {
-        self.midi_index / NOTES_PER_OCTAVE
+    pub fn octave(self) -> Octave {
+        Octave::new(self.midi_index / NOTES_PER_OCTAVE)
     }
 
     pub fn add_semitones(self, num_semitones: i16) -> Self {
@@ -141,7 +177,7 @@ impl Signal<Note> {
 }
 
 pub mod chord {
-    use super::{Note, NoteName};
+    use super::{Note, NoteName, Octave};
 
     #[derive(Clone, Copy, Debug)]
     pub enum Third {
@@ -168,6 +204,14 @@ pub mod chord {
         pub third: Option<Third>,
         pub fifth: Option<Fifth>,
         pub seventh: Option<Seventh>,
+    }
+
+    #[derive(Clone, Copy, Debug, PartialEq, Eq)]
+    pub enum ChordPosition {
+        Root,
+        Third,
+        Fifth,
+        Seventh,
     }
 
     impl ChordType {
@@ -200,26 +244,33 @@ pub mod chord {
             }
         }
 
-        pub fn with_semitones_above_root<F: FnMut(i8)>(&self, mut f: F) {
-            f(0);
+        pub const fn num_notes(&self) -> u8 {
+            // start with 1 for the root note which is always present
+            1 + self.third.is_some() as u8
+                + self.fifth.is_some() as u8
+                + self.seventh.is_some() as u8
+        }
+
+        pub fn with_semitones_above_root<F: FnMut(i8, ChordPosition)>(&self, mut f: F) {
+            f(0, ChordPosition::Root);
             if let Some(third) = self.third {
                 match third {
-                    Third::Major => f(4),
-                    Third::Minor => f(3),
-                    Third::Sus2 => f(2),
-                    Third::Sus4 => f(5),
+                    Third::Major => f(4, ChordPosition::Third),
+                    Third::Minor => f(3, ChordPosition::Third),
+                    Third::Sus2 => f(2, ChordPosition::Third),
+                    Third::Sus4 => f(5, ChordPosition::Third),
                 }
             }
             if let Some(fifth) = self.fifth {
                 match fifth {
-                    Fifth::Perfect => f(7),
-                    Fifth::Diminished => f(6),
+                    Fifth::Perfect => f(7, ChordPosition::Fifth),
+                    Fifth::Diminished => f(6, ChordPosition::Fifth),
                 }
             }
             if let Some(seventh) = self.seventh {
                 match seventh {
-                    Seventh::Major => f(11),
-                    Seventh::Minor => f(10),
+                    Seventh::Major => f(11, ChordPosition::Seventh),
+                    Seventh::Minor => f(10, ChordPosition::Seventh),
                 }
             }
         }
@@ -280,26 +331,88 @@ pub mod chord {
     }
 
     #[derive(Clone, Copy, Debug)]
+    pub enum Inversion {
+        WithRootOctave {
+            root_octave: Octave,
+            lowest_position: ChordPosition,
+        },
+        InOctave {
+            octave_base: Note,
+        },
+    }
+
+    #[derive(Clone, Copy, Debug)]
     pub struct Chord {
         pub root: NoteName,
         pub typ: ChordType,
+        pub octave_shift: i8,
     }
 
     impl Chord {
         pub fn new(root: NoteName, typ: ChordType) -> Self {
-            Self { root, typ }
+            Self {
+                root,
+                typ,
+                octave_shift: 0,
+            }
         }
 
-        pub fn with_notes_in_octave<F: FnMut(Note)>(self, octave_base: Note, mut f: F) {
-            self.typ.with_semitones_above_root(|semitones_above| {
-                let note = wrap_note_within_octave(octave_base, self.root, semitones_above);
+        pub fn octave_shift(self, octave_shift: i8) -> Self {
+            Self {
+                octave_shift,
+                ..self
+            }
+        }
+
+        fn with_notes_in_octave<F: FnMut(Note)>(self, octave_base: Note, mut f: F) {
+            self.typ.with_semitones_above_root(|semitones_above, _| {
+                let note = wrap_note_within_octave(octave_base, self.root, semitones_above)
+                    .add_octaves(self.octave_shift);
                 f(note);
             });
         }
 
-        pub fn notes_in_octave(self, octave_base: Note) -> Vec<Note> {
+        fn with_notes_root_octave<F: FnMut(Note)>(
+            self,
+            root_octave: Octave,
+            lowest_position: ChordPosition,
+            mut f: F,
+        ) {
+            let root_note = self.root.in_octave(root_octave);
+            let mut shifting_down = false;
+            self.typ
+                .with_semitones_above_root(|semitones_above, chord_position| {
+                    let mut note = root_note
+                        .add_semitones(semitones_above as i16)
+                        .add_octaves(self.octave_shift);
+                    if !shifting_down
+                        && lowest_position != ChordPosition::Root
+                        && lowest_position == chord_position
+                    {
+                        shifting_down = true;
+                    }
+                    if shifting_down {
+                        note = note.add_octaves(-1);
+                    }
+                    f(note);
+                });
+        }
+
+        pub fn with_notes<F: FnMut(Note)>(self, inversion: Inversion, f: F) {
+            match inversion {
+                Inversion::WithRootOctave {
+                    root_octave,
+                    lowest_position,
+                } => self.with_notes_root_octave(root_octave, lowest_position, f),
+                Inversion::InOctave { octave_base } => self.with_notes_in_octave(octave_base, f),
+            }
+        }
+
+        pub fn notes(self, inversion: Inversion) -> Vec<Note> {
             let mut ret = Vec::new();
-            self.with_notes_in_octave(octave_base, |note| ret.push(note));
+            self.with_notes(inversion, |note| {
+                ret.push(note);
+            });
             ret
         }
     }
@@ -310,69 +423,69 @@ pub mod chord {
 }
 
 impl Note {
-    pub const C0: Self = Self::new(NoteName::C, 0);
-    pub const C1: Self = Self::new(NoteName::C, 1);
-    pub const C2: Self = Self::new(NoteName::C, 2);
-    pub const C3: Self = Self::new(NoteName::C, 3);
-    pub const C4: Self = Self::new(NoteName::C, 4);
-    pub const C5: Self = Self::new(NoteName::C, 5);
-    pub const C6: Self = Self::new(NoteName::C, 6);
-    pub const C7: Self = Self::new(NoteName::C, 7);
-    pub const C8: Self = Self::new(NoteName::C, 8);
-    pub const D0: Self = Self::new(NoteName::D, 0);
-    pub const D1: Self = Self::new(NoteName::D, 1);
-    pub const D2: Self = Self::new(NoteName::D, 2);
-    pub const D3: Self = Self::new(NoteName::D, 3);
-    pub const D4: Self = Self::new(NoteName::D, 4);
-    pub const D5: Self = Self::new(NoteName::D, 5);
-    pub const D6: Self = Self::new(NoteName::D, 6);
-    pub const D7: Self = Self::new(NoteName::D, 7);
-    pub const D8: Self = Self::new(NoteName::D, 8);
-    pub const E0: Self = Self::new(NoteName::E, 0);
-    pub const E1: Self = Self::new(NoteName::E, 1);
-    pub const E2: Self = Self::new(NoteName::E, 2);
-    pub const E3: Self = Self::new(NoteName::E, 3);
-    pub const E4: Self = Self::new(NoteName::E, 4);
-    pub const E5: Self = Self::new(NoteName::E, 5);
-    pub const E6: Self = Self::new(NoteName::E, 6);
-    pub const E7: Self = Self::new(NoteName::E, 7);
-    pub const E8: Self = Self::new(NoteName::E, 8);
-    pub const F0: Self = Self::new(NoteName::F, 0);
-    pub const F1: Self = Self::new(NoteName::F, 1);
-    pub const F2: Self = Self::new(NoteName::F, 2);
-    pub const F3: Self = Self::new(NoteName::F, 3);
-    pub const F4: Self = Self::new(NoteName::F, 4);
-    pub const F5: Self = Self::new(NoteName::F, 5);
-    pub const F6: Self = Self::new(NoteName::F, 6);
-    pub const F7: Self = Self::new(NoteName::F, 7);
-    pub const F8: Self = Self::new(NoteName::F, 8);
-    pub const G0: Self = Self::new(NoteName::G, 0);
-    pub const G1: Self = Self::new(NoteName::G, 1);
-    pub const G2: Self = Self::new(NoteName::G, 2);
-    pub const G3: Self = Self::new(NoteName::G, 3);
-    pub const G4: Self = Self::new(NoteName::G, 4);
-    pub const G5: Self = Self::new(NoteName::G, 5);
-    pub const G6: Self = Self::new(NoteName::G, 6);
-    pub const G7: Self = Self::new(NoteName::G, 7);
-    pub const G8: Self = Self::new(NoteName::G, 8);
-    pub const A0: Self = Self::new(NoteName::A, 0);
-    pub const A1: Self = Self::new(NoteName::A, 1);
-    pub const A2: Self = Self::new(NoteName::A, 2);
-    pub const A3: Self = Self::new(NoteName::A, 3);
-    pub const A4: Self = Self::new(NoteName::A, 4);
-    pub const A5: Self = Self::new(NoteName::A, 5);
-    pub const A6: Self = Self::new(NoteName::A, 6);
-    pub const A7: Self = Self::new(NoteName::A, 7);
-    pub const A8: Self = Self::new(NoteName::A, 8);
-    pub const B0: Self = Self::new(NoteName::B, 0);
-    pub const B1: Self = Self::new(NoteName::B, 1);
-    pub const B2: Self = Self::new(NoteName::B, 2);
-    pub const B3: Self = Self::new(NoteName::B, 3);
-    pub const B4: Self = Self::new(NoteName::B, 4);
-    pub const B5: Self = Self::new(NoteName::B, 5);
-    pub const B6: Self = Self::new(NoteName::B, 6);
-    pub const B7: Self = Self::new(NoteName::B, 7);
-    pub const B8: Self = Self::new(NoteName::B, 8);
+    pub const C0: Self = Self::new(NoteName::C, octave::OCTAVE_0);
+    pub const C1: Self = Self::new(NoteName::C, octave::OCTAVE_1);
+    pub const C2: Self = Self::new(NoteName::C, octave::OCTAVE_2);
+    pub const C3: Self = Self::new(NoteName::C, octave::OCTAVE_3);
+    pub const C4: Self = Self::new(NoteName::C, octave::OCTAVE_4);
+    pub const C5: Self = Self::new(NoteName::C, octave::OCTAVE_5);
+    pub const C6: Self = Self::new(NoteName::C, octave::OCTAVE_6);
+    pub const C7: Self = Self::new(NoteName::C, octave::OCTAVE_7);
+    pub const C8: Self = Self::new(NoteName::C, octave::OCTAVE_8);
+    pub const D0: Self = Self::new(NoteName::D, octave::OCTAVE_0);
+    pub const D1: Self = Self::new(NoteName::D, octave::OCTAVE_1);
+    pub const D2: Self = Self::new(NoteName::D, octave::OCTAVE_2);
+    pub const D3: Self = Self::new(NoteName::D, octave::OCTAVE_3);
+    pub const D4: Self = Self::new(NoteName::D, octave::OCTAVE_4);
+    pub const D5: Self = Self::new(NoteName::D, octave::OCTAVE_5);
+    pub const D6: Self = Self::new(NoteName::D, octave::OCTAVE_6);
+    pub const D7: Self = Self::new(NoteName::D, octave::OCTAVE_7);
+    pub const D8: Self = Self::new(NoteName::D, octave::OCTAVE_8);
+    pub const E0: Self = Self::new(NoteName::E, octave::OCTAVE_0);
+    pub const E1: Self = Self::new(NoteName::E, octave::OCTAVE_1);
+    pub const E2: Self = Self::new(NoteName::E, octave::OCTAVE_2);
+    pub const E3: Self = Self::new(NoteName::E, octave::OCTAVE_3);
+    pub const E4: Self = Self::new(NoteName::E, octave::OCTAVE_4);
+    pub const E5: Self = Self::new(NoteName::E, octave::OCTAVE_5);
+    pub const E6: Self = Self::new(NoteName::E, octave::OCTAVE_6);
+    pub const E7: Self = Self::new(NoteName::E, octave::OCTAVE_7);
+    pub const E8: Self = Self::new(NoteName::E, octave::OCTAVE_8);
+    pub const F0: Self = Self::new(NoteName::F, octave::OCTAVE_0);
+    pub const F1: Self = Self::new(NoteName::F, octave::OCTAVE_1);
+    pub const F2: Self = Self::new(NoteName::F, octave::OCTAVE_2);
+    pub const F3: Self = Self::new(NoteName::F, octave::OCTAVE_3);
+    pub const F4: Self = Self::new(NoteName::F, octave::OCTAVE_4);
+    pub const F5: Self = Self::new(NoteName::F, octave::OCTAVE_5);
+    pub const F6: Self = Self::new(NoteName::F, octave::OCTAVE_6);
+    pub const F7: Self = Self::new(NoteName::F, octave::OCTAVE_7);
+    pub const F8: Self = Self::new(NoteName::F, octave::OCTAVE_8);
+    pub const G0: Self = Self::new(NoteName::G, octave::OCTAVE_0);
+    pub const G1: Self = Self::new(NoteName::G, octave::OCTAVE_1);
+    pub const G2: Self = Self::new(NoteName::G, octave::OCTAVE_2);
+    pub const G3: Self = Self::new(NoteName::G, octave::OCTAVE_3);
+    pub const G4: Self = Self::new(NoteName::G, octave::OCTAVE_4);
+    pub const G5: Self = Self::new(NoteName::G, octave::OCTAVE_5);
+    pub const G6: Self = Self::new(NoteName::G, octave::OCTAVE_6);
+    pub const G7: Self = Self::new(NoteName::G, octave::OCTAVE_7);
+    pub const G8: Self = Self::new(NoteName::G, octave::OCTAVE_8);
+    pub const A0: Self = Self::new(NoteName::A, octave::OCTAVE_0);
+    pub const A1: Self = Self::new(NoteName::A, octave::OCTAVE_1);
+    pub const A2: Self = Self::new(NoteName::A, octave::OCTAVE_2);
+    pub const A3: Self = Self::new(NoteName::A, octave::OCTAVE_3);
+    pub const A4: Self = Self::new(NoteName::A, octave::OCTAVE_4);
+    pub const A5: Self = Self::new(NoteName::A, octave::OCTAVE_5);
+    pub const A6: Self = Self::new(NoteName::A, octave::OCTAVE_6);
+    pub const A7: Self = Self::new(NoteName::A, octave::OCTAVE_7);
+    pub const A8: Self = Self::new(NoteName::A, octave::OCTAVE_8);
+    pub const B0: Self = Self::new(NoteName::B, octave::OCTAVE_0);
+    pub const B1: Self = Self::new(NoteName::B, octave::OCTAVE_1);
+    pub const B2: Self = Self::new(NoteName::B, octave::OCTAVE_2);
+    pub const B3: Self = Self::new(NoteName::B, octave::OCTAVE_3);
+    pub const B4: Self = Self::new(NoteName::B, octave::OCTAVE_4);
+    pub const B5: Self = Self::new(NoteName::B, octave::OCTAVE_5);
+    pub const B6: Self = Self::new(NoteName::B, octave::OCTAVE_6);
+    pub const B7: Self = Self::new(NoteName::B, octave::OCTAVE_7);
+    pub const B8: Self = Self::new(NoteName::B, octave::OCTAVE_8);
 }
 
 /// Duplicated from `Note` so it's possible to bring all notes into scope by using this module.

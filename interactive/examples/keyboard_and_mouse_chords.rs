@@ -18,6 +18,25 @@ fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
                 .key(key)
                 .and(input.key(Key::Slash))
                 .on(move || chord(note_name, SUS_4)),
+            input
+                .key(key)
+                .and(input.key(Key::Apostrophe))
+                .on(move || chord(note_name, chord_type).octave_shift(1)),
+            input
+                .key(key)
+                .and(input.key(Key::Comma))
+                .and(input.key(Key::Apostrophe))
+                .on(move || chord(note_name, chord_type.infer_7()).octave_shift(1)),
+            input
+                .key(key)
+                .and(input.key(Key::Period))
+                .and(input.key(Key::Apostrophe))
+                .on(move || chord(note_name, SUS_2).octave_shift(1)),
+            input
+                .key(key)
+                .and(input.key(Key::Slash))
+                .and(input.key(Key::Apostrophe))
+                .on(move || chord(note_name, SUS_4).octave_shift(1)),
         ]
     };
     first_some(
@@ -64,7 +83,7 @@ fn chords_to_voice_descs(
             if let Some(chord) = chord {
                 let octave_base =
                     Note::from_midi_index((octave_base_input.sample(ctx) * 40.0 + 40.0) as u8);
-                let notes = chord.notes_in_octave(octave_base);
+                let notes = chord.notes(Inversion::InOctave { octave_base });
                 for (i, state) in state.iter_mut().enumerate() {
                     if let Some(note) = notes.get(i) {
                         let gate_state = !arp_on || *arp_state % notes.len() == i;
@@ -100,9 +119,9 @@ fn chords_to_voice_descs(
 }
 
 fn synth(freq: Sfreq, gate: Gate, vel: Sf64, _input: &Input) -> Sf64 {
-    let osc = oscillator(Waveform::Saw, freq).build();
-    let env = adsr_linear_01(&gate).attack_s(0.0).release_s(0.5).build();
-    osc.filter(low_pass_moog_ladder(&env * 3000.0).resonance(0.0).build()) * vel
+    let osc = oscillator(Waveform::Triangle, freq).build();
+    let env = adsr_linear_01(&gate).attack_s(0.01).release_s(0.01).build();
+    osc.filter(low_pass_moog_ladder(&env * 10000.0).resonance(1.0).build()) * vel
 }
 
 fn voice(input: Input) -> Sf64 {
@@ -118,7 +137,7 @@ fn voice(input: Input) -> Sf64 {
         .map(|(freq, gate, vel)| synth(freq.clone(), gate.clone(), vel.clone(), &input))
         .collect::<Vec<_>>();
     sum(synths)
-        .mix(|dry| 2.0 * dry.filter(reverb().room_size(0.9).damping(0.8).build()))
+        .mix(|dry| 0.5 * dry.filter(reverb().room_size(1.0).damping(0.8).build()))
         .filter(high_pass_butterworth(20.0).build())
 }
 

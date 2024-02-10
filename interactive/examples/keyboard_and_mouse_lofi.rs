@@ -2,7 +2,7 @@ use currawong_interactive::prelude::*;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {
     use Key::*;
-    let top_row_base = Note::new(NoteName::A, 2).to_midi_index();
+    let top_row_base = Note::new(NoteName::A, OCTAVE_2).to_midi_index();
     let top_row = vec![
         N1,
         Q,
@@ -26,7 +26,7 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
         Equals,
         RightBracket,
     ];
-    let bottom_row_base = Note::new(NoteName::B, 1).to_midi_index();
+    let bottom_row_base = Note::new(NoteName::B, OCTAVE_1).to_midi_index();
     let bottom_row = vec![Z, X, D, C, F, V, B, H, N, J, M, K, Comma, Period];
     top_row
         .into_iter()
