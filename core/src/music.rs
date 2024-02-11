@@ -22,6 +22,12 @@ impl Octave {
     pub const OCTAVE_8: Self = Self(8);
 }
 
+impl Default for Octave {
+    fn default() -> Self {
+        Octave::OCTAVE_4
+    }
+}
+
 pub mod octave {
     use super::Octave;
 
@@ -114,7 +120,7 @@ pub fn semitone_ratio(num_semitones: f64) -> f64 {
 pub const TONE_RATIO: f64 = 1.122462048309373;
 
 /// Definition of notes based on MIDI tuned to A440
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Note {
     midi_index: u8,
 }
@@ -339,6 +345,15 @@ pub mod chord {
         InOctave {
             octave_base: Note,
         },
+    }
+
+    impl Default for Inversion {
+        fn default() -> Self {
+            Self::WithRootOctave {
+                root_octave: Octave::OCTAVE_4,
+                lowest_position: ChordPosition::Root,
+            }
+        }
     }
 
     #[derive(Clone, Copy, Debug)]

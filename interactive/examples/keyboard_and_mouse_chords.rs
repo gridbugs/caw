@@ -1,5 +1,4 @@
 use currawong_interactive::prelude::*;
-use std::{cell::RefCell, rc::Rc};
 
 fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
     use note_name::*;
@@ -62,82 +61,34 @@ fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
     )
 }
 
-fn chords_to_voice_descs(
-    chords: Signal<Option<Chord>>,
-    arp_on: bool,
-    arp_s: Sf64,
-    octave_base_input: Sf64,
-    max: usize,
-) -> Vec<(Sfreq, Gate, Sf64)> {
-    let state = Rc::new(RefCell::new(
-        (0..max).map(|_| (0.0, false, 0.0)).collect::<Vec<_>>(),
-    ));
-    let arp_trigger = periodic_trigger_s(arp_s).build();
-    let arp_state = Rc::new(RefCell::new(0usize));
-    let update = chords.map_ctx({
-        let state = Rc::clone(&state);
-        let arp_state = Rc::clone(&arp_state);
-        move |chord, ctx| {
-            let mut state = state.borrow_mut();
-            let mut arp_state = arp_state.borrow_mut();
-            if let Some(chord) = chord {
-                let octave_base =
-                    Note::from_midi_index((octave_base_input.sample(ctx) * 40.0 + 40.0) as u8);
-                let notes = chord.notes(Inversion::InOctave { octave_base });
-                for (i, state) in state.iter_mut().enumerate() {
-                    if let Some(note) = notes.get(i) {
-                        let gate_state = !arp_on || *arp_state % notes.len() == i;
-                        *state = (note.freq().hz(), gate_state, 1.0);
-                    } else {
-                        state.1 = false;
-                    }
-                }
-            } else {
-                for state in state.iter_mut() {
-                    state.1 = false;
-                }
-            }
-            if arp_trigger.sample(ctx) {
-                *arp_state = arp_state.wrapping_add(1);
-            }
-        }
-    });
-    (0..max)
-        .map(|i| {
-            let (hz, gate_raw, vel) = update
-                .map({
-                    let state = Rc::clone(&state);
-                    move |()| {
-                        let state = state.borrow();
-                        state[i]
-                    }
-                })
-                .unzip();
-            (sfreq_hz(hz), gate_raw.to_gate(), vel)
-        })
-        .collect::<Vec<_>>()
-}
-
-fn synth(freq: Sfreq, gate: Gate, vel: Sf64, _input: &Input) -> Sf64 {
-    let osc = oscillator(Waveform::Triangle, freq).build();
-    let env = adsr_linear_01(&gate).attack_s(0.01).release_s(0.01).build();
-    osc.filter(low_pass_moog_ladder(&env * 10000.0).resonance(1.0).build()) * vel
+fn synth(
+    VoiceDesc {
+        note,
+        key_down,
+        key_press,
+        ..
+    }: VoiceDesc,
+) -> Sf64 {
+    let osc = oscillator(Waveform::Saw, note.freq()).build();
+    let env = adsr_linear_01(&key_down)
+        .key_press(key_press)
+        .attack_s(0.01)
+        .release_s(0.01)
+        .decay_s(0.5)
+        .sustain_01(0.5)
+        .build()
+        .exp_01(1.0);
+    osc.filter(low_pass_moog_ladder(&env * 2000.0).resonance(0.5).build())
 }
 
 fn voice(input: Input) -> Sf64 {
-    let voice_descs = chords_to_voice_descs(
-        key_to_chord(&input),
-        false,
-        input.mouse.y_01(),
-        input.mouse.x_01(),
-        5,
-    );
-    let synths = voice_descs
-        .iter()
-        .map(|(freq, gate, vel)| synth(freq.clone(), gate.clone(), vel.clone(), &input))
-        .collect::<Vec<_>>();
-    sum(synths)
-        .mix(|dry| 0.5 * dry.filter(reverb().room_size(1.0).damping(0.8).build()))
+    let inversion = input.x_01().map(|x| Inversion::InOctave {
+        octave_base: Note::from_midi_index((x * 40.0 + 40.0) as u8),
+    });
+    key_to_chord(&input)
+        .key_events(ChordVoiceConfig::default().inversion(inversion))
+        .polyphonic_with(5, 0, synth)
+        .mix(|dry| 0.5 * dry.filter(reverb().room_size(0.5).damping(0.8).build()))
         .filter(high_pass_butterworth(20.0).build())
 }
 

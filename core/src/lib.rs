@@ -41,13 +41,13 @@ pub mod prelude {
             patches::{pulse_pwm, pulse_pwm_hz, supersaw, supersaw_hz},
             sampler::sampler,
         },
-        keyboard::{KeyEvent, VoiceDesc},
+        keyboard::{ChordVoiceConfig, KeyEvent, VoiceDesc},
         music::{
             chord::{
                 chord, Chord, ChordPosition, ChordType, Inversion, DIMINISHED, MAJOR, MINOR, OPEN,
                 SUS_2, SUS_4,
             },
-            freq_hz_of_midi_index, note_name,
+            freq_hz_of_midi_index, note, note_name, octave,
             octave::*,
             semitone_ratio, Note, NoteName, Octave,
         },

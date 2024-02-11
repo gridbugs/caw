@@ -1,8 +1,11 @@
 use crate::{
-    music::Note,
-    signal::{Gate, Sf64, Signal, SignalCtx, Trigger},
+    music::{
+        chord::{Chord, Inversion},
+        Note, Octave,
+    },
+    signal::{const_, Gate, Sf64, Signal, SignalCtx, Trigger},
 };
-use std::{cell::RefCell, mem, rc::Rc};
+use std::{cell::RefCell, collections::HashSet, mem, rc::Rc};
 
 #[derive(Clone)]
 pub struct VoiceDesc {
@@ -313,12 +316,12 @@ impl VoiceDesc {
 }
 
 impl Signal<Vec<KeyEvent>> {
-    pub fn voice_desc_monophonic(self) -> VoiceDesc {
-        VoiceDesc::monophonic_from_key_events(self)
+    pub fn voice_desc_monophonic(&self) -> VoiceDesc {
+        VoiceDesc::monophonic_from_key_events(self.clone())
     }
 
     pub fn voice_descs_polyphonic(
-        self,
+        &self,
         num_persistent_voices: usize,
         num_transient_voices: usize,
     ) -> Vec<VoiceDesc> {
@@ -326,12 +329,12 @@ impl Signal<Vec<KeyEvent>> {
         VoiceDesc::polyphonic_from_key_events(
             reuse_policy,
             num_persistent_voices + num_transient_voices,
-            self,
+            self.clone(),
         )
     }
 
     pub fn polyphonic_with<F: Fn(VoiceDesc) -> Sf64>(
-        self,
+        &self,
         num_persistent_voices: usize,
         num_transient_voices: usize,
         f: F,
@@ -340,5 +343,106 @@ impl Signal<Vec<KeyEvent>> {
             .into_iter()
             .map(f)
             .sum()
+    }
+}
+
+pub struct ChordVoiceConfig {
+    pub velocity_01: Sf64,
+    pub inversion: Signal<Inversion>,
+    pub bass_octave: Signal<Option<Octave>>,
+}
+
+impl Default for ChordVoiceConfig {
+    fn default() -> Self {
+        Self {
+            velocity_01: const_(1.0),
+            inversion: const_(Inversion::default()),
+            bass_octave: const_(None),
+        }
+    }
+}
+
+impl ChordVoiceConfig {
+    pub fn velocity_01(self, velocity_01: impl Into<Sf64>) -> Self {
+        Self {
+            velocity_01: velocity_01.into(),
+            ..self
+        }
+    }
+
+    pub fn inversion(self, inversion: impl Into<Signal<Inversion>>) -> Self {
+        Self {
+            inversion: inversion.into(),
+            ..self
+        }
+    }
+
+    pub fn bass_octave(self, bass_octave: impl Into<Signal<Option<Octave>>>) -> Self {
+        Self {
+            bass_octave: bass_octave.into(),
+            ..self
+        }
+    }
+}
+
+impl From<Option<Octave>> for Signal<Option<Octave>> {
+    fn from(value: Option<Octave>) -> Self {
+        const_(value)
+    }
+}
+
+impl From<Inversion> for Signal<Inversion> {
+    fn from(value: Inversion) -> Self {
+        const_(value)
+    }
+}
+
+impl Signal<Option<Chord>> {
+    pub fn key_events(&self, config: ChordVoiceConfig) -> Signal<Vec<KeyEvent>> {
+        let pressed_notes = Rc::new(RefCell::new(HashSet::new()));
+        self.map_ctx({
+            let pressed_notes = Rc::clone(&pressed_notes);
+            move |chord_opt, ctx| {
+                let mut pressed_notes = pressed_notes.borrow_mut();
+                let velocity_01 = config.velocity_01.sample(ctx);
+                let mut ret = Vec::new();
+                if let Some(chord) = chord_opt {
+                    let inversion = config.inversion.sample(ctx);
+                    let mut notes_in_chord = HashSet::new();
+                    chord.with_notes(inversion, |note| {
+                        notes_in_chord.insert(note);
+                    });
+                    if let Some(bass_octave) = config.bass_octave.sample(ctx) {
+                        let bass_note = chord.root.in_octave(bass_octave);
+                        notes_in_chord.insert(bass_note);
+                    }
+                    for &to_release in pressed_notes.difference(&notes_in_chord) {
+                        ret.push(KeyEvent {
+                            note: to_release,
+                            pressed: false,
+                            velocity_01,
+                        });
+                    }
+                    for &to_press in notes_in_chord.difference(&pressed_notes) {
+                        ret.push(KeyEvent {
+                            note: to_press,
+                            pressed: true,
+                            velocity_01,
+                        })
+                    }
+                    *pressed_notes = notes_in_chord;
+                } else {
+                    for &note in pressed_notes.iter() {
+                        ret.push(KeyEvent {
+                            note,
+                            pressed: false,
+                            velocity_01,
+                        });
+                    }
+                    pressed_notes.clear();
+                }
+                ret
+            }
+        })
     }
 }
