@@ -315,6 +315,78 @@ impl VoiceDesc {
     }
 }
 
+#[derive(Default, Debug)]
+struct ArpegiatorNoteStore {
+    notes: Vec<Note>,
+}
+
+impl ArpegiatorNoteStore {
+    /// Insert a new note unless it's already present, preserving the sortedness of the notes
+    /// vector. Returns the index of the newly added note.
+    fn insert(&mut self, note_to_insert: Note) -> Option<usize> {
+        for (i, &note) in self.notes.iter().enumerate() {
+            if note > note_to_insert {
+                self.notes.insert(i, note_to_insert);
+                return Some(i);
+            } else if note == note_to_insert {
+                return None;
+            }
+        }
+        self.notes.push(note_to_insert);
+        Some(self.notes.len() - 1)
+    }
+
+    /// Remove a note if it's present, preserving the sortedness of the notes vector. Returns the
+    /// index of the removed note.
+    fn remove(&mut self, note_to_remove: Note) -> Option<usize> {
+        for (i, &note) in self.notes.iter().enumerate() {
+            if note > note_to_remove {
+                break;
+            } else if note == note_to_remove {
+                self.notes.remove(i);
+                return Some(i);
+            }
+        }
+        None
+    }
+}
+
+#[derive(Default, Debug)]
+struct ArpegiatorState {
+    notes: ArpegiatorNoteStore,
+    index: usize,
+    current_note: Option<Note>,
+}
+
+impl ArpegiatorState {
+    fn insert_note(&mut self, note: Note) {
+        if let Some(index) = self.notes.insert(note) {
+            if self.index > index {
+                self.index += 1;
+            }
+        }
+    }
+    fn remove_note(&mut self, note: Note) {
+        if let Some(index) = self.notes.remove(note) {
+            if self.index > index {
+                self.index -= 1;
+            }
+        }
+    }
+    fn tick(&mut self) {
+        self.current_note = if self.notes.notes.is_empty() {
+            None
+        } else {
+            if self.index >= self.notes.notes.len() {
+                self.index = 0;
+            }
+            let note = self.notes.notes[self.index];
+            self.index += 1;
+            Some(note)
+        };
+    }
+}
+
 impl Signal<Vec<KeyEvent>> {
     pub fn voice_desc_monophonic(&self) -> VoiceDesc {
         VoiceDesc::monophonic_from_key_events(self.clone())
@@ -343,6 +415,42 @@ impl Signal<Vec<KeyEvent>> {
             .into_iter()
             .map(f)
             .sum()
+    }
+
+    pub fn arpegiate(&self, trigger: impl Into<Trigger>) -> Self {
+        let trigger = trigger.into();
+        let state = RefCell::new(ArpegiatorState::default());
+        self.map_ctx(move |key_events, ctx| {
+            let mut state = state.borrow_mut();
+            for key_event in key_events {
+                if key_event.pressed {
+                    state.insert_note(key_event.note);
+                } else {
+                    state.remove_note(key_event.note);
+                }
+            }
+            if trigger.sample(ctx) {
+                let mut ret = Vec::new();
+                if let Some(note) = state.current_note {
+                    ret.push(KeyEvent {
+                        note,
+                        pressed: false,
+                        velocity_01: 1.0,
+                    });
+                }
+                state.tick();
+                if let Some(note) = state.current_note {
+                    ret.push(KeyEvent {
+                        note,
+                        pressed: true,
+                        velocity_01: 1.0,
+                    });
+                }
+                ret
+            } else {
+                Vec::new()
+            }
+        })
     }
 }
 

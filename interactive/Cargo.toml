@@ -48,6 +48,12 @@ name = "keyboard_and_mouse_monophonic"
 name = "keyboard_and_mouse_chords"
 
 [[example]]
+name = "keyboard_and_mouse_arp"
+
+[[example]]
+name = "keyboard_and_mouse_chords_arp"
+
+[[example]]
 name = "midi_file"
 
 [[example]]
