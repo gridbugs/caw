@@ -41,7 +41,7 @@ pub mod prelude {
             patches::{pulse_pwm, pulse_pwm_hz, supersaw, supersaw_hz},
             sampler::sampler,
         },
-        keyboard::{ChordVoiceConfig, KeyEvent, VoiceDesc},
+        keyboard::{ArpeggiatorConfig, ArpeggiatorShape, ChordVoiceConfig, KeyEvent, VoiceDesc},
         music::{
             chord::{
                 chord, Chord, ChordPosition, ChordType, Inversion, DIMINISHED, MAJOR, MINOR, OPEN,

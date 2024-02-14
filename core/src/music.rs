@@ -49,6 +49,7 @@ pub struct NoteName {
 }
 
 const NOTES_PER_OCTAVE: u8 = 12;
+const MAX_MIDI_INDEX: u8 = 127;
 
 impl NoteName {
     const fn from_index(relative_midi_index: u8) -> Self {
@@ -152,6 +153,21 @@ impl Note {
 
     pub fn octave(self) -> Octave {
         Octave::new(self.midi_index / NOTES_PER_OCTAVE)
+    }
+
+    pub fn add_semitones_checked(self, num_semitones: i16) -> Option<Self> {
+        let midi_index = self.midi_index as i16 + num_semitones;
+        if midi_index < 0 || midi_index > MAX_MIDI_INDEX as i16 {
+            None
+        } else {
+            Some(Self {
+                midi_index: midi_index as u8,
+            })
+        }
+    }
+
+    pub fn add_octaves_checked(self, num_octaves: i8) -> Option<Self> {
+        self.add_semitones_checked(num_octaves as i16 * NOTES_PER_OCTAVE as i16)
     }
 
     pub fn add_semitones(self, num_semitones: i16) -> Self {

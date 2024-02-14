@@ -86,9 +86,10 @@ fn voice(input: Input) -> Sf64 {
         octave_base: Note::from_midi_index((x * 40.0 + 40.0) as u8),
     });
     let arp_trigger = periodic_trigger_hz(8.0).build();
+    let arp_config = ArpeggiatorConfig::default().shape(ArpeggiatorShape::Up);
     key_to_chord(&input)
         .key_events(ChordVoiceConfig::default().inversion(inversion))
-        .arpegiate(arp_trigger)
+        .arpeggiate(arp_trigger, arp_config)
         .polyphonic_with(5, 0, synth)
         .mix(|dry| 2.0 * dry.filter(reverb().room_size(0.8).damping(0.8).build()))
         .filter(high_pass_butterworth(20.0).build())

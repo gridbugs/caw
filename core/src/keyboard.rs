@@ -5,6 +5,7 @@ use crate::{
     },
     signal::{const_, Gate, Sf64, Signal, SignalCtx, Trigger},
 };
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use std::{cell::RefCell, collections::HashSet, mem, rc::Rc};
 
 #[derive(Clone)]
@@ -316,74 +317,219 @@ impl VoiceDesc {
 }
 
 #[derive(Default, Debug)]
-struct ArpegiatorNoteStore {
-    notes: Vec<Note>,
+struct ArpeggiatorNoteStoreEntry {
+    note: Note,
+    count: usize,
 }
 
-impl ArpegiatorNoteStore {
+#[derive(Default, Debug)]
+struct ArpeggiatorNoteStore {
+    entries: Vec<ArpeggiatorNoteStoreEntry>,
+}
+
+impl ArpeggiatorNoteStore {
     /// Insert a new note unless it's already present, preserving the sortedness of the notes
     /// vector. Returns the index of the newly added note.
     fn insert(&mut self, note_to_insert: Note) -> Option<usize> {
-        for (i, &note) in self.notes.iter().enumerate() {
-            if note > note_to_insert {
-                self.notes.insert(i, note_to_insert);
+        for (i, entry) in self.entries.iter_mut().enumerate() {
+            if entry.note > note_to_insert {
+                self.entries.insert(
+                    i,
+                    ArpeggiatorNoteStoreEntry {
+                        note: note_to_insert,
+                        count: 1,
+                    },
+                );
                 return Some(i);
-            } else if note == note_to_insert {
+            } else if entry.note == note_to_insert {
+                // The note is already present. Update the count.
+                entry.count += 1;
                 return None;
             }
         }
-        self.notes.push(note_to_insert);
-        Some(self.notes.len() - 1)
+        self.entries.push(ArpeggiatorNoteStoreEntry {
+            note: note_to_insert,
+            count: 1,
+        });
+        Some(self.entries.len() - 1)
     }
 
     /// Remove a note if it's present, preserving the sortedness of the notes vector. Returns the
     /// index of the removed note.
     fn remove(&mut self, note_to_remove: Note) -> Option<usize> {
-        for (i, &note) in self.notes.iter().enumerate() {
-            if note > note_to_remove {
+        for (i, entry) in self.entries.iter_mut().enumerate() {
+            if entry.note > note_to_remove {
                 break;
-            } else if note == note_to_remove {
-                self.notes.remove(i);
-                return Some(i);
+            } else if entry.note == note_to_remove {
+                entry.count -= 1;
+                if entry.count == 0 {
+                    self.entries.remove(i);
+                    return Some(i);
+                } else {
+                    return None;
+                }
             }
         }
         None
     }
 }
 
-#[derive(Default, Debug)]
-struct ArpegiatorState {
-    notes: ArpegiatorNoteStore,
-    index: usize,
-    current_note: Option<Note>,
+#[derive(Default, Debug, Clone)]
+pub enum ArpeggiatorShape {
+    #[default]
+    Up,
+    Down,
+    UpDown,
+    DownUp,
+    Random,
 }
 
-impl ArpegiatorState {
+#[derive(Debug)]
+struct ArpeggiatorState {
+    store: ArpeggiatorNoteStore,
+    index: usize,
+    current_note: Option<Note>,
+    ascending: bool,
+    rng: StdRng,
+}
+
+impl ArpeggiatorState {
+    fn new() -> Self {
+        Self {
+            store: ArpeggiatorNoteStore::default(),
+            index: 0,
+            current_note: None,
+            ascending: true,
+            rng: StdRng::from_entropy(),
+        }
+    }
+
     fn insert_note(&mut self, note: Note) {
-        if let Some(index) = self.notes.insert(note) {
+        if let Some(index) = self.store.insert(note) {
             if self.index > index {
                 self.index += 1;
             }
         }
     }
     fn remove_note(&mut self, note: Note) {
-        if let Some(index) = self.notes.remove(note) {
+        if let Some(index) = self.store.remove(note) {
             if self.index > index {
                 self.index -= 1;
             }
         }
     }
-    fn tick(&mut self) {
-        self.current_note = if self.notes.notes.is_empty() {
+    fn reset(&mut self, shape: ArpeggiatorShape) {
+        self.index = 0;
+        use ArpeggiatorShape::*;
+        match shape {
+            Up | UpDown => {
+                self.ascending = true;
+            }
+            Down | DownUp => {
+                self.ascending = false;
+            }
+            Random => (),
+        }
+    }
+    fn tick_up(&mut self) -> Note {
+        if self.index >= self.store.entries.len() {
+            self.index = 0;
+        }
+        let entry = &self.store.entries[self.index];
+        self.index += 1;
+        entry.note
+    }
+    fn tick_down(&mut self) -> Note {
+        if self.index == 0 {
+            self.index = self.store.entries.len();
+        }
+        self.index -= 1;
+        self.store.entries[self.index].note
+    }
+    fn tick(&mut self, shape: ArpeggiatorShape) {
+        self.current_note = if self.store.entries.is_empty() {
+            self.reset(shape);
             None
         } else {
-            if self.index >= self.notes.notes.len() {
-                self.index = 0;
-            }
-            let note = self.notes.notes[self.index];
-            self.index += 1;
+            use ArpeggiatorShape::*;
+            let note = match shape {
+                Up => self.tick_up(),
+                Down => self.tick_down(),
+                UpDown | DownUp => {
+                    if self.ascending {
+                        let note = self.tick_up();
+                        if self.index >= self.store.entries.len() {
+                            self.ascending = false;
+                            self.index = self.store.entries.len() - 1;
+                        }
+                        note
+                    } else {
+                        let note = self.tick_down();
+                        if self.index == 0 {
+                            self.ascending = true;
+                            self.index = 1;
+                        }
+                        note
+                    }
+                }
+                Random => {
+                    let index = self.rng.gen_range(0..self.store.entries.len());
+                    self.store.entries[index].note
+                }
+            };
             Some(note)
         };
+    }
+}
+
+pub struct ArpeggiatorConfig {
+    pub velocity_01: Sf64,
+    pub extend_octaves_high: Signal<u8>,
+    pub extend_octaves_low: Signal<u8>,
+    pub shape: Signal<ArpeggiatorShape>,
+}
+
+impl Default for ArpeggiatorConfig {
+    fn default() -> Self {
+        Self {
+            velocity_01: const_(1.0),
+            extend_octaves_high: const_(0),
+            extend_octaves_low: const_(0),
+            shape: const_(ArpeggiatorShape::default()),
+        }
+    }
+}
+
+impl ArpeggiatorConfig {
+    pub fn velocity_01(self, velocity_01: impl Into<Sf64>) -> Self {
+        Self {
+            velocity_01: velocity_01.into(),
+            ..self
+        }
+    }
+    pub fn extend_octaves_high(self, extend_octaves_high: impl Into<Signal<u8>>) -> Self {
+        Self {
+            extend_octaves_high: extend_octaves_high.into(),
+            ..self
+        }
+    }
+    pub fn extend_octaves_low(self, extend_octaves_low: impl Into<Signal<u8>>) -> Self {
+        Self {
+            extend_octaves_low: extend_octaves_low.into(),
+            ..self
+        }
+    }
+    pub fn shape(self, shape: impl Into<Signal<ArpeggiatorShape>>) -> Self {
+        Self {
+            shape: shape.into(),
+            ..self
+        }
+    }
+}
+
+impl From<ArpeggiatorShape> for Signal<ArpeggiatorShape> {
+    fn from(value: ArpeggiatorShape) -> Self {
+        const_(value)
     }
 }
 
@@ -417,16 +563,36 @@ impl Signal<Vec<KeyEvent>> {
             .sum()
     }
 
-    pub fn arpegiate(&self, trigger: impl Into<Trigger>) -> Self {
+    pub fn arpeggiate(&self, trigger: impl Into<Trigger>, config: ArpeggiatorConfig) -> Self {
         let trigger = trigger.into();
-        let state = RefCell::new(ArpegiatorState::default());
+        let state = RefCell::new(ArpeggiatorState::new());
         self.map_ctx(move |key_events, ctx| {
             let mut state = state.borrow_mut();
             for key_event in key_events {
                 if key_event.pressed {
                     state.insert_note(key_event.note);
+                    for i in 0..config.extend_octaves_high.sample(ctx) {
+                        if let Some(note) = key_event.note.add_octaves_checked(i as i8 + 1) {
+                            state.insert_note(note);
+                        }
+                    }
+                    for i in 0..config.extend_octaves_low.sample(ctx) {
+                        if let Some(note) = key_event.note.add_octaves_checked(-(i as i8 + 1)) {
+                            state.insert_note(note);
+                        }
+                    }
                 } else {
                     state.remove_note(key_event.note);
+                    for i in 0..config.extend_octaves_high.sample(ctx) {
+                        if let Some(note) = key_event.note.add_octaves_checked(i as i8 + 1) {
+                            state.remove_note(note);
+                        }
+                    }
+                    for i in 0..config.extend_octaves_low.sample(ctx) {
+                        if let Some(note) = key_event.note.add_octaves_checked(-(i as i8 + 1)) {
+                            state.remove_note(note);
+                        }
+                    }
                 }
             }
             if trigger.sample(ctx) {
@@ -435,15 +601,15 @@ impl Signal<Vec<KeyEvent>> {
                     ret.push(KeyEvent {
                         note,
                         pressed: false,
-                        velocity_01: 1.0,
+                        velocity_01: config.velocity_01.sample(ctx),
                     });
                 }
-                state.tick();
+                state.tick(config.shape.sample(ctx));
                 if let Some(note) = state.current_note {
                     ret.push(KeyEvent {
                         note,
                         pressed: true,
-                        velocity_01: 1.0,
+                        velocity_01: config.velocity_01.sample(ctx),
                     });
                 }
                 ret

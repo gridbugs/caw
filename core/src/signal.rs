@@ -283,8 +283,15 @@ impl From<&f32> for Sf64 {
         const_(*value as f64)
     }
 }
+
 impl From<u32> for Signal<u32> {
     fn from(value: u32) -> Self {
+        const_(value)
+    }
+}
+
+impl From<u8> for Signal<u8> {
+    fn from(value: u8) -> Self {
         const_(value)
     }
 }
