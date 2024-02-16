@@ -1,34 +1,12 @@
 use currawong_interactive::prelude::*;
 
-fn snare(trigger: &Trigger, input: Input) -> Sf64 {
-    let clock = trigger.to_gate();
-    let duration_s = 0.1;
-    let noise = noise().filter(compress().ratio(0.1).scale(100.0).build());
-    let env = adsr_linear_01(&clock)
-        .release_s(duration_s * 1.0)
-        .build()
-        .exp_01(1.0)
-        .filter(low_pass_moog_ladder(1000.0).build());
-    let noise = noise.filter(
-        low_pass_moog_ladder(20000.0 * input.mouse.x_01())
-            .resonance(2.0)
-            .build(),
-    );
-    let freq_hz = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        * 240;
-    let osc = oscillator_hz(Waveform::Pulse, freq_hz)
-        .reset_trigger(trigger)
-        .build();
-    (noise + osc)
-        .filter(down_sample(input.mouse.y_01() * 20.0).build())
-        .mul_lazy(&env)
-}
-
-fn voice(trigger: Trigger, input: Input) -> Sf64 {
-    snare(&trigger, input)
+fn voice(input: Input) -> Sf64 {
+    let snare_trigger = input.keyboard.q.to_trigger_rising_edge();
+    let kick_trigger = input.keyboard.w.to_trigger_rising_edge();
+    let closed_hat_trigger = input.keyboard.e.to_trigger_rising_edge();
+    currawong_core::patches::snare_drum(snare_trigger)
+        + currawong_core::patches::kick_drum(kick_trigger)
+        + currawong_core::patches::closed_hat(closed_hat_trigger)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -39,6 +17,6 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = voice(periodic_trigger_hz(4.0).build(), window.input());
+    let signal = voice(window.input());
     window.play(signal)
 }

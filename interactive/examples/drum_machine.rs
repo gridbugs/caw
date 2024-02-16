@@ -24,74 +24,15 @@ fn midi_index_by_key_bass() -> Vec<(Key, u8)> {
 }
 
 fn kick(trigger: Trigger) -> Sf64 {
-    let clock = trigger.to_gate();
-    let duration_s = 0.05;
-    let freq_hz = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        * 200.0
-        + 40.0;
-    let osc = oscillator_hz(Waveform::Pulse, freq_hz).build();
-    let env_amp = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        .filter(low_pass_moog_ladder(1000.0).build());
-    let x = osc.filter(low_pass_moog_ladder(400.0).build()) * 8.0;
-    let x = (osc + x)
-        .filter(low_pass_moog_ladder(500.0 * env_amp).build())
-        .filter(compress().ratio(0.02).scale(16.0).build());
-    let reverb = x
-        .filter(low_pass_moog_ladder(400.0).build())
-        .filter(reverb().room_size(0.5).damping(0.5).build());
-    let reverb_gate = trigger.to_gate_with_duration_s(0.2);
-    let reverb_env = adsr_linear_01(reverb_gate)
-        .release_s(0.1)
-        .build()
-        .exp_01(1.0);
-    x + (reverb * reverb_env)
+    currawong_core::patches::kick_drum(trigger)
 }
 
 fn snare(trigger: Trigger) -> Sf64 {
-    let clock = trigger.to_gate();
-    let duration_s = 0.1;
-    let env = adsr_linear_01(&clock)
-        .release_s(duration_s * 1.0)
-        .build()
-        .filter(low_pass_moog_ladder(1000.0).build());
-    let noise = noise().filter(down_sample(5.0).build());
-    let freq_hz = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        * 100.0
-        + 40.0;
-    let x = oscillator_hz(Waveform::Pulse, freq_hz)
-        .reset_trigger(&trigger)
-        .build()
-        + noise;
-    let x = &x + &x.filter(low_pass_moog_ladder(200.0).build()) * 6.0;
-    let x = x.mul_lazy(&env);
-    let reverb = x.filter(reverb().room_size(0.5).damping(0.5).build());
-    let reverb_gate = trigger.to_gate_with_duration_s(0.2);
-    let reverb_env = adsr_linear_01(reverb_gate)
-        .release_s(0.05)
-        .build()
-        .exp_01(1.0);
-    (x + (reverb * reverb_env)) * 0.5
+    currawong_core::patches::snare_drum(trigger)
 }
 
 fn cymbal(trigger: Trigger) -> Sf64 {
-    let gate = trigger.to_gate();
-    let osc = noise();
-    let env = adsr_linear_01(gate)
-        .release_s(0.1)
-        .build()
-        .filter(low_pass_butterworth(100.0).build());
-    osc.filter(low_pass_moog_ladder(10000 * &env).build())
-        .filter(high_pass_butterworth(6000.0).build())
-        * 4.0
+    currawong_core::patches::closed_hat(trigger)
 }
 
 fn drum_looper(clock: &Trigger, input: &Input) -> Sf64 {
@@ -106,9 +47,7 @@ fn drum_looper(clock: &Trigger, input: &Input) -> Sf64 {
     let kick_loop = kick(mk_loop(Key::Q, Key::N1, 8));
     let snare_loop = snare(mk_loop(Key::W, Key::N2, 8));
     let cymbal_loop = cymbal(mk_loop(Key::E, Key::N3, 7));
-    sum([kick_loop, snare_loop, cymbal_loop])
-        .filter(low_pass_butterworth(input.mouse.x_01() * 10000).build())
-        * 0.5
+    sum([kick_loop, snare_loop, cymbal_loop]) * 0.5
 }
 
 fn synth_gate_and_midi_index(input: &Input, keys: &[(Key, u8)]) -> (Gate, Su8) {
@@ -251,7 +190,7 @@ fn voice(input: Input) -> Sf64 {
     let x = mean([
         drum_looper(&clock, &input),
         synth_looper(&clock, &input),
-        bass(&input) * 0.5,
+        bass(&input) * 0.3,
     ])
     .filter(saturate().threshold(2.0).build());
     x
