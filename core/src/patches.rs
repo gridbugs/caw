@@ -82,8 +82,10 @@ pub mod drum {
             .exp_01(2.0);
         noise()
             .filter(
-                builder::filter::low_pass_moog_ladder(sweep_start_hz + &env * sweep_end_offset_hz)
-                    .build(),
+                builder::filter::low_pass_moog_ladder(
+                    sweep_start_hz + (&env * sweep_end_offset_hz),
+                )
+                .build(),
             )
             .mul_lazy(&env)
     }
@@ -119,7 +121,7 @@ pub mod drum {
 
     pub fn kick(trigger: Trigger) -> Sf64 {
         let osc = sine_wave_pitch_sweep(&trigger);
-        let noise = noise_lpf_sweep(&trigger, 0.4, 10_000.0, 10_000.0) * 2.0;
+        let noise = noise_lpf_sweep(&trigger, 0.04, 10_000.0, 10_000.0) * 2.0;
         let filtered_osc = (osc + noise)
             .filter(builder::filter::low_pass_moog_ladder(4000.0).build())
             .mix(|dry| 3.0 * dry.filter(builder::filter::low_pass_moog_ladder(500.0).build()));
@@ -128,7 +130,7 @@ pub mod drum {
 
     pub fn snare(trigger: Trigger) -> Sf64 {
         let osc = sine_wave_pitch_sweep(&trigger);
-        let noise = noise_lpf_sweep(&trigger, 0.4, 10_000.0, 10_000.0) * 0.5;
+        let noise = noise_lpf_sweep(&trigger, 0.1, 10_000.0, 10_000.0) * 0.5;
         let filtered_osc =
             (osc + noise).filter(builder::filter::high_pass_butterworth(200.0).build());
         let amp_env = amp_env(&trigger);
@@ -139,7 +141,7 @@ pub mod drum {
     }
 
     pub fn hat_closed(trigger: Trigger) -> Sf64 {
-        let noise = noise_lpf_sweep(&trigger, 0.4, 20_000.0, -10_000.0);
+        let noise = noise_lpf_sweep(&trigger, 0.05, 20_000.0, -10_000.0);
         noise.mix(|dry| temporary_reverb(&trigger, dry, 1.0)) * 0.5
     }
 }
