@@ -23,18 +23,6 @@ fn midi_index_by_key_bass() -> Vec<(Key, u8)> {
         .collect::<Vec<_>>()
 }
 
-fn kick(trigger: Trigger) -> Sf64 {
-    currawong_core::patches::kick_drum(trigger)
-}
-
-fn snare(trigger: Trigger) -> Sf64 {
-    currawong_core::patches::snare_drum(trigger)
-}
-
-fn cymbal(trigger: Trigger) -> Sf64 {
-    currawong_core::patches::closed_hat(trigger)
-}
-
 fn drum_looper(clock: &Trigger, input: &Input) -> Sf64 {
     let mk_loop = |add, remove, length| {
         clocked_trigger_looper()
@@ -44,10 +32,10 @@ fn drum_looper(clock: &Trigger, input: &Input) -> Sf64 {
             .length(length)
             .build()
     };
-    let kick_loop = kick(mk_loop(Key::Q, Key::N1, 8));
-    let snare_loop = snare(mk_loop(Key::W, Key::N2, 8));
-    let cymbal_loop = cymbal(mk_loop(Key::E, Key::N3, 7));
-    sum([kick_loop, snare_loop, cymbal_loop]) * 0.5
+    let kick_loop = kick(mk_loop(Key::Q, Key::N1, 8)).build();
+    let snare_loop = snare(mk_loop(Key::W, Key::N2, 8)).build();
+    let hat_closed_loop = hat_closed(mk_loop(Key::E, Key::N3, 7)).build();
+    sum([kick_loop, snare_loop, hat_closed_loop]) * 0.5
 }
 
 fn synth_gate_and_midi_index(input: &Input, keys: &[(Key, u8)]) -> (Gate, Su8) {

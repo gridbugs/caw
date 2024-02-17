@@ -38,7 +38,7 @@ pub mod prelude {
             },
             loopers::{clocked_midi_note_monophonic_looper, clocked_trigger_looper},
             oscillator::{oscillator, oscillator_hz, oscillator_s},
-            patches::{pulse_pwm, pulse_pwm_hz, supersaw, supersaw_hz},
+            patches::{hat_closed, kick, pulse_pwm, pulse_pwm_hz, snare, supersaw, supersaw_hz},
             sampler::sampler,
         },
         keyboard::{ArpeggiatorConfig, ArpeggiatorShape, ChordVoiceConfig, KeyEvent, VoiceDesc},

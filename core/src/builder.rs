@@ -867,4 +867,64 @@ pub mod patches {
     pub fn pulse_pwm_hz(freq_hz: impl Into<Sf64>) -> PulsePwmBuilder {
         pulse_pwm(sfreq_hz(freq_hz))
     }
+
+    pub struct KickBuilder {
+        trigger: Trigger,
+    }
+
+    impl KickBuilder {
+        pub fn new(trigger: impl Into<Trigger>) -> Self {
+            Self {
+                trigger: trigger.into(),
+            }
+        }
+
+        pub fn build(self) -> Sf64 {
+            patches::drum::kick(self.trigger)
+        }
+    }
+
+    pub fn kick(trigger: impl Into<Trigger>) -> KickBuilder {
+        KickBuilder::new(trigger)
+    }
+
+    pub struct SnareBuilder {
+        trigger: Trigger,
+    }
+
+    impl SnareBuilder {
+        pub fn new(trigger: impl Into<Trigger>) -> Self {
+            Self {
+                trigger: trigger.into(),
+            }
+        }
+
+        pub fn build(self) -> Sf64 {
+            patches::drum::snare(self.trigger)
+        }
+    }
+
+    pub fn snare(trigger: impl Into<Trigger>) -> SnareBuilder {
+        SnareBuilder::new(trigger)
+    }
+
+    pub struct HatClosedBuilder {
+        trigger: Trigger,
+    }
+
+    impl HatClosedBuilder {
+        pub fn new(trigger: impl Into<Trigger>) -> Self {
+            Self {
+                trigger: trigger.into(),
+            }
+        }
+
+        pub fn build(self) -> Sf64 {
+            patches::drum::hat_closed(self.trigger)
+        }
+    }
+
+    pub fn hat_closed(trigger: impl Into<Trigger>) -> HatClosedBuilder {
+        HatClosedBuilder::new(trigger)
+    }
 }
