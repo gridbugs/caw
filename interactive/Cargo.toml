@@ -51,6 +51,9 @@ name = "keyboard_and_mouse_chords"
 name = "keyboard_and_mouse_arp"
 
 [[example]]
+name = "keyboard_and_mouse_arp_index_loops"
+
+[[example]]
 name = "keyboard_and_mouse_chords_arp"
 
 [[example]]

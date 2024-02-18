@@ -533,6 +533,22 @@ impl Trigger {
             .map_ctx(move |x, ctx| if x { Some(f(ctx)) } else { None })
     }
 
+    pub fn on_unit<F: Fn() + 'static>(&self, f: F) -> Signal<()> {
+        self.0.map(move |x| {
+            if x {
+                f()
+            }
+        })
+    }
+
+    pub fn on_ctx_unit<F: Fn(&SignalCtx) + 'static>(&self, f: F) -> Signal<()> {
+        self.0.map_ctx(move |x, ctx| {
+            if x {
+                f(ctx)
+            }
+        })
+    }
+
     pub fn and_fn<F: Fn() -> bool + 'static>(&self, f: F) -> Self {
         Self(self.0.map(move |value| value && f()))
     }
@@ -720,4 +736,26 @@ pub fn first_some<T: Clone + 'static>(
         out = signal.or(&out);
     }
     out
+}
+
+pub struct Triggerable<T>(Rc<dyn Fn(Trigger) -> Signal<T>>);
+
+impl<T> Clone for Triggerable<T> {
+    fn clone(&self) -> Self {
+        Self(Rc::clone(&self.0))
+    }
+}
+
+impl<T> Triggerable<T> {
+    pub fn new<F: Fn(Trigger) -> Signal<T> + 'static>(f: F) -> Self {
+        Self(Rc::new(f))
+    }
+
+    pub fn signal(&self, trigger: impl Into<Trigger>) -> Signal<T> {
+        (self.0)(trigger.into())
+    }
+}
+
+pub fn triggerable<T: 'static, F: Fn(Trigger) -> Signal<T> + 'static>(f: F) -> Triggerable<T> {
+    Triggerable::new(f)
 }

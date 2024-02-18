@@ -382,6 +382,7 @@ pub enum ArpeggiatorShape {
     UpDown,
     DownUp,
     Random,
+    Indices(Vec<Option<usize>>),
 }
 
 #[derive(Debug)]
@@ -428,7 +429,7 @@ impl ArpeggiatorState {
             Down | DownUp => {
                 self.ascending = false;
             }
-            Random => (),
+            Random | Indices(_) => (),
         }
     }
     fn tick_up(&mut self) -> Note {
@@ -475,6 +476,19 @@ impl ArpeggiatorState {
                 Random => {
                     let index = self.rng.gen_range(0..self.store.entries.len());
                     self.store.entries[index].note
+                }
+                Indices(indices) => {
+                    if indices.is_empty() {
+                        self.current_note = None;
+                        return;
+                    }
+                    if self.index >= indices.len() {
+                        self.index = 0;
+                    }
+                    self.current_note =
+                        indices[self.index].and_then(|i| self.store.entries.get(i).map(|e| e.note));
+                    self.index += 1;
+                    return;
                 }
             };
             Some(note)

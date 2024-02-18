@@ -927,4 +927,44 @@ pub mod patches {
     pub fn hat_closed(trigger: impl Into<Trigger>) -> HatClosedBuilder {
         HatClosedBuilder::new(trigger)
     }
+
+    pub mod triggerable {
+        use crate::{
+            patches,
+            signal::{triggerable, Triggerable},
+        };
+
+        pub struct KickBuilder;
+        impl KickBuilder {
+            pub fn build(self) -> Triggerable<f64> {
+                triggerable(patches::drum::kick)
+            }
+        }
+
+        pub fn kick() -> KickBuilder {
+            KickBuilder
+        }
+
+        pub struct SnareBuilder;
+        impl SnareBuilder {
+            pub fn build(self) -> Triggerable<f64> {
+                triggerable(patches::drum::snare)
+            }
+        }
+
+        pub fn snare() -> SnareBuilder {
+            SnareBuilder
+        }
+
+        pub struct HatClosedBuilder;
+        impl HatClosedBuilder {
+            pub fn build(self) -> Triggerable<f64> {
+                triggerable(patches::drum::hat_closed)
+            }
+        }
+
+        pub fn hat_closed() -> HatClosedBuilder {
+            HatClosedBuilder
+        }
+    }
 }

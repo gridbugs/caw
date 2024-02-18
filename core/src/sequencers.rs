@@ -1,4 +1,4 @@
-use crate::signal::Trigger;
+use crate::signal::{Sf64, Trigger, Triggerable};
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SequencedTriggers {
@@ -37,4 +37,13 @@ pub fn bitwise_pattern_triggers_8(trigger: Trigger, pattern: Vec<u8>) -> Sequenc
         })
         .to_trigger_raw();
     SequencedTriggers { triggers, complete }
+}
+
+pub fn drum_loop_8(trigger: Trigger, pattern: Vec<u8>, drums: Vec<Triggerable<f64>>) -> Sf64 {
+    let SequencedTriggers { triggers, .. } = bitwise_pattern_triggers_8(trigger, pattern);
+    triggers
+        .into_iter()
+        .zip(drums.into_iter())
+        .map(|(trigger, drum)| drum.signal(trigger))
+        .sum()
 }

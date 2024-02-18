@@ -38,7 +38,10 @@ pub mod prelude {
             },
             loopers::{clocked_midi_note_monophonic_looper, clocked_trigger_looper},
             oscillator::{oscillator, oscillator_hz, oscillator_s},
-            patches::{hat_closed, kick, pulse_pwm, pulse_pwm_hz, snare, supersaw, supersaw_hz},
+            patches::{
+                hat_closed, kick, pulse_pwm, pulse_pwm_hz, snare, supersaw, supersaw_hz,
+                triggerable,
+            },
             sampler::sampler,
         },
         keyboard::{ArpeggiatorConfig, ArpeggiatorShape, ChordVoiceConfig, KeyEvent, VoiceDesc},
@@ -53,10 +56,11 @@ pub mod prelude {
         },
         oscillator::Waveform,
         sampler::{Sample, Sampler},
-        sequencers::bitwise_pattern_triggers_8,
+        sequencers::{bitwise_pattern_triggers_8, drum_loop_8},
         signal::{
             const_, first_some, freq_hz, freq_s, mean, noise, noise_01, sfreq_hz, sfreq_s,
-            sfreq_to_hz, sfreq_to_s, sum, Freq, Gate, Sf64, Sfreq, Signal, Su8, Trigger,
+            sfreq_to_hz, sfreq_to_s, sum, triggerable, Freq, Gate, Sf64, Sfreq, Signal, Su8,
+            Trigger, Triggerable,
         },
         util::{
             bitwise_trigger_router_64, generic_sample_and_hold, trigger_split_cycle,
