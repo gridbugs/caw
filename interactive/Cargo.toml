@@ -1,6 +1,6 @@
 [package]
 name = "currawong_interactive"
-version = "0.4.0"
+version = "0.5.0"
 edition = "2021"
 description = "Interactive tools for currawong software-defined modular synthesizer"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -15,8 +15,8 @@ midi = ["currawong/midi"]
 
 [dependencies]
 anyhow = "1.0"
-currawong = { version = "0.4", path = "../currawong" }
-currawong_core = { version = "0.4", path = "../core" }
+currawong = { version = "0.5", path = "../currawong" }
+currawong_core = { version = "0.5", path = "../core" }
 line_2d = "0.5"
 rgb_int = "0.1"
 sdl2 = "0.36"
