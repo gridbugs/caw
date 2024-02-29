@@ -82,4 +82,9 @@ impl SignalPlayer {
     pub fn set_volume(&self, volume: f32) {
         self.sample_player.set_volume(volume);
     }
+
+    pub fn set_buffer_padding_sample_rate_ratio(&mut self, buffer_padding_sample_rate_ratio: f64) {
+        self.sample_player.buffer_padding =
+            (self.sample_player.sample_rate_hz() as f64 * buffer_padding_sample_rate_ratio) as u64;
+    }
 }
