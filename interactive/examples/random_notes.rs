@@ -127,38 +127,38 @@ fn synth_signal(trigger: Trigger, _input: Input) -> Sf64 {
 }
 
 fn drum_signal(trigger: Trigger) -> Sf64 {
-    const CYMBAL: usize = 0;
+    const HAT_CLOSED: usize = 0;
     const SNARE: usize = 1;
     const KICK: usize = 2;
     let drum_pattern = {
-        let cymbal = 1 << CYMBAL;
+        let hat_closed = 1 << HAT_CLOSED;
         let snare = 1 << SNARE;
         let kick = 1 << KICK;
         vec![
-            cymbal | kick,
-            cymbal,
-            cymbal | snare,
-            cymbal,
-            cymbal | kick,
-            cymbal,
-            cymbal | snare,
-            cymbal,
-            cymbal | kick,
-            cymbal,
-            cymbal | snare,
-            cymbal,
-            cymbal | kick,
-            cymbal | kick,
-            cymbal | snare,
-            cymbal,
+            hat_closed | kick,
+            hat_closed,
+            hat_closed | snare,
+            hat_closed,
+            hat_closed | kick,
+            hat_closed,
+            hat_closed | snare,
+            hat_closed,
+            hat_closed | kick,
+            hat_closed,
+            hat_closed | snare,
+            hat_closed,
+            hat_closed | kick,
+            hat_closed | kick,
+            hat_closed | snare,
+            hat_closed,
         ]
     };
     let drum_sequence = bitwise_pattern_triggers_8(trigger, drum_pattern).triggers;
     match &drum_sequence.as_slice() {
-        &[cymbal_trigger, snare_trigger, kick_trigger, ..] => {
-            cymbal(cymbal_trigger.clone())
-                + snare(snare_trigger.clone())
-                + kick(kick_trigger.clone())
+        &[hat_closed_trigger, snare_trigger, kick_trigger, ..] => {
+            hat_closed(hat_closed_trigger.clone()).build()
+                + snare(snare_trigger.clone()).build()
+                + kick(kick_trigger.clone()).build()
         }
         _ => panic!(),
     }
@@ -178,58 +178,4 @@ fn main() -> anyhow::Result<()> {
         .build();
     let signal = signal(periodic_trigger_hz(4.0).build(), window.input());
     window.play(signal)
-}
-
-fn kick(trigger: Trigger) -> Sf64 {
-    let clock = trigger.to_gate();
-    let duration_s = 0.1;
-    let freq_hz = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        * 120;
-    let osc = oscillator_hz(Waveform::Triangle, freq_hz).build();
-    let env_amp = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        .filter(low_pass_moog_ladder(1000.0).build());
-    osc.mul_lazy(&env_amp)
-        .filter(compress().ratio(0.02).scale(16.0).build())
-}
-
-fn snare(trigger: Trigger) -> Sf64 {
-    let clock = trigger.to_gate();
-    let duration_s = 0.1;
-    let noise = noise().filter(compress().ratio(0.1).scale(100.0).build());
-    let env = adsr_linear_01(&clock)
-        .release_s(duration_s * 1.0)
-        .build()
-        .exp_01(1.0)
-        .filter(low_pass_moog_ladder(1000.0).build());
-    let noise = noise
-        .filter(low_pass_moog_ladder(10000.0).resonance(2.0).build())
-        .filter(down_sample(10.0).build());
-    let freq_hz = adsr_linear_01(&clock)
-        .release_s(duration_s)
-        .build()
-        .exp_01(1.0)
-        * 240;
-    let osc = oscillator_hz(Waveform::Pulse, freq_hz)
-        .reset_trigger(trigger)
-        .build();
-    (noise + osc)
-        .filter(down_sample(10.0).build())
-        .mul_lazy(&env)
-}
-
-fn cymbal(trigger: Trigger) -> Sf64 {
-    let gate = trigger.to_gate();
-    let osc = noise();
-    let env = adsr_linear_01(gate)
-        .release_s(0.1)
-        .build()
-        .filter(low_pass_butterworth(100.0).build());
-    osc.filter(low_pass_moog_ladder(10000 * &env).build())
-        .filter(high_pass_butterworth(6000.0).build())
 }
