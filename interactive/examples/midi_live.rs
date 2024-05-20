@@ -1,5 +1,5 @@
 use clap::{Parser, Subcommand};
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 #[derive(Clone)]
 struct Effects {

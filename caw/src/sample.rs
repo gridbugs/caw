@@ -1,4 +1,4 @@
-use currawong_core::sampler::Sample;
+use caw_core::sampler::Sample;
 use hound::WavReader;
 use std::{fs, io::BufReader, path::Path};
 

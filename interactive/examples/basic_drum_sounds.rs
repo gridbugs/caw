@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 fn voice(input: Input) -> Sf64 {
     let snare_trigger = input.keyboard.q.to_trigger_rising_edge();

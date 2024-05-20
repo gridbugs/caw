@@ -3,7 +3,7 @@
 resolver = "2"
 
 members = [
+    "caw",
     "core",
-    "currawong",
     "interactive",
 ]

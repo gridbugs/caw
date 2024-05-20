@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 use std::cell::RefCell;
 
 fn freq_hz_by_gate() -> Vec<(Key, f64)> {

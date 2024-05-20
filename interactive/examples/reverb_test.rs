@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 fn voice(trigger: Trigger, input: Input) -> Sf64 {
     let gate = trigger.to_gate_with_duration_s(0.1);

@@ -1,4 +1,4 @@
-use currawong::prelude::*;
+use caw::prelude::*;
 
 fn run(signal: Sf64) -> anyhow::Result<()> {
     let mut signal_player = SignalPlayer::new()?;

@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
     use note_name::*;

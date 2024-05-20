@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 fn snare(trigger: &Trigger, input: Input) -> Sf64 {
     let clock = trigger.to_gate();

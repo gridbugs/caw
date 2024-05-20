@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 fn kick(trigger: &Trigger) -> Sf64 {
     let clock = trigger.to_gate();

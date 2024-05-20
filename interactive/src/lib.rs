@@ -1,9 +1,9 @@
-pub use currawong::{
+pub use caw::{
     clock, envelope, filters, music, oscillator, sample_player, signal, signal_player,
 };
 
 #[cfg(feature = "midi")]
-pub use currawong::midi;
+pub use caw::midi;
 
 pub mod input;
 pub mod templates;
@@ -14,5 +14,5 @@ pub mod prelude {
         templates::{keyboard_key_events, note_by_key_sequence, opinionated_key_events},
         window::{Rgb24, Window},
     };
-    pub use currawong::prelude::*;
+    pub use caw::prelude::*;
 }

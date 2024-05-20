@@ -1,5 +1,5 @@
 use crate::input::{Input, Key};
-use currawong_core::prelude::*;
+use caw_core::prelude::*;
 use std::cell::RefCell;
 
 pub fn note_by_key_sequence(start_note: Note, keys: Vec<Key>) -> Vec<(Key, Note)> {

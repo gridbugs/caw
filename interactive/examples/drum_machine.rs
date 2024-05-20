@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 use std::cell::RefCell;
 
 fn midi_index_by_key() -> Vec<(Key, u8)> {

@@ -1,4 +1,4 @@
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 const C_MAJOR_SCALE: &[NoteName] = &[

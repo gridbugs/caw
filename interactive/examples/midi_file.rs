@@ -1,5 +1,5 @@
 use clap::Parser;
-use currawong_interactive::prelude::*;
+use caw_interactive::prelude::*;
 
 fn voice(
     VoiceDesc {
