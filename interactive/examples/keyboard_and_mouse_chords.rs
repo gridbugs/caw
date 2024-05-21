@@ -55,6 +55,16 @@ fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
             key(Key::H, A, MAJOR),
             key(Key::J, B, MAJOR),
             key(Key::K, B, MINOR),
+            key(Key::Q, C_SHARP, MAJOR),
+            key(Key::W, C_SHARP, MINOR),
+            key(Key::E, D_SHARP, MAJOR),
+            key(Key::R, D_SHARP, MINOR),
+            key(Key::T, F_SHARP, MAJOR),
+            key(Key::Y, F_SHARP, MINOR),
+            key(Key::U, G_SHARP, MAJOR),
+            key(Key::I, G_SHARP, MINOR),
+            key(Key::O, A_SHARP, MAJOR),
+            key(Key::P, A_SHARP, MINOR),
         ]
         .into_iter()
         .flatten(),
