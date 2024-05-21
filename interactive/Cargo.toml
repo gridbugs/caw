@@ -91,3 +91,6 @@ name = "drum_reverb"
 
 [[example]]
 name = "pulse_wave_bass"
+
+[[example]]
+name = "oscillator_hard_sync"

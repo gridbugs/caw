@@ -22,28 +22,36 @@ pub struct Oscillator {
     pub pulse_width_01: Sf64,
     pub reset_trigger: Trigger,
     pub reset_offset_01: Sf64,
+    pub hard_sync: Sf64,
 }
 
 impl Oscillator {
     pub fn signal(self) -> Sf64 {
         let state_opt = Cell::new(None);
-        let prev_sample_inedx = Cell::new(0);
+        let prev_sample_index = Cell::new(0);
+        let prev_hard_sync_sample: Cell<f64> = Cell::new(0.0);
         Signal::from_fn(move |ctx| {
-            let sample_index_delta = ctx.sample_index - prev_sample_inedx.get();
-            prev_sample_inedx.set(ctx.sample_index);
+            let sample_index_delta = ctx.sample_index - prev_sample_index.get();
+            prev_sample_index.set(ctx.sample_index);
             if sample_index_delta == 0 {
                 return 0.0;
             }
-            let state = match state_opt.get() {
-                None => self.reset_offset_01.sample(ctx),
-                Some(state) => {
-                    if self.reset_trigger.sample(ctx) {
-                        self.reset_offset_01.sample(ctx)
-                    } else {
-                        state
+            let hard_sync_sample = self.hard_sync.sample(ctx);
+            let state = if hard_sync_sample > 0.0 && prev_hard_sync_sample.get() <= 0.0 {
+                self.reset_offset_01.sample(ctx)
+            } else {
+                match state_opt.get() {
+                    None => self.reset_offset_01.sample(ctx),
+                    Some(state) => {
+                        if self.reset_trigger.sample(ctx) {
+                            self.reset_offset_01.sample(ctx)
+                        } else {
+                            state
+                        }
                     }
                 }
             };
+            prev_hard_sync_sample.set(hard_sync_sample);
             let state_delta =
                 (sample_index_delta as f64 * self.freq.sample(ctx).hz()) / ctx.sample_rate_hz;
             let try_state = (state + state_delta).rem_euclid(1.0);

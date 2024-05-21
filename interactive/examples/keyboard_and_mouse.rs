@@ -10,7 +10,11 @@ fn voice(
     effect_x: Sf64,
     effect_y: Sf64,
 ) -> Sf64 {
-    let oscillator = supersaw(note.freq()).build();
+    let osc = supersaw(note.freq()).build();
+    let osc = oscillator_hz(Waveform::Sine, note.freq_hz() * 2)
+        .hard_sync(&osc)
+        .build()
+        + osc * 0.5;
     let env = adsr_linear_01(&key_down)
         .key_press(key_press)
         .attack_s(0.0)
@@ -19,11 +23,12 @@ fn voice(
         .release_s(4.0)
         .build()
         .exp_01(1.0);
-    oscillator.filter(
+    let osc_filtered = osc.filter(
         low_pass_moog_ladder(env * (30 * note.freq_hz() * effect_x))
             .resonance(4.0 * effect_y)
             .build(),
-    ) * 2.0
+    ) * 2.0;
+    osc_filtered
 }
 
 fn make_voice(input: Input) -> Sf64 {
@@ -33,6 +38,7 @@ fn make_voice(input: Input) -> Sf64 {
         .map(|voice_desc| voice(voice_desc, input.mouse.x_01(), input.mouse.y_01()))
         .sum::<Sf64>()
         .mix(|dry| dry.filter(reverb().room_size(1.0).damping(0.5).build()))
+        .filter(high_pass_butterworth(10.0).build())
 }
 
 fn main() -> anyhow::Result<()> {

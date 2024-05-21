@@ -82,6 +82,7 @@ pub mod oscillator {
         pulse_width_01: Option<Sf64>,
         reset_trigger: Option<Trigger>,
         reset_offset_01: Option<Sf64>,
+        hard_sync: Option<Sf64>,
     }
 
     impl OscillatorBuilder {
@@ -92,6 +93,7 @@ pub mod oscillator {
                 pulse_width_01: None,
                 reset_trigger: None,
                 reset_offset_01: None,
+                hard_sync: None,
             }
         }
 
@@ -110,6 +112,11 @@ pub mod oscillator {
             self
         }
 
+        pub fn hard_sync(mut self, hard_sync: impl Into<Sf64>) -> Self {
+            self.hard_sync = Some(hard_sync.into());
+            self
+        }
+
         pub fn build(self) -> Sf64 {
             Oscillator {
                 waveform: self.waveform,
@@ -117,6 +124,7 @@ pub mod oscillator {
                 pulse_width_01: self.pulse_width_01.unwrap_or_else(|| const_(0.5)),
                 reset_trigger: self.reset_trigger.unwrap_or_else(|| Trigger::never()),
                 reset_offset_01: self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+                hard_sync: self.hard_sync.unwrap_or_else(|| const_(0.0)),
             }
             .signal()
         }
@@ -750,6 +758,7 @@ pub mod patches {
         ratio: Option<Sf64>,
         reset_trigger: Option<Trigger>,
         reset_offset_01: Option<Sf64>,
+        hard_sync: Option<Sf64>,
     }
 
     impl SupersawBuilder {
@@ -760,6 +769,7 @@ pub mod patches {
                 ratio: None,
                 reset_trigger: None,
                 reset_offset_01: None,
+                hard_sync: None,
             }
         }
 
@@ -783,6 +793,11 @@ pub mod patches {
             self
         }
 
+        pub fn hard_sync(mut self, hard_sync: impl Into<Sf64>) -> Self {
+            self.hard_sync = Some(hard_sync.into());
+            self
+        }
+
         pub fn build(self) -> Sf64 {
             patches::supersaw(
                 self.resolution.unwrap_or(1),
@@ -790,6 +805,7 @@ pub mod patches {
                 self.ratio.unwrap_or_else(|| const_(0.01)),
                 self.reset_trigger.unwrap_or_else(|| Trigger::never()),
                 self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+                self.hard_sync.unwrap_or_else(|| const_(0.0)),
             )
         }
     }

@@ -11,11 +11,13 @@ pub fn supersaw(
     ratio: Sf64,
     reset_trigger: Trigger,
     reset_offset_01: Sf64,
+    hard_sync: Sf64,
 ) -> Sf64 {
     templates::detune(resolution, freq, ratio, |freq| {
         builder::oscillator::oscillator(Waveform::Saw, freq)
             .reset_trigger(&reset_trigger)
             .reset_offset_01(&reset_offset_01)
+            .hard_sync(&hard_sync)
             .build()
     })
 }
