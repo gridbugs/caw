@@ -977,7 +977,7 @@ pub mod sampler {
         }
 
         pub fn build(self) -> Sf64 {
-            Sampler::new(self.sample, self.trigger.unwrap_or_else(Trigger::never)).signal()
+            Sampler::new(self.sample, self.trigger.unwrap_or_else(Trigger::once)).signal()
         }
     }
 
