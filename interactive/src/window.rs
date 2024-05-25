@@ -93,6 +93,10 @@ impl WindowBuilder {
         self
     }
 
+    pub fn sane_default(self) -> Self {
+        self.line_width(4).stable(true).spread(4).stride(3)
+    }
+
     pub fn build(self) -> Window {
         Window {
             title: self
