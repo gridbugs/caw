@@ -534,6 +534,30 @@ pub mod filter {
         }
     }
 
+    pub struct EnvelopeFollowerBuilder {
+        sensitivity_hz: Option<Sf64>,
+    }
+
+    impl EnvelopeFollowerBuilder {
+        pub fn new() -> Self {
+            Self {
+                sensitivity_hz: None,
+            }
+        }
+
+        pub fn sensitivity_hz(mut self, sensitivity_hz: impl Into<Sf64>) -> Self {
+            self.sensitivity_hz = Some(sensitivity_hz.into());
+            self
+        }
+
+        pub fn build(self) -> EnvelopeFollower {
+            EnvelopeFollower::new(
+                self.sensitivity_hz
+                    .unwrap_or_else(|| const_(EnvelopeFollower::DEFAULT_SENSITIVITY_HZ)),
+            )
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
     }
@@ -592,6 +616,10 @@ pub mod filter {
 
     pub fn reverb() -> ReverbBuilder {
         ReverbBuilder::new()
+    }
+
+    pub fn envelope_follower() -> EnvelopeFollowerBuilder {
+        EnvelopeFollowerBuilder::new()
     }
 }
 

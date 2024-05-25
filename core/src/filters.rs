@@ -363,3 +363,25 @@ impl Filter for Reverb {
         freeverb.process(input)
     }
 }
+
+pub struct EnvelopeFollower {
+    low_pass_filter: LowPassButterworth,
+}
+
+impl EnvelopeFollower {
+    pub const DEFAULT_SENSITIVITY_HZ: f64 = 60.0;
+    pub fn new(sensitivity_hz: impl Into<Sf64>) -> Self {
+        Self {
+            low_pass_filter: LowPassButterworth::new(sensitivity_hz),
+        }
+    }
+}
+
+impl Filter for EnvelopeFollower {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        self.low_pass_filter.run(input.abs(), ctx)
+    }
+}

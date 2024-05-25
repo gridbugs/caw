@@ -1,3 +1,4 @@
+use caw_core::builder::filter::envelope_follower;
 use caw_interactive::prelude::*;
 
 fn kick(trigger: &Trigger) -> Sf64 {
@@ -79,7 +80,7 @@ fn basic_drum_loop(trigger: &Trigger) -> Sf64 {
     kick(&trigger.divide(8))
 }
 
-fn voice(trigger: Trigger) -> Sf64 {
+fn voice(trigger: Trigger, input: Input) -> Sf64 {
     let cymbal = 1 << CYMBAL;
     let snare = 1 << SNARE;
     let kick = 1 << KICK;
@@ -127,9 +128,15 @@ fn voice(trigger: Trigger) -> Sf64 {
             (loop_selection, drum_signal)
         }
     });
-    (basic_drum_loop(&trigger) + drum_signal)
+    let voice = (basic_drum_loop(&trigger) + drum_signal)
         .filter(low_pass_moog_ladder(20000.0).build())
-        .filter(compress().scale(0.8).build())
+        .filter(compress().scale(0.8).build());
+    let ef = voice.filter(envelope_follower().build());
+    voice
+        + (oscillator_hz(Waveform::Pulse, 400.0 * input.mouse.x_01())
+            .pulse_width_01(input.mouse.y_01())
+            .build()
+            * ef)
 }
 
 fn main() -> anyhow::Result<()> {
@@ -140,6 +147,6 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = voice(periodic_trigger_hz(8.0).build());
+    let signal = voice(periodic_trigger_hz(8.0).build(), window.input());
     window.play(signal)
 }
