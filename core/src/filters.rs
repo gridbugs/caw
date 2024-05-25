@@ -124,6 +124,35 @@ impl Filter for HighPassChebyshev {
     }
 }
 
+pub struct BandPassChebyshev(RefCell<biquad_band_pass_filter::chebyshev::State>);
+
+impl BandPassChebyshev {
+    pub fn new(
+        filter_order_quarter: usize,
+        cutoff_hz_lower: impl Into<Sf64>,
+        cutoff_hz_upper: impl Into<Sf64>,
+        resonance: impl Into<Sf64>,
+    ) -> Self {
+        Self(RefCell::new(
+            biquad_band_pass_filter::chebyshev::State::new(
+                filter_order_quarter,
+                cutoff_hz_lower.into(),
+                cutoff_hz_upper.into(),
+                resonance.into(),
+            ),
+        ))
+    }
+}
+
+impl Filter for BandPassChebyshev {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        self.0.borrow_mut().run(input, ctx)
+    }
+}
+
 pub use moog_ladder_low_pass_filter::*;
 
 pub struct Saturate {

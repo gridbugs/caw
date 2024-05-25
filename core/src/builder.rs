@@ -412,6 +412,88 @@ pub mod filter {
         }
     }
 
+    pub struct BandPassChebyshevBuilder {
+        filter_order_quarter: usize,
+        cutoff_hz_lower: Sf64,
+        cutoff_hz_upper: Sf64,
+        resonance: Option<Sf64>,
+    }
+
+    impl BandPassChebyshevBuilder {
+        pub fn new(cutoff_hz_lower: impl Into<Sf64>, cutoff_hz_upper: impl Into<Sf64>) -> Self {
+            Self {
+                filter_order_quarter: 1,
+                cutoff_hz_lower: cutoff_hz_lower.into(),
+                cutoff_hz_upper: cutoff_hz_upper.into(),
+                resonance: None,
+            }
+        }
+
+        pub fn resonance(mut self, resonance: impl Into<Sf64>) -> Self {
+            self.resonance = Some(resonance.into());
+            self
+        }
+
+        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+            self.filter_order_quarter = filter_order_quarter;
+            self
+        }
+
+        pub fn build(self) -> BandPassChebyshev {
+            BandPassChebyshev::new(
+                self.filter_order_quarter,
+                self.cutoff_hz_lower,
+                self.cutoff_hz_upper,
+                self.resonance.unwrap_or_else(|| const_(0.0)),
+            )
+        }
+    }
+
+    pub struct BandPassChebyshevBuilderCentered {
+        filter_order_quarter: usize,
+        mid_hz: Sf64,
+        width_ratio: Option<Sf64>,
+        resonance: Option<Sf64>,
+    }
+
+    impl BandPassChebyshevBuilderCentered {
+        pub fn new(mid_hz: impl Into<Sf64>) -> Self {
+            Self {
+                filter_order_quarter: 1,
+                mid_hz: mid_hz.into(),
+                width_ratio: None,
+                resonance: None,
+            }
+        }
+
+        pub fn resonance(mut self, resonance: impl Into<Sf64>) -> Self {
+            self.resonance = Some(resonance.into());
+            self
+        }
+
+        pub fn width_ratio(mut self, width_ratio: impl Into<Sf64>) -> Self {
+            self.width_ratio = Some(width_ratio.into());
+            self
+        }
+
+        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+            self.filter_order_quarter = filter_order_quarter;
+            self
+        }
+
+        pub fn build(self) -> BandPassChebyshev {
+            let width_multiplier = self.width_ratio.unwrap_or_else(|| const_(1.0)) + 1.0;
+            let cutoff_hz_lower = self.mid_hz.clone() / width_multiplier.clone();
+            let cutoff_hz_upper = self.mid_hz * width_multiplier;
+            BandPassChebyshev::new(
+                self.filter_order_quarter,
+                cutoff_hz_lower,
+                cutoff_hz_upper,
+                self.resonance.unwrap_or_else(|| const_(0.0)),
+            )
+        }
+    }
+
     pub struct LowPassMoogLadderBuilder {
         cutoff_hz: Sf64,
         resonance: Option<Sf64>,
@@ -689,6 +771,19 @@ pub mod filter {
 
     pub fn high_pass_chebyshev(cutoff_hz: impl Into<Sf64>) -> HighPassChebyshevBuilder {
         HighPassChebyshevBuilder::new(cutoff_hz)
+    }
+
+    pub fn band_pass_chebyshev(
+        cutoff_hz_lower: impl Into<Sf64>,
+        cutoff_hz_upper: impl Into<Sf64>,
+    ) -> BandPassChebyshevBuilder {
+        BandPassChebyshevBuilder::new(cutoff_hz_lower, cutoff_hz_upper)
+    }
+
+    pub fn band_pass_chebyshev_centered(
+        mid_hz: impl Into<Sf64>,
+    ) -> BandPassChebyshevBuilderCentered {
+        BandPassChebyshevBuilderCentered::new(mid_hz)
     }
 
     pub fn low_pass_moog_ladder(cutoff_hz: impl Into<Sf64>) -> LowPassMoogLadderBuilder {

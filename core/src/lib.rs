@@ -28,10 +28,11 @@ pub mod prelude {
         builder::{
             env::adsr_linear_01,
             filter::{
-                band_pass_butterworth, band_pass_butterworth_centered, compress, delay, delay_s,
-                down_sample, echo, high_pass_butterworth, high_pass_chebyshev,
-                low_pass_butterworth, low_pass_chebyshev, low_pass_moog_ladder, quantize,
-                quantize_to_scale, reverb, sample_and_hold, saturate,
+                band_pass_butterworth, band_pass_butterworth_centered, band_pass_chebyshev,
+                band_pass_chebyshev_centered, compress, delay, delay_s, down_sample, echo,
+                high_pass_butterworth, high_pass_chebyshev, low_pass_butterworth,
+                low_pass_chebyshev, low_pass_moog_ladder, quantize, quantize_to_scale, reverb,
+                sample_and_hold, saturate,
             },
             gate::{
                 periodic_gate, periodic_gate_hz, periodic_gate_s, periodic_trigger,
