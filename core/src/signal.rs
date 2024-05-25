@@ -478,6 +478,15 @@ impl Trigger {
         Self(const_(false))
     }
 
+    pub fn once() -> Self {
+        let state = Cell::new(true);
+        Self(Signal::from_fn(move |_| {
+            let ret = state.get();
+            state.set(false);
+            ret
+        }))
+    }
+
     pub fn any(triggers: impl IntoIterator<Item = Trigger> + 'static) -> Self {
         let triggers = triggers.into_iter().collect::<Vec<_>>();
         Signal::from_fn(move |ctx| {
