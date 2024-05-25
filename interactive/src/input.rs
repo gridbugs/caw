@@ -49,6 +49,7 @@ pub enum Key {
     Minus,
     Equals,
     Slash,
+    Space,
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -105,6 +106,7 @@ pub struct KeyboardGeneric<Key> {
     pub minus: Key,
     pub equals: Key,
     pub slash: Key,
+    pub space: Key,
 }
 
 #[derive(Clone)]
@@ -168,6 +170,7 @@ impl Keyboard {
             Minus => self.minus.clone(),
             Equals => self.equals.clone(),
             Slash => self.slash.clone(),
+            Space => self.space.clone(),
         }
     }
 }
@@ -272,6 +275,7 @@ impl InputState {
                 minus: mk_key(),
                 equals: mk_key(),
                 slash: mk_key(),
+                space: mk_key(),
             },
             mouse: MouseGeneric {
                 x_01: mk_position(),
@@ -330,6 +334,7 @@ impl InputState {
             Scancode::Minus => &self.keyboard.minus,
             Scancode::Equals => &self.keyboard.equals,
             Scancode::Slash => &self.keyboard.slash,
+            Scancode::Space => &self.keyboard.space,
             _ => return,
         };
         *key_state.borrow_mut() = pressed;
@@ -426,6 +431,7 @@ impl<Key> KeyboardGeneric<Key> {
             minus: f(&self.minus),
             equals: f(&self.equals),
             slash: f(&self.slash),
+            space: f(&self.space),
         }
     }
 }
