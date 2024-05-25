@@ -14,6 +14,7 @@ pkgs.mkShell rec {
     rustPlatform.rustLibSrc
     rust-analyzer
     cargo-watch
+    cargo-outdated
     rustfmt
     pkg-config
     udev
