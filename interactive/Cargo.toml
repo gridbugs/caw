@@ -97,3 +97,6 @@ name = "oscillator_hard_sync"
 
 [[example]]
 name = "band_pass"
+
+[[example]]
+name = "vocoder"
