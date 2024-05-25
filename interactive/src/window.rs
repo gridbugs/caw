@@ -94,7 +94,7 @@ impl WindowBuilder {
     }
 
     pub fn sane_default(self) -> Self {
-        self.line_width(4).stable(true).spread(4).stride(3)
+        self.line_width(4).stable(true).spread(2).scale(2.0)
     }
 
     pub fn build(self) -> Window {
