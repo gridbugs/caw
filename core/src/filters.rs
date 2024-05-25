@@ -1,5 +1,5 @@
 use crate::{
-    biquad_filter, freeverb, moog_ladder_low_pass_filter,
+    biquad_band_pass_filter, biquad_filter, freeverb, moog_ladder_low_pass_filter,
     signal::{freq_hz, Filter, Freq, Sf64, Sfreq, SignalCtx, Trigger},
 };
 use std::{
@@ -10,11 +10,11 @@ use std::{
 pub struct LowPassButterworth(RefCell<biquad_filter::butterworth::State>);
 
 impl LowPassButterworth {
-    pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-        LowPassButterworth(RefCell::new(biquad_filter::butterworth::State {
-            half_power_frequency_hz: cutoff_hz.into(),
-            buffer: biquad_filter::Buffer::new(1),
-        }))
+    pub fn new(filter_order_half: usize, cutoff_hz: impl Into<Sf64>) -> Self {
+        LowPassButterworth(RefCell::new(biquad_filter::butterworth::State::new(
+            filter_order_half,
+            cutoff_hz.into(),
+        )))
     }
 }
 
@@ -30,11 +30,11 @@ impl Filter for LowPassButterworth {
 pub struct HighPassButterworth(RefCell<biquad_filter::butterworth::State>);
 
 impl HighPassButterworth {
-    pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
-        Self(RefCell::new(biquad_filter::butterworth::State {
-            half_power_frequency_hz: cutoff_hz.into(),
-            buffer: biquad_filter::Buffer::new(1),
-        }))
+    pub fn new(filter_order_half: usize, cutoff_hz: impl Into<Sf64>) -> Self {
+        Self(RefCell::new(biquad_filter::butterworth::State::new(
+            filter_order_half,
+            cutoff_hz.into(),
+        )))
     }
 }
 
@@ -47,15 +47,46 @@ impl Filter for HighPassButterworth {
     }
 }
 
+pub struct BandPassButterworth(RefCell<biquad_band_pass_filter::butterworth::State>);
+
+impl BandPassButterworth {
+    pub fn new(
+        filter_order_quarter: usize,
+        cutoff_hz_lower: impl Into<Sf64>,
+        cutoff_hz_upper: impl Into<Sf64>,
+    ) -> Self {
+        Self(RefCell::new(
+            biquad_band_pass_filter::butterworth::State::new(
+                filter_order_quarter,
+                cutoff_hz_lower.into(),
+                cutoff_hz_upper.into(),
+            ),
+        ))
+    }
+}
+
+impl Filter for BandPassButterworth {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        self.0.borrow_mut().run(input, ctx)
+    }
+}
+
 pub struct LowPassChebyshev(RefCell<biquad_filter::chebyshev::State>);
 
 impl LowPassChebyshev {
-    pub fn new(cutoff_hz: impl Into<Sf64>, resonance: impl Into<Sf64>) -> Self {
-        Self(RefCell::new(biquad_filter::chebyshev::State {
-            cutoff_hz: cutoff_hz.into(),
-            epsilon: resonance.into(),
-            buffer: biquad_filter::Buffer::new(1),
-        }))
+    pub fn new(
+        filter_order_half: usize,
+        cutoff_hz: impl Into<Sf64>,
+        resonance: impl Into<Sf64>,
+    ) -> Self {
+        Self(RefCell::new(biquad_filter::chebyshev::State::new(
+            filter_order_half,
+            cutoff_hz.into(),
+            resonance.into(),
+        )))
     }
 }
 
@@ -71,12 +102,16 @@ impl Filter for LowPassChebyshev {
 pub struct HighPassChebyshev(RefCell<biquad_filter::chebyshev::State>);
 
 impl HighPassChebyshev {
-    pub fn new(cutoff_hz: impl Into<Sf64>, resonance: impl Into<Sf64>) -> Self {
-        Self(RefCell::new(biquad_filter::chebyshev::State {
-            cutoff_hz: cutoff_hz.into(),
-            epsilon: resonance.into(),
-            buffer: biquad_filter::Buffer::new(1),
-        }))
+    pub fn new(
+        filter_order_half: usize,
+        cutoff_hz: impl Into<Sf64>,
+        resonance: impl Into<Sf64>,
+    ) -> Self {
+        Self(RefCell::new(biquad_filter::chebyshev::State::new(
+            filter_order_half,
+            cutoff_hz.into(),
+            resonance.into(),
+        )))
     }
 }
 

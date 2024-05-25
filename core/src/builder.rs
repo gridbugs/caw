@@ -236,29 +236,118 @@ pub mod filter {
         signal::{const_, Sf64, Sfreq, Trigger},
     };
 
-    /// Included for consistency with other filters even though `LowPassButterworth` doesn't
-    /// specifically benefit from the builder pattern.
-    pub struct LowPassButterworthBuilder(LowPassButterworth);
+    pub struct LowPassButterworthBuilder {
+        cutoff_hz: Sf64,
+        filter_order_half: usize,
+    }
 
     impl LowPassButterworthBuilder {
+        pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
+            Self {
+                cutoff_hz: cutoff_hz.into(),
+                filter_order_half: 1,
+            }
+        }
+
+        pub fn filter_order_half(mut self, filter_order_half: usize) -> Self {
+            self.filter_order_half = filter_order_half;
+            self
+        }
+
         pub fn build(self) -> LowPassButterworth {
-            self.0
+            LowPassButterworth::new(self.filter_order_half, self.cutoff_hz)
         }
     }
 
-    /// Included for consistency with other filters even though `HighPassButterworth` doesn't
-    /// specifically benefit from the builder pattern.
-    pub struct HighPassButterworthBuilder(HighPassButterworth);
+    pub struct HighPassButterworthBuilder {
+        cutoff_hz: Sf64,
+        filter_order_half: usize,
+    }
 
     impl HighPassButterworthBuilder {
+        pub fn new(cutoff_hz: impl Into<Sf64>) -> Self {
+            Self {
+                cutoff_hz: cutoff_hz.into(),
+                filter_order_half: 1,
+            }
+        }
+
+        pub fn filter_order_half(mut self, filter_order_half: usize) -> Self {
+            self.filter_order_half = filter_order_half;
+            self
+        }
+
         pub fn build(self) -> HighPassButterworth {
-            self.0
+            HighPassButterworth::new(self.filter_order_half, self.cutoff_hz)
+        }
+    }
+
+    pub struct BandPassButterworthBuilder {
+        cutoff_hz_lower: Sf64,
+        cutoff_hz_upper: Sf64,
+        filter_order_quarter: usize,
+    }
+
+    impl BandPassButterworthBuilder {
+        pub fn new(cutoff_hz_lower: impl Into<Sf64>, cutoff_hz_upper: impl Into<Sf64>) -> Self {
+            Self {
+                cutoff_hz_lower: cutoff_hz_lower.into(),
+                cutoff_hz_upper: cutoff_hz_upper.into(),
+                filter_order_quarter: 1,
+            }
+        }
+
+        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+            self.filter_order_quarter = filter_order_quarter;
+            self
+        }
+
+        pub fn build(self) -> BandPassButterworth {
+            BandPassButterworth::new(
+                self.filter_order_quarter,
+                self.cutoff_hz_lower,
+                self.cutoff_hz_upper,
+            )
+        }
+    }
+
+    pub struct BandPassButterworthBuilderCentered {
+        mid_hz: Sf64,
+        width_ratio: Option<Sf64>,
+        filter_order_quarter: usize,
+    }
+
+    impl BandPassButterworthBuilderCentered {
+        pub fn new(mid_hz: impl Into<Sf64>) -> Self {
+            Self {
+                mid_hz: mid_hz.into(),
+                width_ratio: None,
+                filter_order_quarter: 1,
+            }
+        }
+
+        pub fn width_ratio(mut self, width_ratio: impl Into<Sf64>) -> Self {
+            self.width_ratio = Some(width_ratio.into());
+            self
+        }
+
+        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+            self.filter_order_quarter = filter_order_quarter;
+            self
+        }
+
+        pub fn build(self) -> BandPassButterworth {
+            let width_multiplier = self.width_ratio.unwrap_or_else(|| const_(1.0)) + 1.0;
+            let cutoff_hz_lower = self.mid_hz.clone() / width_multiplier.clone();
+            let cutoff_hz_upper = self.mid_hz * width_multiplier;
+            BandPassButterworth::new(self.filter_order_quarter, cutoff_hz_lower, cutoff_hz_upper)
         }
     }
 
     pub struct LowPassChebyshevBuilder {
         cutoff_hz: Sf64,
         resonance: Option<Sf64>,
+        filter_order_half: usize,
     }
 
     impl LowPassChebyshevBuilder {
@@ -266,6 +355,7 @@ pub mod filter {
             Self {
                 cutoff_hz: cutoff_hz.into(),
                 resonance: None,
+                filter_order_half: 1,
             }
         }
 
@@ -274,8 +364,14 @@ pub mod filter {
             self
         }
 
+        pub fn filter_order_half(mut self, filter_order_half: usize) -> Self {
+            self.filter_order_half = filter_order_half;
+            self
+        }
+
         pub fn build(self) -> LowPassChebyshev {
             LowPassChebyshev::new(
+                self.filter_order_half,
                 self.cutoff_hz,
                 self.resonance.unwrap_or_else(|| const_(0.0)),
             )
@@ -285,6 +381,7 @@ pub mod filter {
     pub struct HighPassChebyshevBuilder {
         cutoff_hz: Sf64,
         resonance: Option<Sf64>,
+        filter_order_half: usize,
     }
 
     impl HighPassChebyshevBuilder {
@@ -292,6 +389,7 @@ pub mod filter {
             Self {
                 cutoff_hz: cutoff_hz.into(),
                 resonance: None,
+                filter_order_half: 1,
             }
         }
 
@@ -300,8 +398,14 @@ pub mod filter {
             self
         }
 
+        pub fn filter_order_half(mut self, filter_order_half: usize) -> Self {
+            self.filter_order_half = filter_order_half;
+            self
+        }
+
         pub fn build(self) -> HighPassChebyshev {
             HighPassChebyshev::new(
+                self.filter_order_half,
                 self.cutoff_hz,
                 self.resonance.unwrap_or_else(|| const_(0.0)),
             )
@@ -559,11 +663,24 @@ pub mod filter {
     }
 
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
-        LowPassButterworthBuilder(LowPassButterworth::new(cutoff_hz))
+        LowPassButterworthBuilder::new(cutoff_hz)
     }
 
     pub fn high_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> HighPassButterworthBuilder {
-        HighPassButterworthBuilder(HighPassButterworth::new(cutoff_hz))
+        HighPassButterworthBuilder::new(cutoff_hz)
+    }
+
+    pub fn band_pass_butterworth(
+        cutoff_hz_lower: impl Into<Sf64>,
+        cutoff_hz_upper: impl Into<Sf64>,
+    ) -> BandPassButterworthBuilder {
+        BandPassButterworthBuilder::new(cutoff_hz_lower, cutoff_hz_upper)
+    }
+
+    pub fn band_pass_butterworth_centered(
+        mid_hz: impl Into<Sf64>,
+    ) -> BandPassButterworthBuilderCentered {
+        BandPassButterworthBuilderCentered::new(mid_hz)
     }
 
     pub fn low_pass_chebyshev(cutoff_hz: impl Into<Sf64>) -> LowPassChebyshevBuilder {
