@@ -436,7 +436,7 @@ impl EnvelopeFollower {
     pub const DEFAULT_SENSITIVITY_HZ: f64 = 60.0;
     pub fn new(sensitivity_hz: impl Into<Sf64>) -> Self {
         Self {
-            low_pass_filter: LowPassButterworth::new(sensitivity_hz),
+            low_pass_filter: LowPassButterworth::new(1, sensitivity_hz),
         }
     }
 }
