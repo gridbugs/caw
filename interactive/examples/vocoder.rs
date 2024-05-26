@@ -1,4 +1,3 @@
-use caw::sample;
 use caw_interactive::prelude::*;
 
 #[allow(unused)]
@@ -15,7 +14,12 @@ fn filter_chain(signal: Sf64, freq_hz: Sf64, width_ratio: Sf64, effects: &Effect
             .build(),
     );
     let env = filtered.filter(envelope_follower().build());
-    let osc = oscillator_hz(Waveform::Sine, &freq_hz * (&effects.x + 0.5)).build();
+    let osc = oscillator_hz(Waveform::Sine, &freq_hz * (&effects.x + 0.5)).build()
+        + oscillator_hz(
+            Waveform::Sine,
+            (1.0 + &effects.y) * (&freq_hz * (&effects.x + 0.5)),
+        )
+        .build();
     osc * env
 }
 
@@ -34,21 +38,24 @@ fn filter_bank(signal: Sf64, freqs_hz: Vec<f64>, width_ratio: Sf64, effects: &Ef
 }
 
 fn voice(input: Input) -> Sf64 {
-    let path = std::env::args().collect::<Vec<_>>().get(1).unwrap().clone();
-    let sample = sample::read_wav(path).unwrap();
-    let sampler = sampler(&sample)
-        .trigger(input.keyboard.get(Key::Space).to_trigger_rising_edge())
-        .build();
+    let input_signal = if let Some(path) = std::env::args().collect::<Vec<_>>().get(1).cloned() {
+        let sample = read_wav(path).unwrap();
+        sampler(&sample)
+            .trigger(input.keyboard.get(Key::Space).to_trigger_rising_edge())
+            .build()
+    } else {
+        microphone().unwrap()
+    };
     let a = 6.0;
     let freqs_hz = (0..36).map(|i| 2f64.powf(i as f64 / a + 7.0)).collect();
     let effects = Effects {
         x: input.mouse.x_01(),
         y: input.mouse.y_01(),
     };
-    filter_bank(sampler, freqs_hz, const_(0.25 / a), &effects) * 4.0
+    filter_bank(input_signal, freqs_hz, const_(0.25 / a), &effects) * 4.0
 }
 
 fn main() -> anyhow::Result<()> {
-    let window = Window::builder().sane_default().width_px(500).build();
+    let window = Window::builder().sane_default().build();
     window.play(voice(window.input()))
 }

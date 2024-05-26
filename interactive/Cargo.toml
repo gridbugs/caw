@@ -100,3 +100,6 @@ name = "band_pass"
 
 [[example]]
 name = "vocoder"
+
+[[example]]
+name = "microphone"
