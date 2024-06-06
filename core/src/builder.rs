@@ -744,6 +744,40 @@ pub mod filter {
         }
     }
 
+    pub struct NoiseGateBuilder {
+        control: Sf64,
+        threshold: Option<Sf64>,
+        ratio: Option<Sf64>,
+    }
+
+    impl NoiseGateBuilder {
+        pub fn new(control: Sf64) -> Self {
+            Self {
+                control,
+                threshold: None,
+                ratio: None,
+            }
+        }
+
+        pub fn threshold(mut self, threshold: impl Into<Sf64>) -> Self {
+            self.threshold = Some(threshold.into());
+            self
+        }
+
+        pub fn ratio(mut self, ratio: impl Into<Sf64>) -> Self {
+            self.ratio = Some(ratio.into());
+            self
+        }
+
+        pub fn build(self) -> NoiseGate {
+            NoiseGate {
+                control: self.control,
+                threshold: self.threshold.unwrap_or_else(|| const_(1.0)),
+                ratio: self.ratio.unwrap_or_else(|| const_(0.0)),
+            }
+        }
+    }
+
     pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder::new(cutoff_hz)
     }
@@ -832,6 +866,10 @@ pub mod filter {
 
     pub fn envelope_follower() -> EnvelopeFollowerBuilder {
         EnvelopeFollowerBuilder::new()
+    }
+
+    pub fn noise_gate(control: Sf64) -> NoiseGateBuilder {
+        NoiseGateBuilder::new(control)
     }
 }
 
@@ -1126,17 +1164,27 @@ pub mod patches {
 
     pub struct KickBuilder {
         trigger: Trigger,
+        noise_level: Option<Sf64>,
     }
 
     impl KickBuilder {
         pub fn new(trigger: impl Into<Trigger>) -> Self {
             Self {
                 trigger: trigger.into(),
+                noise_level: None,
             }
         }
 
+        pub fn noise_level(mut self, noise_level: impl Into<Sf64>) -> Self {
+            self.noise_level = Some(noise_level.into());
+            self
+        }
+
         pub fn build(self) -> Sf64 {
-            patches::drum::kick(self.trigger)
+            patches::drum::kick(
+                self.trigger,
+                self.noise_level.unwrap_or_else(|| const_(1.0)),
+            )
         }
     }
 
@@ -1146,17 +1194,27 @@ pub mod patches {
 
     pub struct SnareBuilder {
         trigger: Trigger,
+        noise_level: Option<Sf64>,
     }
 
     impl SnareBuilder {
         pub fn new(trigger: impl Into<Trigger>) -> Self {
             Self {
                 trigger: trigger.into(),
+                noise_level: None,
             }
         }
 
+        pub fn noise_level(mut self, noise_level: impl Into<Sf64>) -> Self {
+            self.noise_level = Some(noise_level.into());
+            self
+        }
+
         pub fn build(self) -> Sf64 {
-            patches::drum::snare(self.trigger)
+            patches::drum::snare(
+                self.trigger,
+                self.noise_level.unwrap_or_else(|| const_(1.0)),
+            )
         }
     }
 
@@ -1187,29 +1245,47 @@ pub mod patches {
     pub mod triggerable {
         use crate::{
             patches,
-            signal::{triggerable, Triggerable},
+            signal::{const_, triggerable, Sf64, Triggerable},
         };
 
-        pub struct KickBuilder;
+        pub struct KickBuilder {
+            noise_level: Option<Sf64>,
+        }
+
         impl KickBuilder {
+            pub fn noise_level(mut self, noise_level: impl Into<Sf64>) -> Self {
+                self.noise_level = Some(noise_level.into());
+                self
+            }
+
             pub fn build(self) -> Triggerable<f64> {
-                triggerable(patches::drum::kick)
+                let noise_level = self.noise_level.unwrap_or_else(|| const_(1.0));
+                triggerable(move |trigger| patches::drum::kick(trigger, noise_level.clone()))
             }
         }
 
         pub fn kick() -> KickBuilder {
-            KickBuilder
+            KickBuilder { noise_level: None }
         }
 
-        pub struct SnareBuilder;
+        pub struct SnareBuilder {
+            noise_level: Option<Sf64>,
+        }
+
         impl SnareBuilder {
+            pub fn noise_level(mut self, noise_level: impl Into<Sf64>) -> Self {
+                self.noise_level = Some(noise_level.into());
+                self
+            }
+
             pub fn build(self) -> Triggerable<f64> {
-                triggerable(patches::drum::snare)
+                let noise_level = self.noise_level.unwrap_or_else(|| const_(1.0));
+                triggerable(move |trigger| patches::drum::snare(trigger, noise_level.clone()))
             }
         }
 
         pub fn snare() -> SnareBuilder {
-            SnareBuilder
+            SnareBuilder { noise_level: None }
         }
 
         pub struct HatClosedBuilder;

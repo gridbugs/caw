@@ -104,46 +104,24 @@ pub mod drum {
             .exp_01(2.0)
     }
 
-    fn temporary_reverb(trigger: &Trigger, dry: Sf64, amount: f64) -> Sf64 {
-        let hold_s = const_(0.01);
-        let gate = trigger.to_gate_with_duration_s(hold_s);
-        let release_s = const_(0.2);
-        let env = builder::env::adsr_linear_01(gate)
-            .release_s(release_s)
-            .build();
-        (amount
-            * dry.filter(
-                builder::filter::reverb()
-                    .room_size(0.2)
-                    .damping(0.1)
-                    .build(),
-            ))
-        .mul_lazy(&env)
-    }
-
-    pub fn kick(trigger: Trigger) -> Sf64 {
+    pub fn kick(trigger: Trigger, noise_level: Sf64) -> Sf64 {
         let osc = sine_wave_pitch_sweep(&trigger);
-        let noise = noise_lpf_sweep(&trigger, 0.04, 10_000.0, 10_000.0) * 2.0;
+        let noise = noise_lpf_sweep(&trigger, 0.04, 10_000.0, 10_000.0) * noise_level;
         let filtered_osc = (osc + noise)
             .filter(builder::filter::low_pass_moog_ladder(4000.0).build())
             .mix(|dry| 3.0 * dry.filter(builder::filter::low_pass_moog_ladder(500.0).build()));
         filtered_osc.mul_lazy(&amp_env(&trigger))
     }
 
-    pub fn snare(trigger: Trigger) -> Sf64 {
+    pub fn snare(trigger: Trigger, noise_level: Sf64) -> Sf64 {
         let osc = sine_wave_pitch_sweep(&trigger);
-        let noise = noise_lpf_sweep(&trigger, 0.1, 10_000.0, 10_000.0) * 0.5;
+        let noise = noise_lpf_sweep(&trigger, 0.1, 10_000.0, 10_000.0) * noise_level;
         let filtered_osc =
             (osc + noise).filter(builder::filter::high_pass_butterworth(200.0).build());
-        let amp_env = amp_env(&trigger);
-        filtered_osc
-            .mul_lazy(&amp_env)
-            .mix(|dry| temporary_reverb(&trigger, dry, 0.5))
-            .lazy_zero(&amp_env)
+        filtered_osc.mul_lazy(&amp_env(&trigger))
     }
 
     pub fn hat_closed(trigger: Trigger) -> Sf64 {
-        let noise = noise_lpf_sweep(&trigger, 0.05, 20_000.0, -10_000.0);
-        noise.mix(|dry| temporary_reverb(&trigger, dry, 1.0)) * 0.5
+        noise_lpf_sweep(&trigger, 0.05, 20_000.0, -10_000.0)
     }
 }

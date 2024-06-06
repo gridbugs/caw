@@ -103,3 +103,6 @@ name = "vocoder"
 
 [[example]]
 name = "microphone"
+
+[[example]]
+name = "snare"

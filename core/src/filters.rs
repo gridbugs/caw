@@ -449,3 +449,24 @@ impl Filter for EnvelopeFollower {
         self.low_pass_filter.run(input.abs(), ctx)
     }
 }
+
+/// If the `control` signal is below `threshold`, then the input
+/// signal will be multiplied by `ratio`.
+pub struct NoiseGate {
+    pub control: Sf64,
+    pub threshold: Sf64,
+    pub ratio: Sf64,
+}
+
+impl Filter for NoiseGate {
+    type Input = f64;
+    type Output = f64;
+
+    fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
+        if self.control.sample(ctx).abs() < self.threshold.sample(ctx) {
+            input * self.ratio.sample(ctx)
+        } else {
+            input
+        }
+    }
+}
