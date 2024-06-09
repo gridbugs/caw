@@ -148,6 +148,7 @@ pub fn signal_builder(input: TokenStream) -> TokenStream {
             }
         }
     }
+    // The return type of the `Builder::new` method.
     let new_fn_return_type = {
         let mut args = Punctuated::new();
         for generic_param in &input.generics.params {
@@ -190,15 +191,16 @@ pub fn signal_builder(input: TokenStream) -> TokenStream {
     let expanded = quote! {
         #input
 
-    impl #impl_generics #builder_ident #ty_generics #where_clause {
-        pub fn new(#(#field_without_default_idents: #field_without_default_types),*) -> #new_fn_return_type {
-        //pub fn new(#(#field_without_default_idents: #field_without_default_types),*) -> () {
-        #builder_ident {
-        #(#field_without_default_idents),*,
-        #(#field_with_default_idents: #field_default_values),*,
+        impl #impl_generics #builder_ident #ty_generics #where_clause {
+            pub fn new(#(#field_without_default_idents: #field_without_default_types),*)
+                -> #new_fn_return_type
+            {
+                #builder_ident {
+                    #(#field_without_default_idents),*,
+                    #(#field_with_default_idents: #field_default_values),*,
+                }
+            }
         }
-    }
-    }
     };
     TokenStream::from(expanded)
 }
