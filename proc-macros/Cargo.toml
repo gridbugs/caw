@@ -1,0 +1,14 @@
+[package]
+name = "caw_proc_macros"
+version = "0.1.0"
+edition = "2021"
+
+[lib]
+proc-macro = true
+
+[dependencies]
+caw_core_next = { path = "../core-next" }
+proc-macro2 = "1"
+quote = "1"
+syn = { version = "2", features = [ "full" ] }
+heck = "0.5"

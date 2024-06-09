@@ -3,7 +3,10 @@
 resolver = "2"
 
 members = [
+    "builders",
     "caw",
     "core",
+    "core-next",
     "interactive",
+    "proc-macros",
 ]
