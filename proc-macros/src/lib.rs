@@ -7,10 +7,12 @@ use std::{
     mem,
 };
 use syn::{
-    parse_macro_input, punctuated::Punctuated, token::Plus, AngleBracketedGenericArguments,
-    AssocType, GenericArgument, GenericParam, Ident, ItemStruct, Meta, Path, PathArguments,
-    PathSegment, Token, TraitBound, TraitBoundModifier, Type, TypeImplTrait, TypeParam,
-    TypeParamBound, TypePath,
+    parse_macro_input,
+    punctuated::Punctuated,
+    token::{Comma, Plus},
+    AngleBracketedGenericArguments, AssocType, Attribute, Expr, ExprLit, GenericArgument,
+    GenericParam, Ident, ItemStruct, Lit, LitStr, Meta, Path, PathArguments, PathSegment, Token,
+    TraitBound, TraitBoundModifier, Type, TypeImplTrait, TypeParam, TypeParamBound, TypePath,
 };
 
 fn convert_snake_to_camel(ident: Ident) -> Ident {
@@ -95,19 +97,80 @@ fn impl_signal_trait_type(item_type: Type) -> Type {
     })
 }
 
+fn type_with_type_params(ident: Ident, args: Punctuated<GenericArgument, Comma>) -> Type {
+    let generic_arguments = AngleBracketedGenericArguments {
+        colon2_token: None,
+        lt_token: Token![<](Span::call_site()),
+        args,
+        gt_token: Token![>](Span::call_site()),
+    };
+    let path_segment = PathSegment {
+        ident,
+        arguments: PathArguments::AngleBracketed(generic_arguments),
+    };
+    type_of_single_segment(path_segment)
+}
+
+fn attr_lit_str(attr: &Attribute) -> Option<&LitStr> {
+    if let Meta::NameValue(ref meta_name_value) = attr.meta {
+        if let Expr::Lit(ExprLit {
+            lit: Lit::Str(ref s),
+            ..
+        }) = meta_name_value.value
+        {
+            return Some(s);
+        }
+    }
+    None
+}
+
+/// Pass this a struct definition to generate a constructor, setters, and a build method treating
+/// the struct as a builder in the builder pattern.
 #[proc_macro]
 pub fn signal_builder(input: TokenStream) -> TokenStream {
     let mut input = parse_macro_input!(input as ItemStruct);
     let builder_ident = input.ident.clone();
+    let mut all_field_idents_in_order: Punctuated<Ident, Comma> = Punctuated::new();
     let mut field_without_default_idents = Vec::new();
     let mut field_without_default_types = Vec::new();
     let mut field_with_default_idents = Vec::new();
     let mut field_with_default_types = Vec::new();
+    let mut field_with_default_types_impl_signal = Vec::new();
     let mut field_default_values = Vec::new();
+    let mut signal_field_with_default_bounds = Vec::new();
+    let mut signal_field_with_default_idents = Vec::new();
+    let mut signal_field_with_default_type_param_idents = Vec::new();
     let mut signal_type_param_to_item_type = HashMap::new();
     let mut signal_type_params_with_default_values = HashSet::new();
+    let mut build_fn = Vec::new();
+    let mut build_ty = Vec::new();
+    let attrs = mem::replace(&mut input.attrs, Vec::new());
+    for attr in attrs {
+        if attr.path().is_ident("build_fn") {
+            if let Some(s) = attr_lit_str(&attr) {
+                let ident: Ident = s.parse().expect("Expected identifier");
+                build_fn.push(ident);
+            }
+            continue;
+        }
+        if attr.path().is_ident("build_ty") {
+            if let Some(s) = attr_lit_str(&attr) {
+                let ty: Type = s.parse().expect("Expected type");
+                build_ty.push(ty);
+            }
+            continue;
+        }
+        input.attrs.push(attr);
+    }
+    if build_fn.len() != build_ty.len() || build_fn.len() > 1 {
+        panic!(
+            "The `build_fn` and `build_ty` attributes should both be set exactly once, \
+		or not set at all."
+        );
+    }
     for field in input.fields.iter_mut() {
         if let Some(ident) = field.ident.as_ref() {
+            all_field_idents_in_order.push(ident.clone());
             let mut signal = false;
             let mut default = None;
             let attrs = mem::replace(&mut field.attrs, Vec::new());
@@ -124,15 +187,17 @@ pub fn signal_builder(input: TokenStream) -> TokenStream {
                 }
                 field.attrs.push(attr);
             }
+            let original_type = field.ty.clone();
             if signal {
                 let signal_type_param = signal_type_param(field.ty.clone(), &ident);
                 signal_type_param_to_item_type
                     .insert(signal_type_param.ident.clone(), field.ty.clone());
                 if default.is_some() {
                     signal_type_params_with_default_values.insert(signal_type_param.ident.clone());
+                    signal_field_with_default_type_param_idents
+                        .push(signal_type_param.ident.clone());
                 }
                 field.ty = type_of_ident(signal_type_param.ident.clone());
-
                 input
                     .generics
                     .params
@@ -141,6 +206,18 @@ pub fn signal_builder(input: TokenStream) -> TokenStream {
             if let Some(default) = default {
                 field_with_default_idents.push(ident.clone());
                 field_with_default_types.push(field.ty.clone());
+                if signal {
+                    field_with_default_types_impl_signal
+                        .push(impl_signal_trait_type(original_type.clone()));
+                    signal_field_with_default_idents.push(ident.clone());
+                    signal_field_with_default_bounds.push(signal_type_bounds(original_type));
+                } else {
+                    // Not a signal field, so just copy the type again
+                    // into this list. It will be used for the
+                    // argument type of setter functions that don't
+                    // set signal fields.
+                    field_with_default_types_impl_signal.push(field.ty.clone());
+                }
                 field_default_values.push(default);
             } else {
                 field_without_default_idents.push(ident.clone());
@@ -175,31 +252,91 @@ pub fn signal_builder(input: TokenStream) -> TokenStream {
                 args.push(GenericArgument::Type(ty));
             }
         }
-        let generic_arguments = AngleBracketedGenericArguments {
-            colon2_token: None,
-            lt_token: Token![<](Span::call_site()),
-            args,
-            gt_token: Token![>](Span::call_site()),
-        };
-        let path_segment = PathSegment {
-            ident: builder_ident.clone(),
-            arguments: PathArguments::AngleBracketed(generic_arguments),
-        };
-        type_of_single_segment(path_segment)
+        type_with_type_params(builder_ident.clone(), args)
     };
+    let setter_value_type_ident = Ident::new("__T", Span::call_site());
+    let signal_field_with_default_setter_return_types = signal_field_with_default_type_param_idents
+        .iter()
+        .map(|type_param_ident| {
+            let mut args = Punctuated::new();
+            for generic_param in &input.generics.params {
+                if let GenericParam::Type(ref type_param) = generic_param {
+                    let type_ident = if &type_param.ident == type_param_ident {
+                        // The current type parameter is the one that
+                        // should be replaced by the argument type of
+                        // the getter of the current field.
+                        setter_value_type_ident.clone()
+                    } else {
+                        type_param.ident.clone()
+                    };
+                    args.push(GenericArgument::Type(type_of_ident(type_ident)));
+                }
+            }
+            type_with_type_params(builder_ident.clone(), args)
+        })
+        .collect::<Vec<_>>();
+    let signal_field_with_default_setter_all_fields_except_current =
+        signal_field_with_default_idents
+            .iter()
+            .map(|current_field_ident| {
+                let mut other_fields: Punctuated<Ident, Comma> = Punctuated::new();
+                for field in input.fields.iter() {
+                    if let Some(ref field_ident) = field.ident {
+                        if field_ident != current_field_ident {
+                            other_fields.push(field_ident.clone());
+                        }
+                    }
+                }
+                other_fields
+            })
+            .collect::<Vec<_>>();
     let (impl_generics, ty_generics, where_clause) = input.generics.split_for_impl();
     let expanded = quote! {
         #input
 
         impl #impl_generics #builder_ident #ty_generics #where_clause {
-            pub fn new(#(#field_without_default_idents: #field_without_default_types),*)
-                -> #new_fn_return_type
-            {
+
+            // Create a new builder with default values set for some
+            // fields, and with other fields set by arguments to this
+            // method. Note that the return type is not `Self`, as the
+            // type parameters of fields with default values are
+            // concrete (whatever the type of the default value for
+            // the field is) raher than abstract.
+            pub fn new(
+                #(#field_without_default_idents: #field_without_default_types),*
+            ) -> #new_fn_return_type {
                 #builder_ident {
                     #(#field_without_default_idents),*,
                     #(#field_with_default_idents: #field_default_values),*,
                 }
             }
+
+            // Generate a setter function for each field with a
+            // default value. Fields without default values are set in
+            // the `new` function instead.
+            #(fn #signal_field_with_default_idents<__T>(
+                    mut self,
+                    #signal_field_with_default_idents: __T,
+              ) -> #signal_field_with_default_setter_return_types
+                where
+                __T: #signal_field_with_default_bounds
+              {
+                  let Self { #signal_field_with_default_setter_all_fields_except_current, .. } = self;
+                  #builder_ident {
+                      #signal_field_with_default_setter_all_fields_except_current,
+                      #signal_field_with_default_idents,
+                  }
+              })*
+
+            // Call the user-provided `build_fn` if any. If no
+            // `build_fn` was set, don't generate a `build`
+            // method. This is a valid use-case, as a user may wish to
+            // implement the `build` method by hand for some
+            // non-trivial signal builders.
+            #(fn build(self) -> #build_ty {
+                let Self { #all_field_idents_in_order } = self;
+                #build_fn(#all_field_idents_in_order)
+            })*
         }
     };
     TokenStream::from(expanded)
