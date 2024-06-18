@@ -420,15 +420,12 @@ pub fn builder(input: TokenStream) -> TokenStream {
             })*
         }
 
-    #constructor_doc
-    pub fn #constructor #constructor_generics
-      (
-
-                #(#field_without_default_idents: #field_without_default_types),*
-            ) -> #new_fn_return_type
-      #where_clause
-    {
-        #builder_ident::#new_fn_return_type_generics::new(#(#field_without_default_idents),*)
+        #constructor_doc
+        pub fn #constructor #constructor_generics (
+            #(#field_without_default_idents: #field_without_default_types),*
+        ) -> #new_fn_return_type
+        {
+            #builder_ident::#new_fn_return_type_generics::new(#(#field_without_default_idents),*)
         }
     };
     TokenStream::from(expanded)
