@@ -114,7 +114,9 @@ impl<T: Clone + Default, S: SignalRaw<T>> SignalUnshared<T, S> {
     }
 }
 
-impl<T: Clone + Default, S: SignalRaw<T>> SignalRaw<T> for SignalUnshared<T, S> {
+impl<T: Clone + Default, S: SignalRaw<T>> SignalRaw<T>
+    for SignalUnshared<T, S>
+{
     fn sample(&self, ctx: &SignalCtx) -> T {
         SignalUnshared::sample(self, ctx)
     }
@@ -149,12 +151,18 @@ impl<T: Clone + Default + 'static> Signal<T> {
         self.0.sample(ctx)
     }
 
-    pub fn map<U: Clone + Default + 'static, F: Fn(T) -> U + 'static>(&self, f: F) -> Signal<U> {
+    pub fn map<U: Clone + Default + 'static, F: Fn(T) -> U + 'static>(
+        &self,
+        f: F,
+    ) -> Signal<U> {
         let signal = self.clone();
         Signal::from_fn(move |ctx| f(signal.sample(ctx)))
     }
 
-    pub fn map_ctx<U: Clone + Default + 'static, F: Fn(T, &SignalCtx) -> U + 'static>(
+    pub fn map_ctx<
+        U: Clone + Default + 'static,
+        F: Fn(T, &SignalCtx) -> U + 'static,
+    >(
         &self,
         f: F,
     ) -> Signal<U> {
@@ -162,7 +170,10 @@ impl<T: Clone + Default + 'static> Signal<T> {
         Signal::from_fn(move |ctx| f(signal.sample(ctx), ctx))
     }
 
-    pub fn zip<U: Clone + Default + 'static>(&self, other: &Signal<U>) -> Signal<(T, U)> {
+    pub fn zip<U: Clone + Default + 'static>(
+        &self,
+        other: &Signal<U>,
+    ) -> Signal<(T, U)> {
         let signal = self.clone();
         let other = other.clone();
         Signal::from_fn(move |ctx| {
@@ -172,7 +183,10 @@ impl<T: Clone + Default + 'static> Signal<T> {
         })
     }
 
-    pub fn filter<F: Filter<Input = T> + 'static>(&self, filter: F) -> Signal<F::Output>
+    pub fn filter<F: Filter<Input = T> + 'static>(
+        &self,
+        filter: F,
+    ) -> Signal<F::Output>
     where
         F::Output: Clone + Default + 'static,
     {
@@ -188,7 +202,10 @@ impl<T: Clone + Default + 'static> Signal<T> {
 
     /// Force the evaluation of a signal, inoring its value. Use when laziness would otherwise
     /// prevent the evaluation of a signal.
-    pub fn force<U, SL: SignalLike<U> + Clone + 'static>(&self, other: &SL) -> Self {
+    pub fn force<U, SL: SignalLike<U> + Clone + 'static>(
+        &self,
+        other: &SL,
+    ) -> Self {
         let other = other.clone();
         let signal = self.clone();
         Signal::from_fn(move |ctx| {
@@ -399,7 +416,10 @@ impl Signal<f64> {
     /// completing its release if the volume envelope release completes first. This creates a
     /// problem when the released key is pressed a second time, the effect envelope generator will
     /// be at a non-zero state, so the full effect of its attack will be lost.
-    pub fn force_lazy<SL: SignalLike<f64> + Clone + 'static>(&self, other: &SL) -> Self {
+    pub fn force_lazy<SL: SignalLike<f64> + Clone + 'static>(
+        &self,
+        other: &SL,
+    ) -> Self {
         let other = other.clone();
         let signal = self.clone();
         let stopped = Cell::new(false);
@@ -446,12 +466,17 @@ impl Signal<u8> {
 }
 
 impl Signal<()> {
-    pub fn then<T: Clone + Default + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<T> {
+    pub fn then<T: Clone + Default + 'static, F: Fn() -> T + 'static>(
+        &self,
+        f: F,
+    ) -> Signal<T> {
         self.map(move |()| f())
     }
 }
 
-impl<A: Clone + Default + 'static, B: Clone + Default + 'static> Signal<(A, B)> {
+impl<A: Clone + Default + 'static, B: Clone + Default + 'static>
+    Signal<(A, B)>
+{
     pub fn unzip(&self) -> (Signal<A>, Signal<B>) {
         let a = self.map(|x| x.0);
         let b = self.map(|x| x.1);
@@ -459,8 +484,11 @@ impl<A: Clone + Default + 'static, B: Clone + Default + 'static> Signal<(A, B)> 
     }
 }
 
-impl<A: Clone + Default + 'static, B: Clone + Default + 'static, C: Clone + Default + 'static>
-    Signal<(A, B, C)>
+impl<
+        A: Clone + Default + 'static,
+        B: Clone + Default + 'static,
+        C: Clone + Default + 'static,
+    > Signal<(A, B, C)>
 {
     pub fn unzip(&self) -> (Signal<A>, Signal<B>, Signal<C>) {
         let a = self.map(|x| x.0);
@@ -530,7 +558,10 @@ impl Trigger {
         })
     }
 
-    pub fn on<T: Clone + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<Option<T>> {
+    pub fn on<T: Clone + 'static, F: Fn() -> T + 'static>(
+        &self,
+        f: F,
+    ) -> Signal<Option<T>> {
         self.0.map(move |x| if x { Some(f()) } else { None })
     }
 
@@ -562,7 +593,10 @@ impl Trigger {
         Self(self.0.map(move |value| value && f()))
     }
 
-    pub fn and_fn_ctx<F: Fn(&SignalCtx) -> bool + 'static>(&self, f: F) -> Self {
+    pub fn and_fn_ctx<F: Fn(&SignalCtx) -> bool + 'static>(
+        &self,
+        f: F,
+    ) -> Self {
         Self(self.0.map_ctx(move |value, ctx| value && f(ctx)))
     }
 
@@ -587,7 +621,9 @@ impl Trigger {
     pub fn random_skip(&self, probability_01: impl Into<Signal<f64>>) -> Self {
         let probability_01 = probability_01.into();
         let noise = noise_01();
-        self.and_fn_ctx(move |ctx| noise.sample(ctx) > probability_01.sample(ctx))
+        self.and_fn_ctx(move |ctx| {
+            noise.sample(ctx) > probability_01.sample(ctx)
+        })
     }
 }
 
@@ -635,7 +671,10 @@ impl Gate {
         Self::from_fn(move |ctx| signal.sample(ctx) && other.sample(ctx))
     }
 
-    pub fn on<T: Clone + 'static, F: Fn() -> T + 'static>(&self, f: F) -> Signal<Option<T>> {
+    pub fn on<T: Clone + 'static, F: Fn() -> T + 'static>(
+        &self,
+        f: F,
+    ) -> Signal<Option<T>> {
         self.0.map(move |x| if x { Some(f()) } else { None })
     }
 
@@ -765,6 +804,8 @@ impl<T> Triggerable<T> {
     }
 }
 
-pub fn triggerable<T: 'static, F: Fn(Trigger) -> Signal<T> + 'static>(f: F) -> Triggerable<T> {
+pub fn triggerable<T: 'static, F: Fn(Trigger) -> Signal<T> + 'static>(
+    f: F,
+) -> Triggerable<T> {
     Triggerable::new(f)
 }

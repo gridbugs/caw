@@ -36,6 +36,9 @@ pub trait Signal {
 
     /// Returns a `Signal` with the same values as `self` but which
     /// avoids recomputing the value at each point in time.
+    ///
+    /// This returns an impl trait so that constant signals can
+    /// override this method with a more efficient implementation.
     fn cached(self) -> impl Signal<Item = Self::Item>
     where
         Self: Sized,
@@ -45,18 +48,63 @@ pub trait Signal {
     }
 
     /// Returns a `Signal` with the same values as `self` but which
-    /// can be cloned. For non-trivial implementations of signal, this
-    /// is implemented by wrapping the signal in a `Rc<RefCell<_>>`,
-    /// so a small performance cost will be incurred when
-    /// sampling. Note that implementations of this method should
-    /// produce signals that are cached as well as shared. That is, it
-    /// should be unnecessary for callers to call
-    /// `signal.cached().shared()` to produce a sharable value that
-    /// avoids recomputation at a given point in time.
+    /// can be cloned.
+    ///
+    /// For non-trivial implementations of signal, this is implemented
+    /// by wrapping the signal in a `Rc<RefCell<_>>`, so a small
+    /// performance cost will be incurred when sampling.
+    ///
+    /// Note that implementations of this method should produce
+    /// signals that are cached as well as shared. That is, it should
+    /// be unnecessary for callers to call `signal.cached().shared()`
+    /// to produce a sharable value that avoids recomputation at a
+    /// given point in time.
+    ///
+    /// This returns an impl trait so that constant signals can
+    /// override this method with a more efficient implementation.
     fn shared(self) -> impl Signal<Item = Self::Item> + Clone
     where
         Self: Sized,
         Self::Item: Default + Clone,
+    {
+        SignalShared::new(self)
+    }
+}
+
+pub trait Gate: Signal<Item = bool> {
+    fn to_trigger(self) -> impl Trigger
+    where
+        Self: Sized,
+    {
+        GateToTrigger::new(self)
+    }
+
+    fn cached(self) -> impl Gate
+    where
+        Self: Sized,
+    {
+        SignalCached::new(self)
+    }
+
+    fn shared(self) -> impl Gate
+    where
+        Self: Sized,
+    {
+        SignalShared::new(self)
+    }
+}
+
+pub trait Trigger: Signal<Item = bool> {
+    fn cached(self) -> impl Trigger
+    where
+        Self: Sized,
+    {
+        SignalCached::new(self)
+    }
+
+    fn shared(self) -> impl Trigger
+    where
+        Self: Sized,
     {
         SignalShared::new(self)
     }
@@ -127,8 +175,9 @@ where
 
 /// Wrapper for a `Signal` that prevents recomputation of its value
 /// for a particular point in time.
-pub struct SignalCached<S: Signal>
+struct SignalCached<S>
 where
+    S: Signal,
     S::Item: Default + Clone,
 {
     signal: S,
@@ -136,11 +185,12 @@ where
     next_sample_index: u64,
 }
 
-impl<S: Signal> SignalCached<S>
+impl<S> SignalCached<S>
 where
+    S: Signal,
     S::Item: Default + Clone,
 {
-    pub fn new(signal: S) -> Self {
+    fn new(signal: S) -> Self {
         Self {
             signal,
             buffered_sample: S::Item::default(),
@@ -149,8 +199,9 @@ where
     }
 }
 
-impl<S: Signal> Signal for SignalCached<S>
+impl<S> Signal for SignalCached<S>
 where
+    S: Signal,
     S::Item: Default + Clone,
 {
     type Item = S::Item;
@@ -167,15 +218,16 @@ where
     }
 }
 
-/// Wrapper for a signal that can be cloned and shared. This is
-/// analagous to plugging multiple cables into a single output jack to
-/// connect it to multiple input jacks.
-pub struct SignalShared<S: Signal>(Rc<RefCell<SignalCached<S>>>)
+impl<S> Gate for SignalCached<S> where S: Signal<Item = bool> {}
+impl<S> Trigger for SignalCached<S> where S: Signal<Item = bool> {}
+
+struct SignalShared<S: Signal>(Rc<RefCell<SignalCached<S>>>)
 where
     S::Item: Default + Clone;
 
-impl<S: Signal> Clone for SignalShared<S>
+impl<S> Clone for SignalShared<S>
 where
+    S: Signal,
     S::Item: Default + Clone,
 {
     fn clone(&self) -> Self {
@@ -183,17 +235,19 @@ where
     }
 }
 
-impl<S: Signal> SignalShared<S>
+impl<S> SignalShared<S>
 where
+    S: Signal,
     S::Item: Default + Clone,
 {
-    pub fn new(signal: S) -> Self {
+    fn new(signal: S) -> Self {
         Self(Rc::new(RefCell::new(SignalCached::new(signal))))
     }
 }
 
-impl<S: Signal> Signal for SignalShared<S>
+impl<S> Signal for SignalShared<S>
 where
+    S: Signal,
     S::Item: Default + Clone,
 {
     type Item = S::Item;
@@ -202,6 +256,45 @@ where
         self.0.borrow_mut().sample(ctx)
     }
 }
+
+impl<S> Gate for SignalShared<S> where S: Signal<Item = bool> {}
+impl<S> Trigger for SignalShared<S> where S: Signal<Item = bool> {}
+
+struct GateToTrigger<G>
+where
+    G: Gate,
+{
+    previous: bool,
+    gate: G,
+}
+
+impl<G> GateToTrigger<G>
+where
+    G: Gate,
+{
+    fn new(gate: G) -> Self {
+        Self {
+            previous: false,
+            gate,
+        }
+    }
+}
+
+impl<G> Signal for GateToTrigger<G>
+where
+    G: Gate,
+{
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
+        let sample = self.gate.sample(ctx);
+        let trigger_sample = sample && !self.previous;
+        self.previous = sample;
+        trigger_sample
+    }
+}
+
+impl<G> Trigger for GateToTrigger<G> where G: Gate {}
 
 impl<T, F> Signal for F
 where
@@ -212,6 +305,8 @@ where
         (self)(ctx)
     }
 }
+
+impl<F> Gate for F where F: FnMut(&SignalCtx) -> bool {}
 
 #[derive(Clone)]
 pub struct Const<T>(T)
@@ -244,19 +339,6 @@ where
     Const(value)
 }
 
-#[derive(Default, Clone, Copy)]
-pub enum Waveform {
-    #[default]
-    Sine,
-}
-
-impl Signal for Waveform {
-    type Item = Self;
-    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
-        *self
-    }
-}
-
 impl Signal for f64 {
     type Item = Self;
     fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
@@ -271,3 +353,89 @@ impl Signal for f64 {
         self
     }
 }
+
+impl Signal for bool {
+    type Item = Self;
+    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
+        *self
+    }
+
+    fn cached(self) -> impl Signal<Item = Self::Item> {
+        self
+    }
+
+    fn shared(self) -> impl Signal<Item = Self::Item> + Clone {
+        self
+    }
+}
+
+impl Gate for bool {}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct Freq {
+    hz: f64,
+}
+
+impl Freq {
+    pub const fn from_hz(hz: f64) -> Self {
+        Self { hz }
+    }
+
+    pub const ZERO_HZ: Self = Self::from_hz(0.0);
+
+    pub fn from_s(s: f64) -> Self {
+        Self::from_hz(1.0 / s)
+    }
+
+    pub const fn hz(&self) -> f64 {
+        self.hz
+    }
+
+    pub fn s(&self) -> f64 {
+        self.hz() / 1.0
+    }
+}
+
+pub const fn freq_hz(hz: f64) -> Freq {
+    Freq::from_hz(hz)
+}
+
+pub fn freq_s(s: f64) -> Freq {
+    Freq::from_s(s)
+}
+
+impl Signal for Freq {
+    type Item = Self;
+    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
+        *self
+    }
+
+    fn cached(self) -> impl Signal<Item = Self::Item> {
+        self
+    }
+
+    fn shared(self) -> impl Signal<Item = Self::Item> + Clone {
+        self
+    }
+}
+
+#[derive(Debug, Default, Clone, Copy, PartialEq)]
+pub struct Never;
+
+impl Signal for Never {
+    type Item = bool;
+
+    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
+        false
+    }
+
+    fn cached(self) -> impl Signal<Item = Self::Item> {
+        self
+    }
+
+    fn shared(self) -> impl Signal<Item = Self::Item> + Clone {
+        self
+    }
+}
+
+impl Trigger for Never {}
