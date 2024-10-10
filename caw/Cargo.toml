@@ -38,3 +38,6 @@ name = "tweet"
 
 [[example]]
 name = "drum_sounds"
+
+[[example]]
+name = "saw"
