@@ -1,67 +1,47 @@
-use caw_core_next::{Freq, Never, Signal, Trigger};
+use caw_core_next::{BufferedSignal, Freq, Never, Signal, SignalCtx, Trigger};
 use caw_proc_macros::builder;
 
 pub mod waveform {
     use std::f64::consts::PI;
 
     pub trait Waveform {
-        /// Note that the `pulse_width_01` is a function as most
-        /// waveforms ignore it, and this lets us avoid sampling the
-        /// pulse_width_01 signal on each frame of oscillators that
-        /// don't need it.
-        fn sample(
-            &self,
-            state_01: f64,
-            pulse_width_01: impl FnMut() -> f64,
-        ) -> f64;
+        fn sample(&self, state_01: f64, pulse_width_01: f64) -> f64;
+
+        const PULSE: bool = false;
     }
 
     pub struct Sine;
     impl Waveform for Sine {
-        fn sample(
-            &self,
-            state_01: f64,
-            _pulse_width_01: impl FnMut() -> f64,
-        ) -> f64 {
+        fn sample(&self, state_01: f64, _pulse_width_01: f64) -> f64 {
             (state_01 * PI * 2.0).sin()
         }
     }
 
     pub struct Triangle;
     impl Waveform for Triangle {
-        fn sample(
-            &self,
-            state_01: f64,
-            _pulse_width_01: impl FnMut() -> f64,
-        ) -> f64 {
+        fn sample(&self, state_01: f64, _pulse_width_01: f64) -> f64 {
             (((state_01 * 2.0) - 1.0).abs() * 2.0) - 1.0
         }
     }
 
     pub struct Saw;
     impl Waveform for Saw {
-        fn sample(
-            &self,
-            state_01: f64,
-            _pulse_width_01: impl FnMut() -> f64,
-        ) -> f64 {
+        fn sample(&self, state_01: f64, _pulse_width_01: f64) -> f64 {
             (state_01 * 2.0) - 1.0
         }
     }
 
     pub struct Pulse;
     impl Waveform for Pulse {
-        fn sample(
-            &self,
-            state_01: f64,
-            mut pulse_width_01: impl FnMut() -> f64,
-        ) -> f64 {
-            if state_01 < pulse_width_01() {
+        fn sample(&self, state_01: f64, pulse_width_01: f64) -> f64 {
+            if state_01 < pulse_width_01 {
                 -1.0
             } else {
                 1.0
             }
         }
+
+        const PULSE: bool = true;
     }
 }
 
@@ -76,12 +56,11 @@ where
     T: Trigger,
 {
     state_01: f64,
-    prev_sample_index: u64,
     waveform: W,
-    freq: F,
-    pulse_width_01: P,
-    reset_offset_01: R,
-    reset_trigger: T,
+    freq: BufferedSignal<F>,
+    pulse_width_01: BufferedSignal<P>,
+    reset_offset_01: BufferedSignal<R>,
+    reset_trigger: BufferedSignal<T>,
 }
 
 impl<W, F, P, R, T> Signal for Oscillator<W, F, P, R, T>
@@ -93,19 +72,19 @@ where
     T: Trigger,
 {
     type Item = f64;
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &caw_core_next::SignalCtx) -> Self::Item {
-        if self.reset_trigger.sample(ctx) {
-            self.state_01 = self.reset_offset_01.sample(ctx);
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        if W::PULSE {
+            self.sample_batch_pulse(ctx, n, sample_buffer);
         } else {
-            let sample_index_delta = ctx.sample_index - self.prev_sample_index;
-            let state_delta = (sample_index_delta as f64
-                * self.freq.sample(ctx).hz())
-                / ctx.sample_rate_hz;
-            self.state_01 = (self.state_01 + state_delta).rem_euclid(1.0);
+            self.sample_batch_non_pulse(ctx, n, sample_buffer);
         }
-        self.waveform
-            .sample(self.state_01, || self.pulse_width_01.sample(ctx))
     }
 }
 
@@ -126,12 +105,65 @@ where
     ) -> Self {
         Self {
             state_01: 0.0,
-            prev_sample_index: 0,
             waveform,
-            freq,
-            pulse_width_01,
-            reset_offset_01,
-            reset_trigger,
+            freq: freq.buffered(),
+            pulse_width_01: pulse_width_01.buffered(),
+            reset_offset_01: reset_offset_01.buffered(),
+            reset_trigger: reset_trigger.buffered(),
+        }
+    }
+
+    fn sample_batch_non_pulse(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut <Self as Signal>::SampleBuffer,
+    ) {
+        self.freq.sample_batch(ctx, n);
+        self.reset_trigger.sample_batch(ctx, n);
+        self.reset_offset_01.sample_batch(ctx, n);
+        for ((freq, &reset_trigger), reset_offset_01) in self
+            .freq
+            .samples()
+            .zip(self.reset_trigger.samples())
+            .zip(self.reset_offset_01.samples())
+        {
+            if reset_trigger {
+                self.state_01 = *reset_offset_01;
+            } else {
+                let state_delta = freq.hz() / ctx.sample_rate_hz;
+                self.state_01 = (self.state_01 + state_delta).rem_euclid(1.0);
+            }
+            let sample = self.waveform.sample(self.state_01, 0.0);
+            sample_buffer.push(sample);
+        }
+    }
+
+    fn sample_batch_pulse(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut <Self as Signal>::SampleBuffer,
+    ) {
+        self.freq.sample_batch(ctx, n);
+        self.reset_trigger.sample_batch(ctx, n);
+        self.reset_offset_01.sample_batch(ctx, n);
+        self.pulse_width_01.sample_batch(ctx, n);
+        for (((freq, &reset_trigger), reset_offset_01), &pulse_width_01) in self
+            .freq
+            .samples()
+            .zip(self.reset_trigger.samples())
+            .zip(self.reset_offset_01.samples())
+            .zip(self.pulse_width_01.samples())
+        {
+            if reset_trigger {
+                self.state_01 = *reset_offset_01;
+            } else {
+                let state_delta = freq.hz() / ctx.sample_rate_hz;
+                self.state_01 = (self.state_01 + state_delta).rem_euclid(1.0);
+            }
+            let sample = self.waveform.sample(self.state_01, pulse_width_01);
+            sample_buffer.push(sample);
         }
     }
 }

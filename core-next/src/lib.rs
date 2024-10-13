@@ -1,37 +1,134 @@
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SignalCtx {
-    pub sample_index: u64,
     pub sample_rate_hz: f64,
+    pub batch_index: u64,
+}
+
+pub trait SampleBuffer<T>: Default {
+    fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+    where
+        T: 'a;
+
+    fn clear(&mut self);
+}
+
+impl<T> SampleBuffer<T> for Vec<T> {
+    fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+    where
+        T: 'a,
+    {
+        (self as &[T]).iter()
+    }
+
+    fn clear(&mut self) {
+        Vec::clear(self)
+    }
+}
+
+pub struct ConstSampleBuffer<T> {
+    value: Option<T>,
+    count: usize,
+}
+
+impl<T> Default for ConstSampleBuffer<T> {
+    fn default() -> Self {
+        Self {
+            value: None,
+            count: 0,
+        }
+    }
+}
+
+impl<T> SampleBuffer<T> for ConstSampleBuffer<T> {
+    fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
+    where
+        T: 'a,
+    {
+        self.value.iter().cycle().take(self.count)
+    }
+
+    fn clear(&mut self) {
+        self.count = 0;
+    }
+}
+
+pub struct BufferedSignal<S: Signal> {
+    pub signal: S,
+    pub buffer: S::SampleBuffer,
+}
+
+impl<S: Signal> BufferedSignal<S> {
+    pub fn new(signal: S) -> Self {
+        Self {
+            signal,
+            buffer: Default::default(),
+        }
+    }
+
+    pub fn sample_batch(&mut self, ctx: &SignalCtx, n: usize) {
+        self.buffer.clear();
+        self.signal.sample_batch(ctx, n, &mut self.buffer);
+    }
+
+    pub fn samples(&self) -> impl Iterator<Item = &S::Item> {
+        self.buffer.iter()
+    }
 }
 
 pub trait Signal {
     type Item;
+    type SampleBuffer: SampleBuffer<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item;
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    );
+
+    fn buffered(self) -> BufferedSignal<Self>
+    where
+        Self: Sized,
+    {
+        BufferedSignal::new(self)
+    }
 
     fn map<T, F>(self, f: F) -> Map<Self, T, F>
     where
         Self: Sized,
+        Self::Item: Clone,
         F: FnMut(Self::Item) -> T,
     {
-        Map { signal: self, f }
+        Map {
+            buffered_signal: self.buffered(),
+            f,
+        }
     }
 
     fn map_ctx<T, F>(self, f: F) -> MapCtx<Self, T, F>
     where
         Self: Sized,
+        Self::Item: Clone,
         F: FnMut(Self::Item, &SignalCtx) -> T,
     {
-        MapCtx { signal: self, f }
+        MapCtx {
+            buffered_signal: self.buffered(),
+            f,
+        }
     }
 
     fn zip<S>(self, other: S) -> Zip<Self, S>
     where
         Self: Sized,
         S: Signal,
+        Self::Item: Clone,
+        S::Item: Clone,
     {
-        Zip { a: self, b: other }
+        Zip {
+            a: self.buffered(),
+            b: other.buffered(),
+        }
     }
 
     /// Returns a `Signal` with the same values as `self` but which
@@ -113,42 +210,64 @@ pub trait Trigger: Signal<Item = bool> {
 pub struct Map<S, T, F>
 where
     S: Signal,
+    S::Item: Clone,
     F: FnMut(S::Item) -> T,
 {
-    signal: S,
+    buffered_signal: BufferedSignal<S>,
     f: F,
 }
 
 impl<S, T, F> Signal for Map<S, T, F>
 where
     S: Signal,
+    S::Item: Clone,
     F: FnMut(S::Item) -> T,
 {
     type Item = T;
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        (self.f)(self.signal.sample(ctx))
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        self.buffered_signal.sample_batch(ctx, n);
+        for sample in self.buffered_signal.samples() {
+            sample_buffer.push((self.f)(sample.clone()));
+        }
     }
 }
 
 pub struct MapCtx<S, T, F>
 where
     S: Signal,
+    S::Item: Clone,
     F: FnMut(S::Item, &SignalCtx) -> T,
 {
-    signal: S,
+    buffered_signal: BufferedSignal<S>,
     f: F,
 }
 
 impl<S, T, F> Signal for MapCtx<S, T, F>
 where
     S: Signal,
+    S::Item: Clone,
     F: FnMut(S::Item, &SignalCtx) -> T,
 {
     type Item = T;
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        (self.f)(self.signal.sample(ctx), ctx)
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        self.buffered_signal.sample_batch(ctx, n);
+        for sample in self.buffered_signal.samples() {
+            sample_buffer.push((self.f)(sample.clone(), ctx));
+        }
     }
 }
 
@@ -156,20 +275,34 @@ pub struct Zip<A, B>
 where
     A: Signal,
     B: Signal,
+    A::Item: Clone,
+    B::Item: Clone,
 {
-    a: A,
-    b: B,
+    a: BufferedSignal<A>,
+    b: BufferedSignal<B>,
 }
 
 impl<A, B> Signal for Zip<A, B>
 where
     A: Signal,
     B: Signal,
+    A::Item: Clone,
+    B::Item: Clone,
 {
     type Item = (A::Item, B::Item);
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        (self.a.sample(ctx), self.b.sample(ctx))
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        self.a.sample_batch(ctx, n);
+        self.b.sample_batch(ctx, n);
+        for (a, b) in self.a.samples().zip(self.b.samples()) {
+            sample_buffer.push((a.clone(), b.clone()))
+        }
     }
 }
 
@@ -180,9 +313,9 @@ where
     S: Signal,
     S::Item: Default + Clone,
 {
-    signal: S,
-    buffered_sample: S::Item,
-    next_sample_index: u64,
+    buffered_signal: BufferedSignal<S>,
+    cache: Vec<S::Item>,
+    next_batch_index: u64,
 }
 
 impl<S> SignalCached<S>
@@ -192,9 +325,9 @@ where
 {
     fn new(signal: S) -> Self {
         Self {
-            signal,
-            buffered_sample: S::Item::default(),
-            next_sample_index: 0,
+            buffered_signal: signal.buffered(),
+            cache: Default::default(),
+            next_batch_index: 0,
         }
     }
 }
@@ -205,15 +338,24 @@ where
     S::Item: Default + Clone,
 {
     type Item = S::Item;
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        if ctx.sample_index < self.next_sample_index {
-            self.buffered_sample.clone()
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        if ctx.batch_index < self.next_batch_index {
+            sample_buffer.clone_from_slice(&self.cache);
         } else {
-            self.next_sample_index = ctx.sample_index + 1;
-            let sample = self.signal.sample(ctx);
-            self.buffered_sample = sample.clone();
-            sample
+            self.next_batch_index = ctx.batch_index + 1;
+            self.buffered_signal.sample_batch(ctx, n);
+            self.cache.clear();
+            for sample in self.buffered_signal.samples() {
+                self.cache.push(sample.clone());
+                sample_buffer.push(sample.clone());
+            }
         }
     }
 }
@@ -251,9 +393,15 @@ where
     S::Item: Default + Clone,
 {
     type Item = S::Item;
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        self.0.borrow_mut().sample(ctx)
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        self.0.borrow_mut().sample_batch(ctx, n, sample_buffer)
     }
 }
 
@@ -265,7 +413,7 @@ where
     G: Gate,
 {
     previous: bool,
-    gate: G,
+    buffered_gate: BufferedSignal<G>,
 }
 
 impl<G> GateToTrigger<G>
@@ -275,7 +423,7 @@ where
     fn new(gate: G) -> Self {
         Self {
             previous: false,
-            gate,
+            buffered_gate: gate.buffered(),
         }
     }
 }
@@ -285,12 +433,20 @@ where
     G: Gate,
 {
     type Item = bool;
+    type SampleBuffer = Vec<Self::Item>;
 
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        let sample = self.gate.sample(ctx);
-        let trigger_sample = sample && !self.previous;
-        self.previous = sample;
-        trigger_sample
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        self.buffered_gate.sample_batch(ctx, n);
+        for &sample in self.buffered_gate.samples() {
+            let trigger_sample = sample && !self.previous;
+            self.previous = sample;
+            sample_buffer.push(trigger_sample);
+        }
     }
 }
 
@@ -301,8 +457,17 @@ where
     F: FnMut(&SignalCtx) -> T,
 {
     type Item = T;
-    fn sample(&mut self, ctx: &SignalCtx) -> Self::Item {
-        (self)(ctx)
+    type SampleBuffer = Vec<Self::Item>;
+
+    fn sample_batch(
+        &mut self,
+        ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        for _ in 0..n {
+            sample_buffer.push((self)(ctx));
+        }
     }
 }
 
@@ -318,9 +483,18 @@ where
     T: Clone,
 {
     type Item = T;
+    type SampleBuffer = ConstSampleBuffer<Self::Item>;
 
-    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
-        self.0.clone()
+    fn sample_batch(
+        &mut self,
+        _ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        *sample_buffer = ConstSampleBuffer {
+            value: Some(self.0.clone()),
+            count: n,
+        };
     }
 
     fn cached(self) -> impl Signal<Item = Self::Item> {
@@ -341,8 +515,18 @@ where
 
 impl Signal for f64 {
     type Item = Self;
-    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
-        *self
+    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+
+    fn sample_batch(
+        &mut self,
+        _ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        *sample_buffer = ConstSampleBuffer {
+            value: Some(*self),
+            count: n,
+        };
     }
 
     fn cached(self) -> impl Signal<Item = Self::Item> {
@@ -356,8 +540,18 @@ impl Signal for f64 {
 
 impl Signal for bool {
     type Item = Self;
-    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
-        *self
+    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+
+    fn sample_batch(
+        &mut self,
+        _ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        *sample_buffer = ConstSampleBuffer {
+            value: Some(*self),
+            count: n,
+        };
     }
 
     fn cached(self) -> impl Signal<Item = Self::Item> {
@@ -406,8 +600,18 @@ pub fn freq_s(s: f64) -> Freq {
 
 impl Signal for Freq {
     type Item = Self;
-    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
-        *self
+    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+
+    fn sample_batch(
+        &mut self,
+        _ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        *sample_buffer = ConstSampleBuffer {
+            value: Some(*self),
+            count: n,
+        };
     }
 
     fn cached(self) -> impl Signal<Item = Self::Item> {
@@ -424,9 +628,18 @@ pub struct Never;
 
 impl Signal for Never {
     type Item = bool;
+    type SampleBuffer = ConstSampleBuffer<Self::Item>;
 
-    fn sample(&mut self, _ctx: &SignalCtx) -> Self::Item {
-        false
+    fn sample_batch(
+        &mut self,
+        _ctx: &SignalCtx,
+        n: usize,
+        sample_buffer: &mut Self::SampleBuffer,
+    ) {
+        *sample_buffer = ConstSampleBuffer {
+            value: Some(false),
+            count: n,
+        };
     }
 
     fn cached(self) -> impl Signal<Item = Self::Item> {
