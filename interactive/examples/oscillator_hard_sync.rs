@@ -1,12 +1,14 @@
 use caw_interactive::prelude::*;
 
 fn voice(input: Input) -> Sf64 {
-    let leader_osc = oscillator_hz(Waveform::Pulse, input.mouse.x_01() * 1000.0)
-        .pulse_width_01(0.1)
-        .build();
-    let follower_osc = oscillator_hz(Waveform::Saw, input.mouse.y_01() * 1000.0)
-        .hard_sync(&leader_osc)
-        .build();
+    let leader_osc =
+        oscillator_hz(Waveform::Pulse, input.mouse.x_01() * 1000.0)
+            .pulse_width_01(0.1)
+            .build();
+    let follower_osc =
+        oscillator_hz(Waveform::Saw, input.mouse.y_01() * 1000.0)
+            .hard_sync(&leader_osc)
+            .build();
     follower_osc
 }
 

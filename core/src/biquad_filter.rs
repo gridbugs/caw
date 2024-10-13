@@ -79,7 +79,10 @@ pub mod butterworth {
     }
 
     impl State {
-        pub fn new(filter_order_half: usize, half_power_frequency_hz: Sf64) -> Self {
+        pub fn new(
+            filter_order_half: usize,
+            half_power_frequency_hz: Sf64,
+        ) -> Self {
             Self {
                 half_power_frequency_hz,
                 buffer: Buffer::new(filter_order_half),
@@ -87,16 +90,24 @@ pub mod butterworth {
             }
         }
 
-        fn run<U: UpdateBufferTrait, P: PassTrait>(&mut self, sample: f64, ctx: &SignalCtx) -> f64 {
+        fn run<U: UpdateBufferTrait, P: PassTrait>(
+            &mut self,
+            sample: f64,
+            ctx: &SignalCtx,
+        ) -> f64 {
             if self.buffer.entries.is_empty() {
                 return sample;
             }
-            let half_power_frequency_hz = self.half_power_frequency_hz.sample(ctx);
+            let half_power_frequency_hz =
+                self.half_power_frequency_hz.sample(ctx);
             if half_power_frequency_hz != self.prev_half_power_frequency_hz {
                 self.prev_half_power_frequency_hz = half_power_frequency_hz;
                 let half_power_frequency_sample_rate_ratio =
                     half_power_frequency_hz / ctx.sample_rate_hz;
-                U::update_entries(&mut self.buffer, half_power_frequency_sample_rate_ratio);
+                U::update_entries(
+                    &mut self.buffer,
+                    half_power_frequency_sample_rate_ratio,
+                );
             }
             P::apply(&mut self.buffer, sample)
         }
@@ -108,7 +119,10 @@ pub mod butterworth {
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
-            fn update_entries(buffer: &mut Buffer, half_power_frequency_sample_rate_ratio: f64) {
+            fn update_entries(
+                buffer: &mut Buffer,
+                half_power_frequency_sample_rate_ratio: f64,
+            ) {
                 let a = (PI * half_power_frequency_sample_rate_ratio).tan();
                 let a2 = a * a;
                 let n = buffer.entries.len() as f64;
@@ -133,7 +147,10 @@ pub mod butterworth {
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
-            fn update_entries(buffer: &mut Buffer, half_power_frequency_sample_rate_ratio: f64) {
+            fn update_entries(
+                buffer: &mut Buffer,
+                half_power_frequency_sample_rate_ratio: f64,
+            ) {
                 let a = (PI * half_power_frequency_sample_rate_ratio).tan();
                 let a2 = a * a;
                 let n = buffer.entries.len() as f64;
@@ -172,7 +189,11 @@ pub mod chebyshev {
     }
 
     impl State {
-        pub fn new(filter_order_half: usize, cutoff_hz: Sf64, epsilon: Sf64) -> Self {
+        pub fn new(
+            filter_order_half: usize,
+            cutoff_hz: Sf64,
+            epsilon: Sf64,
+        ) -> Self {
             Self {
                 cutoff_hz,
                 epsilon,
@@ -182,17 +203,26 @@ pub mod chebyshev {
             }
         }
 
-        fn run<U: UpdateBufferTrait, P: PassTrait>(&mut self, sample: f64, ctx: &SignalCtx) -> f64 {
+        fn run<U: UpdateBufferTrait, P: PassTrait>(
+            &mut self,
+            sample: f64,
+            ctx: &SignalCtx,
+        ) -> f64 {
             if self.buffer.entries.is_empty() {
                 return sample;
             }
             let cutoff_hz = self.cutoff_hz.sample(ctx);
             let cutoff_sample_rate_ratio = cutoff_hz / ctx.sample_rate_hz;
             let epsilon = self.epsilon.sample(ctx).max(EPSILON_MIN);
-            if cutoff_hz != self.prev_cutoff_hz || epsilon != self.prev_epsilon {
+            if cutoff_hz != self.prev_cutoff_hz || epsilon != self.prev_epsilon
+            {
                 self.prev_cutoff_hz = cutoff_hz;
                 self.prev_epsilon = epsilon;
-                U::update_entries(&mut self.buffer, cutoff_sample_rate_ratio, epsilon);
+                U::update_entries(
+                    &mut self.buffer,
+                    cutoff_sample_rate_ratio,
+                    epsilon,
+                );
             }
             let output_scaled = P::apply(&mut self.buffer, sample);
             let scale_factor = (1.0 - (-epsilon).exp()) / 2.0;
@@ -206,10 +236,15 @@ pub mod chebyshev {
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
-            fn update_entries(buffer: &mut Buffer, cutoff_sample_rate_ratio: f64, epsilon: f64) {
+            fn update_entries(
+                buffer: &mut Buffer,
+                cutoff_sample_rate_ratio: f64,
+                epsilon: f64,
+            ) {
                 let a = (PI * cutoff_sample_rate_ratio).tan();
                 let a2 = a * a;
-                let u = ((1.0 + (1.0 + (epsilon * epsilon)).sqrt()) / epsilon).ln();
+                let u =
+                    ((1.0 + (1.0 + (epsilon * epsilon)).sqrt()) / epsilon).ln();
                 let n = (buffer.entries.len() * 2) as f64;
                 let su = (u / n).sinh();
                 let cu = (u / n).cosh();
@@ -237,10 +272,15 @@ pub mod chebyshev {
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
-            fn update_entries(buffer: &mut Buffer, cutoff_sample_rate_ratio: f64, epsilon: f64) {
+            fn update_entries(
+                buffer: &mut Buffer,
+                cutoff_sample_rate_ratio: f64,
+                epsilon: f64,
+            ) {
                 let a = (PI * cutoff_sample_rate_ratio).tan();
                 let a2 = a * a;
-                let u = ((1.0 + (1.0 + (epsilon * epsilon)).sqrt()) / epsilon).ln();
+                let u =
+                    ((1.0 + (1.0 + (epsilon * epsilon)).sqrt()) / epsilon).ln();
                 let n = (buffer.entries.len() * 2) as f64;
                 let su = (u / n).sinh();
                 let cu = (u / n).cosh();

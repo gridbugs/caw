@@ -2,7 +2,8 @@ use caw_interactive::prelude::*;
 
 fn signal(input: Input) -> Sf64 {
     let basic_snare = |key: Gate| {
-        let snare = snare(key.to_trigger_rising_edge()).noise_level(0.5).build();
+        let snare =
+            snare(key.to_trigger_rising_edge()).noise_level(0.5).build();
         snare
             .mix(|dry| 6.0 * dry.filter(low_pass_butterworth(80.0).build()))
             .filter(compress().scale(5.0).ratio(0.1).threshold(1.5).build())

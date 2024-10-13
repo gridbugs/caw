@@ -36,7 +36,8 @@ fn snare(trigger: &Trigger) -> Sf64 {
         .build()
         .exp_01(1.0)
         .filter(low_pass_moog_ladder(1000.0).build());
-    let noise = noise.filter(low_pass_moog_ladder(10000.0).resonance(2.0).build());
+    let noise =
+        noise.filter(low_pass_moog_ladder(10000.0).resonance(2.0).build());
     let freq_hz = adsr_linear_01(&clock)
         .release_s(duration_s)
         .build()
@@ -68,7 +69,9 @@ fn drum_loop(trigger: Trigger, pattern: Vec<u8>) -> (Sf64, Trigger) {
     (
         match &drum_sequence.triggers.as_slice() {
             &[cymbal_trigger, snare_trigger, kick_trigger, ..] => {
-                cymbal(cymbal_trigger) + snare(snare_trigger) + kick(kick_trigger)
+                cymbal(cymbal_trigger)
+                    + snare(snare_trigger)
+                    + kick(kick_trigger)
             }
             _ => panic!(),
         },
@@ -110,7 +113,9 @@ fn voice(trigger: Trigger, input: Input) -> Sf64 {
                 bitwise_trigger_router_64(trigger, loop_selection)
                     .into_iter()
                     .zip(drum_patterns.into_iter())
-                    .map(|(trigger, drum_pattern)| drum_loop(trigger, drum_pattern))
+                    .map(|(trigger, drum_pattern)| {
+                        drum_loop(trigger, drum_pattern)
+                    })
                     .unzip();
             let drum_signal = sum(drum_signals);
             let completion_trigger = Trigger::any(completion_triggers);

@@ -33,16 +33,18 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
         .into_iter()
         .enumerate()
         .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + top_row_base)))
-        .chain(
-            bottom_row
-                .into_iter()
-                .enumerate()
-                .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + bottom_row_base))),
-        )
+        .chain(bottom_row.into_iter().enumerate().map(|(i, key)| {
+            (key, freq_hz_of_midi_index(i as u8 + bottom_row_base))
+        }))
         .collect::<Vec<_>>()
 }
 
-fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
+fn single_voice(
+    freq_hz: Sf64,
+    gate: Gate,
+    effect_x: Sf64,
+    effect_y: Sf64,
+) -> Sf64 {
     let lfo = oscillator_hz(Waveform::Sine, 128.0 * effect_y)
         .build()
         .signed_to_01();
@@ -61,7 +63,8 @@ fn single_voice(freq_hz: Sf64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf
     oscillator
         .filter(
             low_pass_moog_ladder(
-                (env * (20000.0 - (lfo * lfo_env * 20000.0 * effect_x))).clamp_non_negative(),
+                (env * (20000.0 - (lfo * lfo_env * 20000.0 * effect_x)))
+                    .clamp_non_negative(),
             )
             .resonance(1.3)
             .build(),

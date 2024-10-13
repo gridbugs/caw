@@ -86,7 +86,10 @@ pub mod oscillator {
     }
 
     impl OscillatorBuilder {
-        pub fn new(waveform: impl Into<Signal<Waveform>>, freq: impl Into<Sfreq>) -> Self {
+        pub fn new(
+            waveform: impl Into<Signal<Waveform>>,
+            freq: impl Into<Sfreq>,
+        ) -> Self {
             Self {
                 waveform: waveform.into(),
                 freq: freq.into(),
@@ -97,17 +100,26 @@ pub mod oscillator {
             }
         }
 
-        pub fn pulse_width_01(mut self, pulse_width_01: impl Into<Sf64>) -> Self {
+        pub fn pulse_width_01(
+            mut self,
+            pulse_width_01: impl Into<Sf64>,
+        ) -> Self {
             self.pulse_width_01 = Some(pulse_width_01.into());
             self
         }
 
-        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+        pub fn reset_trigger(
+            mut self,
+            reset_trigger: impl Into<Trigger>,
+        ) -> Self {
             self.reset_trigger = Some(reset_trigger.into());
             self
         }
 
-        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+        pub fn reset_offset_01(
+            mut self,
+            reset_offset_01: impl Into<Sf64>,
+        ) -> Self {
             self.reset_offset_01 = Some(reset_offset_01.into());
             self
         }
@@ -121,9 +133,15 @@ pub mod oscillator {
             Oscillator {
                 waveform: self.waveform,
                 freq: self.freq,
-                pulse_width_01: self.pulse_width_01.unwrap_or_else(|| const_(0.5)),
-                reset_trigger: self.reset_trigger.unwrap_or_else(|| Trigger::never()),
-                reset_offset_01: self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
+                pulse_width_01: self
+                    .pulse_width_01
+                    .unwrap_or_else(|| const_(0.5)),
+                reset_trigger: self
+                    .reset_trigger
+                    .unwrap_or_else(|| Trigger::never()),
+                reset_offset_01: self
+                    .reset_offset_01
+                    .unwrap_or_else(|| const_(0.0)),
                 hard_sync: self.hard_sync.unwrap_or_else(|| const_(0.0)),
             }
             .signal()
@@ -221,11 +239,15 @@ pub mod gate {
         PeriodicTriggerBuilder::new(freq)
     }
 
-    pub fn periodic_trigger_hz(freq_hz: impl Into<Sf64>) -> PeriodicTriggerBuilder {
+    pub fn periodic_trigger_hz(
+        freq_hz: impl Into<Sf64>,
+    ) -> PeriodicTriggerBuilder {
         PeriodicTriggerBuilder::new(sfreq_hz(freq_hz))
     }
 
-    pub fn periodic_trigger_s(freq_s: impl Into<Sf64>) -> PeriodicTriggerBuilder {
+    pub fn periodic_trigger_s(
+        freq_s: impl Into<Sf64>,
+    ) -> PeriodicTriggerBuilder {
         PeriodicTriggerBuilder::new(sfreq_s(freq_s))
     }
 }
@@ -289,7 +311,10 @@ pub mod filter {
     }
 
     impl BandPassButterworthBuilder {
-        pub fn new(cutoff_hz_lower: impl Into<Sf64>, cutoff_hz_upper: impl Into<Sf64>) -> Self {
+        pub fn new(
+            cutoff_hz_lower: impl Into<Sf64>,
+            cutoff_hz_upper: impl Into<Sf64>,
+        ) -> Self {
             Self {
                 cutoff_hz_lower: cutoff_hz_lower.into(),
                 cutoff_hz_upper: cutoff_hz_upper.into(),
@@ -297,7 +322,10 @@ pub mod filter {
             }
         }
 
-        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+        pub fn filter_order_quarter(
+            mut self,
+            filter_order_quarter: usize,
+        ) -> Self {
             self.filter_order_quarter = filter_order_quarter;
             self
         }
@@ -331,16 +359,25 @@ pub mod filter {
             self
         }
 
-        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+        pub fn filter_order_quarter(
+            mut self,
+            filter_order_quarter: usize,
+        ) -> Self {
             self.filter_order_quarter = filter_order_quarter;
             self
         }
 
         pub fn build(self) -> BandPassButterworth {
-            let width_multiplier = self.width_ratio.unwrap_or_else(|| const_(1.0)) + 1.0;
-            let cutoff_hz_lower = self.mid_hz.clone() / width_multiplier.clone();
+            let width_multiplier =
+                self.width_ratio.unwrap_or_else(|| const_(1.0)) + 1.0;
+            let cutoff_hz_lower =
+                self.mid_hz.clone() / width_multiplier.clone();
             let cutoff_hz_upper = self.mid_hz * width_multiplier;
-            BandPassButterworth::new(self.filter_order_quarter, cutoff_hz_lower, cutoff_hz_upper)
+            BandPassButterworth::new(
+                self.filter_order_quarter,
+                cutoff_hz_lower,
+                cutoff_hz_upper,
+            )
         }
     }
 
@@ -420,7 +457,10 @@ pub mod filter {
     }
 
     impl BandPassChebyshevBuilder {
-        pub fn new(cutoff_hz_lower: impl Into<Sf64>, cutoff_hz_upper: impl Into<Sf64>) -> Self {
+        pub fn new(
+            cutoff_hz_lower: impl Into<Sf64>,
+            cutoff_hz_upper: impl Into<Sf64>,
+        ) -> Self {
             Self {
                 filter_order_quarter: 1,
                 cutoff_hz_lower: cutoff_hz_lower.into(),
@@ -434,7 +474,10 @@ pub mod filter {
             self
         }
 
-        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+        pub fn filter_order_quarter(
+            mut self,
+            filter_order_quarter: usize,
+        ) -> Self {
             self.filter_order_quarter = filter_order_quarter;
             self
         }
@@ -476,14 +519,19 @@ pub mod filter {
             self
         }
 
-        pub fn filter_order_quarter(mut self, filter_order_quarter: usize) -> Self {
+        pub fn filter_order_quarter(
+            mut self,
+            filter_order_quarter: usize,
+        ) -> Self {
             self.filter_order_quarter = filter_order_quarter;
             self
         }
 
         pub fn build(self) -> BandPassChebyshev {
-            let width_multiplier = self.width_ratio.unwrap_or_else(|| const_(1.0)) + 1.0;
-            let cutoff_hz_lower = self.mid_hz.clone() / width_multiplier.clone();
+            let width_multiplier =
+                self.width_ratio.unwrap_or_else(|| const_(1.0)) + 1.0;
+            let cutoff_hz_lower =
+                self.mid_hz.clone() / width_multiplier.clone();
             let cutoff_hz_upper = self.mid_hz * width_multiplier;
             BandPassChebyshev::new(
                 self.filter_order_quarter,
@@ -731,16 +779,18 @@ pub mod filter {
             }
         }
 
-        pub fn sensitivity_hz(mut self, sensitivity_hz: impl Into<Sf64>) -> Self {
+        pub fn sensitivity_hz(
+            mut self,
+            sensitivity_hz: impl Into<Sf64>,
+        ) -> Self {
             self.sensitivity_hz = Some(sensitivity_hz.into());
             self
         }
 
         pub fn build(self) -> EnvelopeFollower {
-            EnvelopeFollower::new(
-                self.sensitivity_hz
-                    .unwrap_or_else(|| const_(EnvelopeFollower::DEFAULT_SENSITIVITY_HZ)),
-            )
+            EnvelopeFollower::new(self.sensitivity_hz.unwrap_or_else(|| {
+                const_(EnvelopeFollower::DEFAULT_SENSITIVITY_HZ)
+            }))
         }
     }
 
@@ -778,11 +828,15 @@ pub mod filter {
         }
     }
 
-    pub fn low_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> LowPassButterworthBuilder {
+    pub fn low_pass_butterworth(
+        cutoff_hz: impl Into<Sf64>,
+    ) -> LowPassButterworthBuilder {
         LowPassButterworthBuilder::new(cutoff_hz)
     }
 
-    pub fn high_pass_butterworth(cutoff_hz: impl Into<Sf64>) -> HighPassButterworthBuilder {
+    pub fn high_pass_butterworth(
+        cutoff_hz: impl Into<Sf64>,
+    ) -> HighPassButterworthBuilder {
         HighPassButterworthBuilder::new(cutoff_hz)
     }
 
@@ -799,11 +853,15 @@ pub mod filter {
         BandPassButterworthBuilderCentered::new(mid_hz)
     }
 
-    pub fn low_pass_chebyshev(cutoff_hz: impl Into<Sf64>) -> LowPassChebyshevBuilder {
+    pub fn low_pass_chebyshev(
+        cutoff_hz: impl Into<Sf64>,
+    ) -> LowPassChebyshevBuilder {
         LowPassChebyshevBuilder::new(cutoff_hz)
     }
 
-    pub fn high_pass_chebyshev(cutoff_hz: impl Into<Sf64>) -> HighPassChebyshevBuilder {
+    pub fn high_pass_chebyshev(
+        cutoff_hz: impl Into<Sf64>,
+    ) -> HighPassChebyshevBuilder {
         HighPassChebyshevBuilder::new(cutoff_hz)
     }
 
@@ -820,7 +878,9 @@ pub mod filter {
         BandPassChebyshevBuilderCentered::new(mid_hz)
     }
 
-    pub fn low_pass_moog_ladder(cutoff_hz: impl Into<Sf64>) -> LowPassMoogLadderBuilder {
+    pub fn low_pass_moog_ladder(
+        cutoff_hz: impl Into<Sf64>,
+    ) -> LowPassMoogLadderBuilder {
         LowPassMoogLadderBuilder::new(cutoff_hz)
     }
 
@@ -956,7 +1016,10 @@ pub mod loopers {
             self
         }
 
-        pub fn input_midi_index(mut self, input_midi_index: impl Into<Su8>) -> Self {
+        pub fn input_midi_index(
+            mut self,
+            input_midi_index: impl Into<Su8>,
+        ) -> Self {
             self.input_midi_index = Some(input_midi_index.into());
             self
         }
@@ -975,7 +1038,9 @@ pub mod loopers {
             ClockedMidiNoteMonophonicLooper {
                 clock: self.clock.unwrap_or_else(|| Trigger::never()),
                 input_gate: self.input_gate.unwrap_or_else(|| Gate::never()),
-                input_midi_index: self.input_midi_index.unwrap_or_else(|| const_(0)),
+                input_midi_index: self
+                    .input_midi_index
+                    .unwrap_or_else(|| const_(0)),
                 clear: self.clear.unwrap_or_else(|| Gate::never()),
                 length: self.length.unwrap_or(8),
             }
@@ -987,7 +1052,8 @@ pub mod loopers {
         ClockedTriggerLooperBuilder::new()
     }
 
-    pub fn clocked_midi_note_monophonic_looper() -> ClockedMidiNoteMonophonicLooperBuilder {
+    pub fn clocked_midi_note_monophonic_looper(
+    ) -> ClockedMidiNoteMonophonicLooperBuilder {
         ClockedMidiNoteMonophonicLooperBuilder::new()
     }
 }
@@ -1015,7 +1081,11 @@ pub mod sampler {
         }
 
         pub fn build(self) -> Sf64 {
-            Sampler::new(self.sample, self.trigger.unwrap_or_else(Trigger::once)).signal()
+            Sampler::new(
+                self.sample,
+                self.trigger.unwrap_or_else(Trigger::once),
+            )
+            .signal()
         }
     }
 
@@ -1061,12 +1131,18 @@ pub mod patches {
             self
         }
 
-        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+        pub fn reset_trigger(
+            mut self,
+            reset_trigger: impl Into<Trigger>,
+        ) -> Self {
             self.reset_trigger = Some(reset_trigger.into());
             self
         }
 
-        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+        pub fn reset_offset_01(
+            mut self,
+            reset_offset_01: impl Into<Sf64>,
+        ) -> Self {
             self.reset_offset_01 = Some(reset_offset_01.into());
             self
         }
@@ -1132,12 +1208,18 @@ pub mod patches {
             self
         }
 
-        pub fn reset_trigger(mut self, reset_trigger: impl Into<Trigger>) -> Self {
+        pub fn reset_trigger(
+            mut self,
+            reset_trigger: impl Into<Trigger>,
+        ) -> Self {
             self.reset_trigger = Some(reset_trigger.into());
             self
         }
 
-        pub fn reset_offset_01(mut self, reset_offset_01: impl Into<Sf64>) -> Self {
+        pub fn reset_offset_01(
+            mut self,
+            reset_offset_01: impl Into<Sf64>,
+        ) -> Self {
             self.reset_offset_01 = Some(reset_offset_01.into());
             self
         }
@@ -1259,8 +1341,11 @@ pub mod patches {
             }
 
             pub fn build(self) -> Triggerable<f64> {
-                let noise_level = self.noise_level.unwrap_or_else(|| const_(1.0));
-                triggerable(move |trigger| patches::drum::kick(trigger, noise_level.clone()))
+                let noise_level =
+                    self.noise_level.unwrap_or_else(|| const_(1.0));
+                triggerable(move |trigger| {
+                    patches::drum::kick(trigger, noise_level.clone())
+                })
             }
         }
 
@@ -1279,8 +1364,11 @@ pub mod patches {
             }
 
             pub fn build(self) -> Triggerable<f64> {
-                let noise_level = self.noise_level.unwrap_or_else(|| const_(1.0));
-                triggerable(move |trigger| patches::drum::snare(trigger, noise_level.clone()))
+                let noise_level =
+                    self.noise_level.unwrap_or_else(|| const_(1.0));
+                triggerable(move |trigger| {
+                    patches::drum::snare(trigger, noise_level.clone())
+                })
             }
         }
 

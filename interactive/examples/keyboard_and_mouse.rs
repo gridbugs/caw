@@ -35,7 +35,9 @@ fn make_voice(input: Input) -> Sf64 {
     opinionated_key_events(input.clone(), Note::C2, 1.0)
         .voice_descs_polyphonic(3, 5)
         .into_iter()
-        .map(|voice_desc| voice(voice_desc, input.mouse.x_01(), input.mouse.y_01()))
+        .map(|voice_desc| {
+            voice(voice_desc, input.mouse.x_01(), input.mouse.y_01())
+        })
         .sum::<Sf64>()
         .mix(|dry| dry.filter(reverb().room_size(1.0).damping(0.5).build()))
         .filter(high_pass_butterworth(10.0).build())

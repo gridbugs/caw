@@ -44,8 +44,11 @@ fn arp_shape(trigger: Trigger) -> Signal<ArpeggiatorShape> {
             let state = Rc::clone(&state);
             move || {
                 let mut state = state.borrow_mut();
-                let index_to_change = state.rng.gen::<usize>() % state.indices.len();
-                let value = if state.indices.len() <= 1 || state.rng.gen::<f64>() < 0.9 {
+                let index_to_change =
+                    state.rng.gen::<usize>() % state.indices.len();
+                let value = if state.indices.len() <= 1
+                    || state.rng.gen::<f64>() < 0.9
+                {
                     Some(state.rng.gen::<usize>() % MAX_INDEX)
                 } else {
                     None
@@ -98,7 +101,9 @@ fn make_voice(input: Input) -> Sf64 {
         .arpeggiate(arp_trigger.clone(), arp_config)
         .voice_descs_polyphonic(1, 0)
         .into_iter()
-        .map(|voice_desc| voice(voice_desc, input.mouse.x_01(), input.mouse.y_01()))
+        .map(|voice_desc| {
+            voice(voice_desc, input.mouse.x_01(), input.mouse.y_01())
+        })
         .sum::<Sf64>()
         .mix(|dry| dry.filter(reverb().room_size(1.0).damping(0.5).build()))
         .filter(high_pass_butterworth(1.0).build())

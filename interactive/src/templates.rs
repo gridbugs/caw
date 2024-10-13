@@ -2,7 +2,10 @@ use crate::input::{Input, Key};
 use caw_core::prelude::*;
 use std::cell::RefCell;
 
-pub fn note_by_key_sequence(start_note: Note, keys: Vec<Key>) -> Vec<(Key, Note)> {
+pub fn note_by_key_sequence(
+    start_note: Note,
+    keys: Vec<Key>,
+) -> Vec<(Key, Note)> {
     keys.into_iter()
         .enumerate()
         .map(|(i, key)| (key, start_note.add_semitones(i as i16)))

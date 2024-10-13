@@ -118,7 +118,8 @@ fn synth_voice(gate: Gate, midi_index: Su8, filter: Sf64) -> Sf64 {
 }
 
 fn synth_looper(clock: &Trigger, input: &Input) -> Sf64 {
-    let (gate, midi_index) = synth_gate_and_midi_index(input, &midi_index_by_key());
+    let (gate, midi_index) =
+        synth_gate_and_midi_index(input, &midi_index_by_key());
     let (gate, midi_index) = clocked_midi_note_monophonic_looper()
         .clock(clock)
         .input_gate(gate)
@@ -167,7 +168,8 @@ fn bass_voice(gate: Gate, midi_index: Su8, filter: Sf64) -> Sf64 {
 }
 
 fn bass(input: &Input) -> Sf64 {
-    let (gate, midi_index) = synth_gate_and_midi_index(input, &midi_index_by_key_bass());
+    let (gate, midi_index) =
+        synth_gate_and_midi_index(input, &midi_index_by_key_bass());
     let x = bass_voice(gate, midi_index, input.mouse.x_01());
     let reverb = x.filter(reverb().build());
     x + reverb

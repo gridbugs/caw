@@ -1,5 +1,5 @@
-use clap::{Parser, Subcommand};
 use caw_interactive::prelude::*;
+use clap::{Parser, Subcommand};
 
 #[derive(Clone)]
 struct Effects {
@@ -26,7 +26,9 @@ fn voice(
     pitch_bend_multiplier_hz: Sf64,
     effects: Effects,
 ) -> Sf64 {
-    let osc = oscillator_hz(Waveform::Saw, note.freq_hz() * pitch_bend_multiplier_hz).build();
+    let osc =
+        oscillator_hz(Waveform::Saw, note.freq_hz() * pitch_bend_multiplier_hz)
+            .build();
     let env = adsr_linear_01(&key_down)
         .key_press(key_press)
         .attack_s(0.0)
@@ -36,9 +38,11 @@ fn voice(
         .build()
         .exp_01(1.0);
     osc.filter(
-        low_pass_moog_ladder(env * (30 * note.freq_hz() * effects.low_pass_cutoff))
-            .resonance(4.0 * effects.low_pass_resonance)
-            .build(),
+        low_pass_moog_ladder(
+            env * (30 * note.freq_hz() * effects.low_pass_cutoff),
+        )
+        .resonance(4.0 * effects.low_pass_resonance)
+        .build(),
     )
 }
 
@@ -76,7 +80,9 @@ fn run(midi_messages: Signal<MidiMessages>) -> anyhow::Result<()> {
 
 #[derive(Parser, Debug)]
 #[command(name = "midi_live")]
-#[command(about = "Example of controlling the synthesizer live with a midi controller")]
+#[command(
+    about = "Example of controlling the synthesizer live with a midi controller"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

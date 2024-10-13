@@ -62,9 +62,12 @@ impl SamplePlayer {
         let stream = core.device.build_output_stream(
             &core.config,
             move |data: &mut [f32], _: &OutputCallbackInfo| {
-                let mut sink_cursor = sink_cursor_for_cpal_thread.write().unwrap();
+                let mut sink_cursor =
+                    sink_cursor_for_cpal_thread.write().unwrap();
                 let volume = *volume_for_cpal_thread.read().unwrap();
-                for output in data.chunks_mut(channels as usize * downsample as usize) {
+                for output in
+                    data.chunks_mut(channels as usize * downsample as usize)
+                {
                     if let Ok(input) = receiver.try_recv() {
                         for element in output {
                             *element = input * volume;

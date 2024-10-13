@@ -6,7 +6,12 @@ struct Effects {
     y: Sf64,
 }
 
-fn filter_chain(signal: Sf64, freq_hz: Sf64, width_ratio: Sf64, effects: &Effects) -> Sf64 {
+fn filter_chain(
+    signal: Sf64,
+    freq_hz: Sf64,
+    width_ratio: Sf64,
+    effects: &Effects,
+) -> Sf64 {
     let filtered = signal.filter(
         band_pass_chebyshev_centered(&freq_hz)
             .resonance(1.0)
@@ -14,7 +19,8 @@ fn filter_chain(signal: Sf64, freq_hz: Sf64, width_ratio: Sf64, effects: &Effect
             .build(),
     );
     let env = filtered.filter(envelope_follower().build());
-    let osc = oscillator_hz(Waveform::Sine, &freq_hz * (&effects.x + 0.5)).build()
+    let osc = oscillator_hz(Waveform::Sine, &freq_hz * (&effects.x + 0.5))
+        .build()
         + oscillator_hz(
             Waveform::Sine,
             (1.0 + &effects.y) * (&freq_hz * (&effects.x + 0.5)),
@@ -23,7 +29,12 @@ fn filter_chain(signal: Sf64, freq_hz: Sf64, width_ratio: Sf64, effects: &Effect
     osc * env
 }
 
-fn filter_bank(signal: Sf64, freqs_hz: Vec<f64>, width_ratio: Sf64, effects: &Effects) -> Sf64 {
+fn filter_bank(
+    signal: Sf64,
+    freqs_hz: Vec<f64>,
+    width_ratio: Sf64,
+    effects: &Effects,
+) -> Sf64 {
     freqs_hz
         .into_iter()
         .map(|freq_hz| {
@@ -38,7 +49,9 @@ fn filter_bank(signal: Sf64, freqs_hz: Vec<f64>, width_ratio: Sf64, effects: &Ef
 }
 
 fn voice(input: Input) -> Sf64 {
-    let input_signal = if let Some(path) = std::env::args().collect::<Vec<_>>().get(1).cloned() {
+    let input_signal = if let Some(path) =
+        std::env::args().collect::<Vec<_>>().get(1).cloned()
+    {
         let sample = read_wav(path).unwrap();
         sampler(&sample)
             .trigger(input.keyboard.get(Key::Space).to_trigger_rising_edge())

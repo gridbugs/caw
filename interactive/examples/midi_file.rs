@@ -1,5 +1,5 @@
-use clap::Parser;
 use caw_interactive::prelude::*;
+use clap::Parser;
 
 fn voice(
     VoiceDesc {
@@ -18,7 +18,8 @@ fn voice(
         .sustain_01(0.8)
         .release_s(0.05)
         .build();
-    osc.filter(low_pass_moog_ladder(env * 20_000.0).resonance(0.5).build()) * velocity_01
+    osc.filter(low_pass_moog_ladder(env * 20_000.0).resonance(0.5).build())
+        * velocity_01
 }
 
 fn make_voice(midi_messages: Signal<MidiMessages>) -> Sf64 {

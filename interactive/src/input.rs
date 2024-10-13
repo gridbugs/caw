@@ -345,7 +345,11 @@ impl InputState {
         *self.mouse.y_01.borrow_mut() = y_01;
     }
 
-    pub fn set_mouse_button(&self, mouse_button: SdlMouseButton, pressed: bool) {
+    pub fn set_mouse_button(
+        &self,
+        mouse_button: SdlMouseButton,
+        pressed: bool,
+    ) {
         let button_state = match mouse_button {
             SdlMouseButton::Left => &self.mouse.left,
             SdlMouseButton::Right => &self.mouse.right,
@@ -384,7 +388,10 @@ impl InputState {
 }
 
 impl<Key> KeyboardGeneric<Key> {
-    fn map<Key_, F: FnMut(&Key) -> Key_>(&self, mut f: F) -> KeyboardGeneric<Key_> {
+    fn map<Key_, F: FnMut(&Key) -> Key_>(
+        &self,
+        mut f: F,
+    ) -> KeyboardGeneric<Key_> {
         KeyboardGeneric {
             a: f(&self.a),
             b: f(&self.b),

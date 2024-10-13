@@ -14,7 +14,10 @@ impl<E: MidiEventSource + 'static> EventSourceSignalBuilder<E> {
         event_source_to_signal(self.event_source)
     }
 
-    pub fn single_channel(self, channel: u8) -> EventSourceSingleChannelSignalBuilder<E> {
+    pub fn single_channel(
+        self,
+        channel: u8,
+    ) -> EventSourceSingleChannelSignalBuilder<E> {
         EventSourceSingleChannelSignalBuilder {
             event_source_signal_builder: self,
             channel,
@@ -61,8 +64,11 @@ impl MidiFile {
         default_s_per_beat: f64,
     ) -> anyhow::Result<EventSourceSignalBuilder<impl MidiEventSource>> {
         if let Some(events) = self.smf.tracks.get(track_index) {
-            let event_source =
-                TrackEventSource::new(events, self.smf.header.timing, default_s_per_beat);
+            let event_source = TrackEventSource::new(
+                events,
+                self.smf.header.timing,
+                default_s_per_beat,
+            );
             Ok(EventSourceSignalBuilder { event_source })
         } else {
             anyhow::bail!(
@@ -89,7 +95,9 @@ impl MidiLive {
         })
     }
 
-    pub fn enumerate_port_names<'a>(&'a self) -> impl Iterator<Item = (usize, String)> + 'a {
+    pub fn enumerate_port_names<'a>(
+        &'a self,
+    ) -> impl Iterator<Item = (usize, String)> + 'a {
         self.midi_input_ports
             .iter()
             .enumerate()
@@ -106,8 +114,10 @@ impl MidiLive {
         self,
         port_index: usize,
     ) -> anyhow::Result<EventSourceSignalBuilder<impl MidiEventSource>> {
-        let event_source =
-            MidirMidiInputEventSource::new(self.midi_input, &self.midi_input_ports[port_index])?;
+        let event_source = MidirMidiInputEventSource::new(
+            self.midi_input,
+            &self.midi_input_ports[port_index],
+        )?;
         Ok(EventSourceSignalBuilder { event_source })
     }
 }
@@ -141,7 +151,10 @@ impl MidiLiveSerial {
         })
     }
 
-    pub fn new(tty_path: impl AsRef<Path>, baud_rate: u32) -> anyhow::Result<Self> {
+    pub fn new(
+        tty_path: impl AsRef<Path>,
+        baud_rate: u32,
+    ) -> anyhow::Result<Self> {
         use nix::{
             fcntl::{self, OFlag},
             sys::{
@@ -191,7 +204,9 @@ impl MidiLiveSerial {
         Ok(())
     }
 
-    pub fn signal_builder(self) -> EventSourceSignalBuilder<impl MidiEventSource> {
+    pub fn signal_builder(
+        self,
+    ) -> EventSourceSignalBuilder<impl MidiEventSource> {
         let event_source = MidiLiveSerialEventSource::new(self);
         EventSourceSignalBuilder { event_source }
     }
@@ -204,9 +219,13 @@ struct MidirMidiInputEventSource {
 }
 
 impl MidirMidiInputEventSource {
-    fn new(midi_input: MidiInput, port: &MidiInputPort) -> anyhow::Result<Self> {
+    fn new(
+        midi_input: MidiInput,
+        port: &MidiInputPort,
+    ) -> anyhow::Result<Self> {
         let port_name = format!("caw {}", midi_input.port_name(port)?);
-        let (midi_event_sender, midi_event_receiver) = mpsc::channel::<MidiEvent>();
+        let (midi_event_sender, midi_event_receiver) =
+            mpsc::channel::<MidiEvent>();
         let midi_input_connection = midi_input
             .connect(
                 port,
@@ -265,7 +284,8 @@ impl MidiEventSource for MidiLiveSerialEventSource {
         F: FnMut(MidiEvent),
     {
         self.buf.clear();
-        if let Ok(()) = self.midi_live_serial.read_all_available(&mut self.buf) {
+        if let Ok(()) = self.midi_live_serial.read_all_available(&mut self.buf)
+        {
             if self.buf.is_empty() {
                 return;
             }
@@ -288,7 +308,9 @@ impl MidiEventSource for MidiLiveSerialEventSource {
                 }
                 if let Ok(event) = LiveEvent::parse(&self.message_buf) {
                     match event {
-                        LiveEvent::Midi { channel, message } => f(MidiEvent { channel, message }),
+                        LiveEvent::Midi { channel, message } => {
+                            f(MidiEvent { channel, message })
+                        }
                         _ => (),
                     }
                 }

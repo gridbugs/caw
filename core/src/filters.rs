@@ -1,5 +1,6 @@
 use crate::{
-    biquad_band_pass_filter, biquad_filter, freeverb, moog_ladder_low_pass_filter,
+    biquad_band_pass_filter, biquad_filter, freeverb,
+    moog_ladder_low_pass_filter,
     signal::{freq_hz, Filter, Freq, Sf64, Sfreq, SignalCtx, Trigger},
 };
 use std::{
@@ -11,10 +12,12 @@ pub struct LowPassButterworth(RefCell<biquad_filter::butterworth::State>);
 
 impl LowPassButterworth {
     pub fn new(filter_order_half: usize, cutoff_hz: impl Into<Sf64>) -> Self {
-        LowPassButterworth(RefCell::new(biquad_filter::butterworth::State::new(
-            filter_order_half,
-            cutoff_hz.into(),
-        )))
+        LowPassButterworth(RefCell::new(
+            biquad_filter::butterworth::State::new(
+                filter_order_half,
+                cutoff_hz.into(),
+            ),
+        ))
     }
 }
 
@@ -23,7 +26,11 @@ impl Filter for LowPassButterworth {
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::butterworth::low_pass::run(&mut self.0.borrow_mut(), input, ctx)
+        biquad_filter::butterworth::low_pass::run(
+            &mut self.0.borrow_mut(),
+            input,
+            ctx,
+        )
     }
 }
 
@@ -43,11 +50,17 @@ impl Filter for HighPassButterworth {
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::butterworth::high_pass::run(&mut self.0.borrow_mut(), input, ctx)
+        biquad_filter::butterworth::high_pass::run(
+            &mut self.0.borrow_mut(),
+            input,
+            ctx,
+        )
     }
 }
 
-pub struct BandPassButterworth(RefCell<biquad_band_pass_filter::butterworth::State>);
+pub struct BandPassButterworth(
+    RefCell<biquad_band_pass_filter::butterworth::State>,
+);
 
 impl BandPassButterworth {
     pub fn new(
@@ -95,7 +108,11 @@ impl Filter for LowPassChebyshev {
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::chebyshev::low_pass::run(&mut self.0.borrow_mut(), input, ctx)
+        biquad_filter::chebyshev::low_pass::run(
+            &mut self.0.borrow_mut(),
+            input,
+            ctx,
+        )
     }
 }
 
@@ -120,11 +137,17 @@ impl Filter for HighPassChebyshev {
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        biquad_filter::chebyshev::high_pass::run(&mut self.0.borrow_mut(), input, ctx)
+        biquad_filter::chebyshev::high_pass::run(
+            &mut self.0.borrow_mut(),
+            input,
+            ctx,
+        )
     }
 }
 
-pub struct BandPassChebyshev(RefCell<biquad_band_pass_filter::chebyshev::State>);
+pub struct BandPassChebyshev(
+    RefCell<biquad_band_pass_filter::chebyshev::State>,
+);
 
 impl BandPassChebyshev {
     pub fn new(
@@ -216,7 +239,8 @@ impl Filter for Delay {
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        let target_size = (self.time_s.sample(ctx) * ctx.sample_rate_hz) as usize;
+        let target_size =
+            (self.time_s.sample(ctx) * ctx.sample_rate_hz) as usize;
         let mut samples = self.samples.borrow_mut();
         if samples.len() < target_size {
             samples.push_back(input);
@@ -372,10 +396,12 @@ impl Filter for QuantizeToScale {
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
         let input_hz = input.hz();
-        let mut best = Self::quantize_to_note(input_hz, self.notes[0].sample_hz(ctx));
+        let mut best =
+            Self::quantize_to_note(input_hz, self.notes[0].sample_hz(ctx));
         let mut best_delta = input_hz - best;
         for note in &self.notes[1..] {
-            let quantized = Self::quantize_to_note(input_hz, note.sample_hz(ctx));
+            let quantized =
+                Self::quantize_to_note(input_hz, note.sample_hz(ctx));
             let delta = input_hz - quantized;
             if delta < best_delta {
                 best_delta = delta;

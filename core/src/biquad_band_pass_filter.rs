@@ -80,13 +80,19 @@ pub mod butterworth {
             if self.buffer.entries.is_empty() {
                 return sample;
             }
-            let lower_half_power_frequency_hz = self.lower_half_power_frequency_hz.sample(ctx);
-            let upper_half_power_frequency_hz = self.upper_half_power_frequency_hz.sample(ctx);
-            if lower_half_power_frequency_hz != self.prev_lower_half_power_frequency_hz
-                || upper_half_power_frequency_hz != self.prev_upper_half_power_frequency_hz
+            let lower_half_power_frequency_hz =
+                self.lower_half_power_frequency_hz.sample(ctx);
+            let upper_half_power_frequency_hz =
+                self.upper_half_power_frequency_hz.sample(ctx);
+            if lower_half_power_frequency_hz
+                != self.prev_lower_half_power_frequency_hz
+                || upper_half_power_frequency_hz
+                    != self.prev_upper_half_power_frequency_hz
             {
-                self.prev_lower_half_power_frequency_hz = lower_half_power_frequency_hz;
-                self.prev_upper_half_power_frequency_hz = upper_half_power_frequency_hz;
+                self.prev_lower_half_power_frequency_hz =
+                    lower_half_power_frequency_hz;
+                self.prev_upper_half_power_frequency_hz =
+                    upper_half_power_frequency_hz;
                 update_entries(
                     &mut self.buffer,
                     lower_half_power_frequency_hz,
@@ -104,14 +110,18 @@ pub mod butterworth {
         upper_half_power_frequency_hz: f64,
         sample_rate_hz: f64,
     ) {
-        let a = ((PI * (lower_half_power_frequency_hz + upper_half_power_frequency_hz))
+        let a = ((PI
+            * (lower_half_power_frequency_hz + upper_half_power_frequency_hz))
             / sample_rate_hz)
             .cos()
-            / ((PI * (upper_half_power_frequency_hz - lower_half_power_frequency_hz))
+            / ((PI
+                * (upper_half_power_frequency_hz
+                    - lower_half_power_frequency_hz))
                 / sample_rate_hz)
                 .cos();
         let a2 = a * a;
-        let b = ((PI * (upper_half_power_frequency_hz - lower_half_power_frequency_hz))
+        let b = ((PI
+            * (upper_half_power_frequency_hz - lower_half_power_frequency_hz))
             / sample_rate_hz)
             .tan();
         let b2 = b * b;
@@ -167,15 +177,21 @@ pub mod chebyshev {
             if self.buffer.entries.is_empty() {
                 return sample;
             }
-            let lower_half_power_frequency_hz = self.lower_half_power_frequency_hz.sample(ctx);
-            let upper_half_power_frequency_hz = self.upper_half_power_frequency_hz.sample(ctx);
+            let lower_half_power_frequency_hz =
+                self.lower_half_power_frequency_hz.sample(ctx);
+            let upper_half_power_frequency_hz =
+                self.upper_half_power_frequency_hz.sample(ctx);
             let epsilon = self.epsilon.sample(ctx).max(EPSILON_MIN);
-            if lower_half_power_frequency_hz != self.prev_lower_half_power_frequency_hz
-                || upper_half_power_frequency_hz != self.prev_upper_half_power_frequency_hz
+            if lower_half_power_frequency_hz
+                != self.prev_lower_half_power_frequency_hz
+                || upper_half_power_frequency_hz
+                    != self.prev_upper_half_power_frequency_hz
                 || epsilon != self.prev_epsilon
             {
-                self.prev_lower_half_power_frequency_hz = lower_half_power_frequency_hz;
-                self.prev_upper_half_power_frequency_hz = upper_half_power_frequency_hz;
+                self.prev_lower_half_power_frequency_hz =
+                    lower_half_power_frequency_hz;
+                self.prev_upper_half_power_frequency_hz =
+                    upper_half_power_frequency_hz;
                 self.prev_epsilon = epsilon;
                 update_entries(
                     &mut self.buffer,
@@ -198,14 +214,18 @@ pub mod chebyshev {
         epsilon: f64,
         sample_rate_hz: f64,
     ) {
-        let a = ((PI * (lower_half_power_frequency_hz + upper_half_power_frequency_hz))
+        let a = ((PI
+            * (lower_half_power_frequency_hz + upper_half_power_frequency_hz))
             / sample_rate_hz)
             .cos()
-            / ((PI * (upper_half_power_frequency_hz - lower_half_power_frequency_hz))
+            / ((PI
+                * (upper_half_power_frequency_hz
+                    - lower_half_power_frequency_hz))
                 / sample_rate_hz)
                 .cos();
         let a2 = a * a;
-        let b = ((PI * (upper_half_power_frequency_hz - lower_half_power_frequency_hz))
+        let b = ((PI
+            * (upper_half_power_frequency_hz - lower_half_power_frequency_hz))
             / sample_rate_hz)
             .tan();
         let b2 = b * b;

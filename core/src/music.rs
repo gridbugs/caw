@@ -83,7 +83,8 @@ impl NoteName {
 
     const fn wrapping_add_semitones(self, num_semitones: i8) -> Self {
         Self::from_index(
-            (self.to_index() as i8 + num_semitones).rem_euclid(NOTES_PER_OCTAVE as i8) as u8,
+            (self.to_index() as i8 + num_semitones)
+                .rem_euclid(NOTES_PER_OCTAVE as i8) as u8,
         )
     }
 
@@ -121,7 +122,10 @@ const A4_MIDI_INDEX: u8 = C0_MIDI_INDEX + 57;
 
 pub fn freq_hz_of_midi_index(midi_index: u8) -> f64 {
     A4_FREQ_HZ
-        * (2_f64.powf((midi_index as f64 - A4_MIDI_INDEX as f64) / (NOTES_PER_OCTAVE as f64)))
+        * (2_f64.powf(
+            (midi_index as f64 - A4_MIDI_INDEX as f64)
+                / (NOTES_PER_OCTAVE as f64),
+        ))
 }
 
 pub fn semitone_ratio(num_semitones: f64) -> f64 {
@@ -139,7 +143,9 @@ pub struct Note {
 impl Note {
     pub const fn new(name: NoteName, octave: Octave) -> Self {
         Self {
-            midi_index: C0_MIDI_INDEX + (octave.0 * NOTES_PER_OCTAVE) + name.to_index(),
+            midi_index: C0_MIDI_INDEX
+                + (octave.0 * NOTES_PER_OCTAVE)
+                + name.to_index(),
         }
     }
 
@@ -283,7 +289,10 @@ pub mod chord {
                 + self.seventh.is_some() as u8
         }
 
-        pub fn with_semitones_above_root<F: FnMut(i8, ChordPosition)>(&self, mut f: F) {
+        pub fn with_semitones_above_root<F: FnMut(i8, ChordPosition)>(
+            &self,
+            mut f: F,
+        ) {
             f(0, ChordPosition::Root);
             if let Some(third) = self.third {
                 match third {
@@ -344,7 +353,11 @@ pub mod chord {
         seventh: None,
     };
 
-    fn wrap_note_within_octave(octave_base: Note, root: NoteName, semitones_above: i8) -> Note {
+    fn wrap_note_within_octave(
+        octave_base: Note,
+        root: NoteName,
+        semitones_above: i8,
+    ) -> Note {
         let octave_base_index = octave_base.to_midi_index();
         let multiple_of_12_gte_base_index_delta = if octave_base_index == 0 {
             0
@@ -405,10 +418,18 @@ pub mod chord {
             }
         }
 
-        fn with_notes_in_octave<F: FnMut(Note)>(self, octave_base: Note, mut f: F) {
+        fn with_notes_in_octave<F: FnMut(Note)>(
+            self,
+            octave_base: Note,
+            mut f: F,
+        ) {
             self.typ.with_semitones_above_root(|semitones_above, _| {
-                let note = wrap_note_within_octave(octave_base, self.root, semitones_above)
-                    .add_octaves(self.octave_shift);
+                let note = wrap_note_within_octave(
+                    octave_base,
+                    self.root,
+                    semitones_above,
+                )
+                .add_octaves(self.octave_shift);
                 f(note);
             });
         }
@@ -421,8 +442,8 @@ pub mod chord {
         ) {
             let root_note = self.root.in_octave(root_octave);
             let mut shifting_down = false;
-            self.typ
-                .with_semitones_above_root(|semitones_above, chord_position| {
+            self.typ.with_semitones_above_root(
+                |semitones_above, chord_position| {
                     let mut note = root_note
                         .add_semitones(semitones_above as i16)
                         .add_octaves(self.octave_shift);
@@ -436,7 +457,8 @@ pub mod chord {
                         note = note.add_octaves(-1);
                     }
                     f(note);
-                });
+                },
+            );
         }
 
         pub fn with_notes<F: FnMut(Note)>(self, inversion: Inversion, f: F) {
@@ -444,8 +466,12 @@ pub mod chord {
                 Inversion::WithRootOctave {
                     root_octave,
                     lowest_position,
-                } => self.with_notes_root_octave(root_octave, lowest_position, f),
-                Inversion::InOctave { octave_base } => self.with_notes_in_octave(octave_base, f),
+                } => {
+                    self.with_notes_root_octave(root_octave, lowest_position, f)
+                }
+                Inversion::InOctave { octave_base } => {
+                    self.with_notes_in_octave(octave_base, f)
+                }
             }
         }
 

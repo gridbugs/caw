@@ -41,7 +41,10 @@ impl SignalPlayer {
         })
     }
 
-    pub fn send_signal_with_callback<T: Copy + Default + ToF32 + 'static, F: FnMut(f32)>(
+    pub fn send_signal_with_callback<
+        T: Copy + Default + ToF32 + 'static,
+        F: FnMut(f32),
+    >(
         &mut self,
         signal: &mut Signal<T>,
         mut f: F,
@@ -62,7 +65,10 @@ impl SignalPlayer {
         });
     }
 
-    pub fn send_signal<T: Copy + Default + ToF32 + 'static>(&mut self, signal: &mut Signal<T>) {
+    pub fn send_signal<T: Copy + Default + ToF32 + 'static>(
+        &mut self,
+        signal: &mut Signal<T>,
+    ) {
         self.send_signal_with_callback(signal, |_| ());
     }
 
@@ -83,8 +89,12 @@ impl SignalPlayer {
         self.sample_player.set_volume(volume);
     }
 
-    pub fn set_buffer_padding_sample_rate_ratio(&mut self, buffer_padding_sample_rate_ratio: f64) {
+    pub fn set_buffer_padding_sample_rate_ratio(
+        &mut self,
+        buffer_padding_sample_rate_ratio: f64,
+    ) {
         self.sample_player.buffer_padding =
-            (self.sample_player.sample_rate_hz() as f64 * buffer_padding_sample_rate_ratio) as u64;
+            (self.sample_player.sample_rate_hz() as f64
+                * buffer_padding_sample_rate_ratio) as u64;
     }
 }

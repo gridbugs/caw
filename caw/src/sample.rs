@@ -13,7 +13,8 @@ fn parse_wav(buffer: &[u8]) -> Vec<f64> {
     let data_f64 = data_int
         .chunks(spec.channels as usize)
         .map(|chunk| {
-            let channel_mean = chunk.iter().map(|&x| x as i64).sum::<i64>() / chunk.len() as i64;
+            let channel_mean = chunk.iter().map(|&x| x as i64).sum::<i64>()
+                / chunk.len() as i64;
             (channel_mean as f64 / max_value as f64) as f64
         })
         .collect::<Vec<_>>();

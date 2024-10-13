@@ -30,7 +30,9 @@ fn snare() -> Sf64 {
         .release_s(0.1)
         .build()
         .filter(low_pass_butterworth(100.0).build());
-    let voice = mean([osc.filter(low_pass_moog_ladder(5000 * &env).resonance(1.0).build())]);
+    let voice =
+        mean([osc
+            .filter(low_pass_moog_ladder(5000 * &env).resonance(1.0).build())]);
     voice * env
 }
 

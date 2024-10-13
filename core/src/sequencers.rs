@@ -6,7 +6,10 @@ pub struct SequencedTriggers {
     pub complete: Trigger,
 }
 
-pub fn bitwise_pattern_triggers_8(trigger: Trigger, pattern: Vec<u8>) -> SequencedTriggers {
+pub fn bitwise_pattern_triggers_8(
+    trigger: Trigger,
+    pattern: Vec<u8>,
+) -> SequencedTriggers {
     let i = Rc::new(RefCell::new(0));
     let pattern_signal = trigger.on({
         let i = Rc::clone(&i);
@@ -39,8 +42,13 @@ pub fn bitwise_pattern_triggers_8(trigger: Trigger, pattern: Vec<u8>) -> Sequenc
     SequencedTriggers { triggers, complete }
 }
 
-pub fn drum_loop_8(trigger: Trigger, pattern: Vec<u8>, drums: Vec<Triggerable<f64>>) -> Sf64 {
-    let SequencedTriggers { triggers, .. } = bitwise_pattern_triggers_8(trigger, pattern);
+pub fn drum_loop_8(
+    trigger: Trigger,
+    pattern: Vec<u8>,
+    drums: Vec<Triggerable<f64>>,
+) -> Sf64 {
+    let SequencedTriggers { triggers, .. } =
+        bitwise_pattern_triggers_8(trigger, pattern);
     triggers
         .into_iter()
         .zip(drums.into_iter())

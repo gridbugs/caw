@@ -7,11 +7,17 @@ fn run(signal: Sf64) -> anyhow::Result<()> {
 
 fn main() -> anyhow::Result<()> {
     let gate = periodic_gate_s(
-        (oscillator_s(Waveform::Saw, 2.0).build() * -1).signed_to_01() * 0.4 + 0.05,
+        (oscillator_s(Waveform::Saw, 2.0).build() * -1).signed_to_01() * 0.4
+            + 0.05,
     )
     .build();
     let sah = noise_01()
-        .filter(sample_and_hold(periodic_gate_s(0.2).build().to_trigger_rising_edge()).build())
+        .filter(
+            sample_and_hold(
+                periodic_gate_s(0.2).build().to_trigger_rising_edge(),
+            )
+            .build(),
+        )
         .filter(low_pass_butterworth(10.0).build());
     let freq_hz = 10.0;
     let osc = oscillator_hz(Waveform::Triangle, freq_hz).build();

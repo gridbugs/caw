@@ -6,7 +6,9 @@ use crate::{
 use anyhow::anyhow;
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
-use sdl2::{pixels::Color, rect::Rect, render::Canvas, video::Window as Sdl2Window};
+use sdl2::{
+    pixels::Color, rect::Rect, render::Canvas, video::Window as Sdl2Window,
+};
 use std::{
     thread,
     time::{Duration, Instant},
@@ -146,12 +148,15 @@ impl Window {
             .build()?;
         // Skip this many frames to prevent choppy audio on startup.
         let mut warmup_frames = 15;
-        let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
+        let mut event_pump =
+            sdl_context.event_pump().map_err(|e| anyhow!(e))?;
         let mut signal_player = SignalPlayer::new()?;
         let mut visualization_state = VisualizationState::new();
         let mut scratch = Scratch::default();
-        let foreground = Color::RGB(self.foreground.r, self.foreground.g, self.foreground.b);
-        let background = Color::RGB(self.background.r, self.background.g, self.background.b);
+        let foreground =
+            Color::RGB(self.foreground.r, self.foreground.g, self.foreground.b);
+        let background =
+            Color::RGB(self.background.r, self.background.g, self.background.b);
         'running: loop {
             let frame_start = Instant::now();
             for event in event_pump.poll_iter() {
@@ -168,10 +173,12 @@ impl Window {
                         repeat: false,
                         ..
                     } => self.input_state.set_key(scancode, false),
-                    Event::MouseMotion { x, y, .. } => self.input_state.set_mouse_position(
-                        x as f64 / self.width_px as f64,
-                        y as f64 / self.height_px as f64,
-                    ),
+                    Event::MouseMotion { x, y, .. } => {
+                        self.input_state.set_mouse_position(
+                            x as f64 / self.width_px as f64,
+                            y as f64 / self.height_px as f64,
+                        )
+                    }
                     Event::MouseButtonDown { mouse_btn, .. } => {
                         self.input_state.set_mouse_button(mouse_btn, true)
                     }
@@ -204,7 +211,9 @@ impl Window {
             )?;
             canvas.present();
             let since_frame_start = frame_start.elapsed();
-            if let Some(until_next_frame) = FRAME_DURATION.checked_sub(since_frame_start) {
+            if let Some(until_next_frame) =
+                FRAME_DURATION.checked_sub(since_frame_start)
+            {
                 thread::sleep(until_next_frame);
             }
         }
@@ -274,7 +283,9 @@ impl VisualizationState {
                 if zero_cross_index >= min_width / 2 {
                     Some(zero_cross_index - (min_width / 2))
                 } else {
-                    for i in (min_width / 2)..(self.queue.len() - (min_width / 2)) {
+                    for i in
+                        (min_width / 2)..(self.queue.len() - (min_width / 2))
+                    {
                         if self.queue[i] <= 0.0 && self.queue[i - 1] >= 0.0 {
                             return Some(i - (min_width / 2));
                         }
@@ -339,8 +350,8 @@ fn render_visualization(
 ) -> anyhow::Result<()> {
     if visualization_state.queue.len() >= width_px as usize {
         if stable {
-            if let Some(sample_start_index) =
-                visualization_state.stable_start_index((width_px as usize * stride) / spread)
+            if let Some(sample_start_index) = visualization_state
+                .stable_start_index((width_px as usize * stride) / spread)
             {
                 scratch.update_coords(
                     &visualization_state.queue[sample_start_index..],

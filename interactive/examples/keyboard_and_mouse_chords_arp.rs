@@ -25,7 +25,9 @@ fn key_to_chord(input: &Input) -> Signal<Option<Chord>> {
                 .key(key)
                 .and(input.key(Key::Comma))
                 .and(input.key(Key::Apostrophe))
-                .on(move || chord(note_name, chord_type.infer_7()).octave_shift(1)),
+                .on(move || {
+                    chord(note_name, chord_type.infer_7()).octave_shift(1)
+                }),
             input
                 .key(key)
                 .and(input.key(Key::Period))
@@ -101,7 +103,9 @@ fn voice(input: Input) -> Sf64 {
         .key_events(ChordVoiceConfig::default().inversion(inversion))
         .arpeggiate(arp_trigger, arp_config)
         .polyphonic_with(5, 0, synth)
-        .mix(|dry| 2.0 * dry.filter(reverb().room_size(0.8).damping(0.8).build()))
+        .mix(|dry| {
+            2.0 * dry.filter(reverb().room_size(0.8).damping(0.8).build())
+        })
         .filter(high_pass_butterworth(20.0).build())
 }
 

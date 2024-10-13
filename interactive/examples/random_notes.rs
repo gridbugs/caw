@@ -76,7 +76,8 @@ fn random_replace_loop(
                 sequence[index] = Some(palette.sample(ctx));
             }
             if index == 0 {
-                anchor_on_0 = rng.gen::<f64>() < anchor_probability_01.sample(ctx);
+                anchor_on_0 =
+                    rng.gen::<f64>() < anchor_probability_01.sample(ctx);
             }
         }
         let freq = if first_note {
@@ -153,7 +154,8 @@ fn drum_signal(trigger: Trigger) -> Sf64 {
             hat_closed,
         ]
     };
-    let drum_sequence = bitwise_pattern_triggers_8(trigger, drum_pattern).triggers;
+    let drum_sequence =
+        bitwise_pattern_triggers_8(trigger, drum_pattern).triggers;
     match &drum_sequence.as_slice() {
         &[hat_closed_trigger, snare_trigger, kick_trigger, ..] => {
             hat_closed(hat_closed_trigger.clone()).build()
@@ -165,7 +167,9 @@ fn drum_signal(trigger: Trigger) -> Sf64 {
 }
 
 fn signal(trigger: Trigger, input: Input) -> Sf64 {
-    (synth_signal(trigger.divide(16), input.clone()) + drum_signal(trigger.divide(1))) * 0.2
+    (synth_signal(trigger.divide(16), input.clone())
+        + drum_signal(trigger.divide(1)))
+        * 0.2
 }
 
 fn main() -> anyhow::Result<()> {

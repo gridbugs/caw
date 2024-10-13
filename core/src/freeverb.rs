@@ -38,7 +38,8 @@ impl Comb {
 
     fn process(&mut self, input: f64) -> f64 {
         let output = self.buffer[self.bufidx];
-        self.filter_store = (output * self.damp2) + (self.filter_store * self.damp1);
+        self.filter_store =
+            (output * self.damp2) + (self.filter_store * self.damp1);
         self.buffer[self.bufidx] = input + (self.filter_store * self.feedback);
         self.bufidx += 1;
         if self.bufidx == self.buffer.len() {
@@ -98,7 +99,8 @@ mod tuning {
     pub const SCALE_ROOM: f64 = 0.28;
     pub const OFFSET_ROOM: f64 = 0.7;
     pub const INITIAL_ROOM_SIZE: f64 = 0.5;
-    pub const COMB_BUFFER_SIZES: &[usize] = &[1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
+    pub const COMB_BUFFER_SIZES: &[usize] =
+        &[1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
     pub const ALL_PASS_BUFFER_SIZES: &[usize] = &[556, 441, 341, 225];
     pub const ALL_PASS_FEEDBACK: f64 = 0.5;
 }
@@ -116,7 +118,8 @@ fn room_size_to_comb_feedback(room_size: f64) -> f64 {
 
 impl ReverbModel {
     pub fn new() -> Self {
-        let comb_feedback = room_size_to_comb_feedback(tuning::INITIAL_ROOM_SIZE);
+        let comb_feedback =
+            room_size_to_comb_feedback(tuning::INITIAL_ROOM_SIZE);
         let comb = tuning::COMB_BUFFER_SIZES
             .iter()
             .map(|&buffer_size| {

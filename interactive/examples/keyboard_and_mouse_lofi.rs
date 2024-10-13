@@ -32,16 +32,18 @@ fn freq_hz_by_gate() -> Vec<(Key, f64)> {
         .into_iter()
         .enumerate()
         .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + top_row_base)))
-        .chain(
-            bottom_row
-                .into_iter()
-                .enumerate()
-                .map(|(i, key)| (key, freq_hz_of_midi_index(i as u8 + bottom_row_base))),
-        )
+        .chain(bottom_row.into_iter().enumerate().map(|(i, key)| {
+            (key, freq_hz_of_midi_index(i as u8 + bottom_row_base))
+        }))
         .collect::<Vec<_>>()
 }
 
-fn single_voice(freq_hz: f64, gate: Gate, effect_x: Sf64, effect_y: Sf64) -> Sf64 {
+fn single_voice(
+    freq_hz: f64,
+    gate: Gate,
+    effect_x: Sf64,
+    effect_y: Sf64,
+) -> Sf64 {
     let freq_hz = const_(freq_hz);
     let oscillator = oscillator_hz(Waveform::Saw, &freq_hz).build()
         + oscillator_hz(Waveform::Saw, &freq_hz)
@@ -73,7 +75,12 @@ fn voice(input: Input) -> Sf64 {
     freq_hz_by_gate()
         .into_iter()
         .map(|(key, freq_hz)| {
-            single_voice(freq_hz, input.key(key), effect_x.clone(), effect_y.clone())
+            single_voice(
+                freq_hz,
+                input.key(key),
+                effect_x.clone(),
+                effect_y.clone(),
+            )
         })
         .sum::<Sf64>()
         .filter(compress().ratio(0.1).scale(2.0).build())

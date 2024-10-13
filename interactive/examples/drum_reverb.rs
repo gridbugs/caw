@@ -9,7 +9,8 @@ fn snare(trigger: &Trigger, input: Input) -> Sf64 {
         .build()
         .exp_01(1.0)
         .filter(low_pass_moog_ladder(1000.0).build());
-    let noise = noise.filter(low_pass_moog_ladder(8000.0).resonance(2.0).build());
+    let noise =
+        noise.filter(low_pass_moog_ladder(8000.0).resonance(2.0).build());
     let freq_hz = adsr_linear_01(&clock)
         .release_s(duration_s)
         .build()

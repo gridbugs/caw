@@ -28,7 +28,8 @@ pub fn microphone() -> anyhow::Result<Sf64> {
             &config,
             move |data: &[f32], _info: &InputCallbackInfo| {
                 for channel_data in data.chunks(channels as usize) {
-                    let mean_sample = channel_data.iter().sum::<f32>() / channels as f32;
+                    let mean_sample =
+                        channel_data.iter().sum::<f32>() / channels as f32;
                     if let Err(_) = sender.send(mean_sample) {
                         log::error!("failed to send data from cpal thread");
                     }
@@ -49,7 +50,9 @@ pub fn microphone() -> anyhow::Result<Sf64> {
         // Capture the stream in the returned closure so that it
         // doesn't get dropped at the end of this function.
         let _force_closure_to_own_stream = &stream;
-        if sample_rate_hz != ctx.sample_rate_hz && !warned_about_mismatched_sample_rate.get() {
+        if sample_rate_hz != ctx.sample_rate_hz
+            && !warned_about_mismatched_sample_rate.get()
+        {
             warned_about_mismatched_sample_rate.set(true);
             log::warn!(
                 "input sample rate of {}Hz doesn not match output sample rate of {}Hz",

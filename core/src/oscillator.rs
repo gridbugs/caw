@@ -37,7 +37,9 @@ impl Oscillator {
                 return 0.0;
             }
             let hard_sync_sample = self.hard_sync.sample(ctx);
-            let state = if hard_sync_sample > 0.0 && prev_hard_sync_sample.get() <= 0.0 {
+            let state = if hard_sync_sample > 0.0
+                && prev_hard_sync_sample.get() <= 0.0
+            {
                 self.reset_offset_01.sample(ctx)
             } else {
                 match state_opt.get() {
@@ -52,8 +54,9 @@ impl Oscillator {
                 }
             };
             prev_hard_sync_sample.set(hard_sync_sample);
-            let state_delta =
-                (sample_index_delta as f64 * self.freq.sample(ctx).hz()) / ctx.sample_rate_hz;
+            let state_delta = (sample_index_delta as f64
+                * self.freq.sample(ctx).hz())
+                / ctx.sample_rate_hz;
             let try_state = (state + state_delta).rem_euclid(1.0);
             let state = if try_state.is_nan() { state } else { try_state };
             state_opt.set(Some(state));

@@ -37,7 +37,9 @@ impl VAOnePole {
     }
 
     fn tick(&mut self, mut s: f64) -> f64 {
-        s = (s * self.gamma) + self.feedback + (self.epsilon * self.feedback_output());
+        s = (s * self.gamma)
+            + self.feedback
+            + (self.epsilon * self.feedback_output());
         let vn = ((self.a0 * s) - self.z1) * self.alpha;
         let out = vn + self.z1;
         self.z1 = vn + out;
@@ -89,11 +91,16 @@ impl OberheimVariationMoogState {
         self.lpf2.alpha = feedforward_coeff;
         self.lpf3.alpha = feedforward_coeff;
         self.lpf4.alpha = feedforward_coeff;
-        self.lpf1.beta = (feedforward_coeff * feedforward_coeff * feedforward_coeff) / (1.0 + g);
+        self.lpf1.beta =
+            (feedforward_coeff * feedforward_coeff * feedforward_coeff)
+                / (1.0 + g);
         self.lpf2.beta = (feedforward_coeff * feedforward_coeff) / (1.0 + g);
         self.lpf3.beta = feedforward_coeff / (1.0 + g);
         self.lpf4.beta = 1.0 / (1.0 + g);
-        self.gamma = feedforward_coeff * feedforward_coeff * feedforward_coeff * feedforward_coeff;
+        self.gamma = feedforward_coeff
+            * feedforward_coeff
+            * feedforward_coeff
+            * feedforward_coeff;
         self.alpha0 = 1.0 / (1.0 + (self.k * self.gamma));
     }
 
@@ -137,7 +144,8 @@ impl Filter for LowPassMoogLadder {
     type Output = f64;
 
     fn run(&self, input: Self::Input, ctx: &SignalCtx) -> Self::Output {
-        let cutoff_hz = self.cutoff_hz.sample(ctx).clamp(0.0, MAX_CUTOFF_FREQ_HZ);
+        let cutoff_hz =
+            self.cutoff_hz.sample(ctx).clamp(0.0, MAX_CUTOFF_FREQ_HZ);
         let resonance = self.resonance.sample(ctx);
         let mut state = self.state.borrow_mut();
         if state.sample_rate_hz == ctx.sample_rate_hz {

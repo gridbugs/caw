@@ -17,10 +17,16 @@ pub fn detune<F: FnMut(Sfreq) -> Sf64>(
                     .map(move |i| {
                         [
                             make_oscillator(sfreq_hz(
-                                freq.hz() * (1.0 + (&scaled_ratio_delta * ((i + 1) as f64))),
+                                freq.hz()
+                                    * (1.0
+                                        + (&scaled_ratio_delta
+                                            * ((i + 1) as f64))),
                             )),
                             make_oscillator(sfreq_hz(
-                                freq.hz() * (1.0 - (&scaled_ratio_delta * ((i + 1) as f64))),
+                                freq.hz()
+                                    * (1.0
+                                        - (&scaled_ratio_delta
+                                            * ((i + 1) as f64))),
                             )),
                         ]
                     })

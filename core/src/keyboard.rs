@@ -52,7 +52,10 @@ struct PolyphonicVoice {
 /// because there's no one way to choose which voice to use to play a note when all available
 /// voices are currently playing notes.
 trait PolyphonicVoiceReusePolicy {
-    fn choose_voice_index(&mut self, voices: &[PolyphonicVoice]) -> Option<usize>;
+    fn choose_voice_index(
+        &mut self,
+        voices: &[PolyphonicVoice],
+    ) -> Option<usize>;
 }
 
 mod polyphonic_voice_reuse_policy {
@@ -98,7 +101,10 @@ mod polyphonic_voice_reuse_policy {
     }
 
     impl PolyphonicVoiceReusePolicy for Generational {
-        fn choose_voice_index(&mut self, voices: &[PolyphonicVoice]) -> Option<usize> {
+        fn choose_voice_index(
+            &mut self,
+            voices: &[PolyphonicVoice],
+        ) -> Option<usize> {
             self.heap.clear();
             let mut oldest_available_voice: Option<GenerationalEntry> = None;
             let mut nth_oldest_unavailable_voice = None;
@@ -235,13 +241,21 @@ impl VoiceDesc {
             fn new(reuse_policy: P, num_voices: usize) -> Self {
                 Self {
                     reuse_policy,
-                    voices: (0..num_voices).map(|_| Default::default()).collect(),
+                    voices: (0..num_voices)
+                        .map(|_| Default::default())
+                        .collect(),
                 }
             }
 
-            fn handle_key_event(&mut self, key_event: &KeyEvent, ctx: &SignalCtx) {
+            fn handle_key_event(
+                &mut self,
+                key_event: &KeyEvent,
+                ctx: &SignalCtx,
+            ) {
                 if key_event.pressed {
-                    if let Some(i) = self.reuse_policy.choose_voice_index(&self.voices) {
+                    if let Some(i) =
+                        self.reuse_policy.choose_voice_index(&self.voices)
+                    {
                         let voice = &mut self.voices[i];
                         *voice = PolyphonicVoice {
                             key: HeldKey::from_key_event(key_event),
@@ -485,8 +499,9 @@ impl ArpeggiatorState {
                     if self.index >= indices.len() {
                         self.index = 0;
                     }
-                    self.current_note =
-                        indices[self.index].and_then(|i| self.store.entries.get(i).map(|e| e.note));
+                    self.current_note = indices[self.index].and_then(|i| {
+                        self.store.entries.get(i).map(|e| e.note)
+                    });
                     self.index += 1;
                     return;
                 }
@@ -521,13 +536,19 @@ impl ArpeggiatorConfig {
             ..self
         }
     }
-    pub fn extend_octaves_high(self, extend_octaves_high: impl Into<Signal<u8>>) -> Self {
+    pub fn extend_octaves_high(
+        self,
+        extend_octaves_high: impl Into<Signal<u8>>,
+    ) -> Self {
         Self {
             extend_octaves_high: extend_octaves_high.into(),
             ..self
         }
     }
-    pub fn extend_octaves_low(self, extend_octaves_low: impl Into<Signal<u8>>) -> Self {
+    pub fn extend_octaves_low(
+        self,
+        extend_octaves_low: impl Into<Signal<u8>>,
+    ) -> Self {
         Self {
             extend_octaves_low: extend_octaves_low.into(),
             ..self
@@ -557,7 +578,9 @@ impl Signal<Vec<KeyEvent>> {
         num_persistent_voices: usize,
         num_transient_voices: usize,
     ) -> Vec<VoiceDesc> {
-        let reuse_policy = polyphonic_voice_reuse_policy::Generational::new(num_persistent_voices);
+        let reuse_policy = polyphonic_voice_reuse_policy::Generational::new(
+            num_persistent_voices,
+        );
         VoiceDesc::polyphonic_from_key_events(
             reuse_policy,
             num_persistent_voices + num_transient_voices,
@@ -577,7 +600,11 @@ impl Signal<Vec<KeyEvent>> {
             .sum()
     }
 
-    pub fn arpeggiate(&self, trigger: impl Into<Trigger>, config: ArpeggiatorConfig) -> Self {
+    pub fn arpeggiate(
+        &self,
+        trigger: impl Into<Trigger>,
+        config: ArpeggiatorConfig,
+    ) -> Self {
         let trigger = trigger.into();
         let state = RefCell::new(ArpeggiatorState::new());
         self.map_ctx(move |key_events, ctx| {
@@ -586,24 +613,32 @@ impl Signal<Vec<KeyEvent>> {
                 if key_event.pressed {
                     state.insert_note(key_event.note);
                     for i in 0..config.extend_octaves_high.sample(ctx) {
-                        if let Some(note) = key_event.note.add_octaves_checked(i as i8 + 1) {
+                        if let Some(note) =
+                            key_event.note.add_octaves_checked(i as i8 + 1)
+                        {
                             state.insert_note(note);
                         }
                     }
                     for i in 0..config.extend_octaves_low.sample(ctx) {
-                        if let Some(note) = key_event.note.add_octaves_checked(-(i as i8 + 1)) {
+                        if let Some(note) =
+                            key_event.note.add_octaves_checked(-(i as i8 + 1))
+                        {
                             state.insert_note(note);
                         }
                     }
                 } else {
                     state.remove_note(key_event.note);
                     for i in 0..config.extend_octaves_high.sample(ctx) {
-                        if let Some(note) = key_event.note.add_octaves_checked(i as i8 + 1) {
+                        if let Some(note) =
+                            key_event.note.add_octaves_checked(i as i8 + 1)
+                        {
                             state.remove_note(note);
                         }
                     }
                     for i in 0..config.extend_octaves_low.sample(ctx) {
-                        if let Some(note) = key_event.note.add_octaves_checked(-(i as i8 + 1)) {
+                        if let Some(note) =
+                            key_event.note.add_octaves_checked(-(i as i8 + 1))
+                        {
                             state.remove_note(note);
                         }
                     }
@@ -665,7 +700,10 @@ impl ChordVoiceConfig {
         }
     }
 
-    pub fn bass_octave(self, bass_octave: impl Into<Signal<Option<Octave>>>) -> Self {
+    pub fn bass_octave(
+        self,
+        bass_octave: impl Into<Signal<Option<Octave>>>,
+    ) -> Self {
         Self {
             bass_octave: bass_octave.into(),
             ..self
@@ -686,7 +724,10 @@ impl From<Inversion> for Signal<Inversion> {
 }
 
 impl Signal<Option<Chord>> {
-    pub fn key_events(&self, config: ChordVoiceConfig) -> Signal<Vec<KeyEvent>> {
+    pub fn key_events(
+        &self,
+        config: ChordVoiceConfig,
+    ) -> Signal<Vec<KeyEvent>> {
         let pressed_notes = Rc::new(RefCell::new(HashSet::new()));
         self.map_ctx({
             let pressed_notes = Rc::clone(&pressed_notes);
@@ -704,7 +745,8 @@ impl Signal<Option<Chord>> {
                         let bass_note = chord.root.in_octave(bass_octave);
                         notes_in_chord.insert(bass_note);
                     }
-                    for &to_release in pressed_notes.difference(&notes_in_chord) {
+                    for &to_release in pressed_notes.difference(&notes_in_chord)
+                    {
                         ret.push(KeyEvent {
                             note: to_release,
                             pressed: false,

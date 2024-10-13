@@ -47,11 +47,16 @@ impl ClockedTriggerLooper {
                 // pressed, and on the clock pulse imediately after we don't want to play the sound
                 // a second time. Setting the output here prevents this.
                 output = state.sequence[next_index];
-                if state.samples_since_last_add < state.samples_since_last_clock_pulse / 2 {
+                if state.samples_since_last_add
+                    < state.samples_since_last_clock_pulse / 2
+                {
                     state.sequence[next_index] = true;
                 } else {
-                    if state.samples_since_last_add < state.samples_since_last_clock_pulse {
-                        state.sequence[(next_index + length - 1) % length] = true;
+                    if state.samples_since_last_add
+                        < state.samples_since_last_clock_pulse
+                    {
+                        state.sequence[(next_index + length - 1) % length] =
+                            true;
                     }
                     if add.sample(ctx) {
                         state.sequence[next_index] = true;
@@ -151,19 +156,22 @@ impl ClockedMidiNoteMonophonicLooper {
                     state.output.0 = false;
                 }
                 state.next_index = (next_index + 1) % length;
-                state.last_period_samples = state.samples_since_last_clock_pulse;
+                state.last_period_samples =
+                    state.samples_since_last_clock_pulse;
                 state.samples_since_last_clock_pulse = 0;
             }
             let next_gate_state = input_gate.sample(ctx);
             if next_gate_state {
                 if !state.gate_state {
                     // key was just pressed
-                    let index_to_update =
-                        if state.samples_since_last_clock_pulse < state.last_period_samples / 2 {
-                            (state.next_index + length - 1) % length
-                        } else {
-                            state.next_index
-                        };
+                    let index_to_update = if state
+                        .samples_since_last_clock_pulse
+                        < state.last_period_samples / 2
+                    {
+                        (state.next_index + length - 1) % length
+                    } else {
+                        state.next_index
+                    };
                     let entry = &mut state.sequence[index_to_update];
                     entry.midi_index = input_midi_index.sample(ctx);
                     entry.key_down = true;
@@ -174,12 +182,14 @@ impl ClockedMidiNoteMonophonicLooper {
                 if state.gate_state {
                     // key was just released
                     state.output = (false, input_midi_index.sample(ctx));
-                    let index_to_update =
-                        if state.samples_since_last_clock_pulse < state.last_period_samples / 2 {
-                            (state.next_index + length - 1) % length
-                        } else {
-                            state.next_index
-                        };
+                    let index_to_update = if state
+                        .samples_since_last_clock_pulse
+                        < state.last_period_samples / 2
+                    {
+                        (state.next_index + length - 1) % length
+                    } else {
+                        state.next_index
+                    };
                     let entry = &mut state.sequence[index_to_update];
                     entry.key_up = true;
                 }

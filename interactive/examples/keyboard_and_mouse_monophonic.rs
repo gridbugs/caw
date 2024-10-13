@@ -31,7 +31,8 @@ fn voice(
 
 fn make_voice(input: Input) -> Sf64 {
     voice(
-        opinionated_key_events(input.clone(), Note::C2, 1.0).voice_desc_monophonic(),
+        opinionated_key_events(input.clone(), Note::C2, 1.0)
+            .voice_desc_monophonic(),
         input.mouse.x_01(),
         input.mouse.y_01(),
     )

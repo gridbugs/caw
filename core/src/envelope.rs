@@ -23,12 +23,16 @@ impl AdsrLinear01 {
                 if crossed_threshold.get() {
                     // decay and sustain
                     current_value = (current_value
-                        - (1.0 / (self.decay_s.sample(ctx) * ctx.sample_rate_hz as f64)))
+                        - (1.0
+                            / (self.decay_s.sample(ctx)
+                                * ctx.sample_rate_hz as f64)))
                         .max(self.sustain_01.sample(ctx));
                 } else {
                     // attack
                     current_value = (current_value
-                        + (1.0 / (self.attack_s.sample(ctx) * ctx.sample_rate_hz as f64)))
+                        + (1.0
+                            / (self.attack_s.sample(ctx)
+                                * ctx.sample_rate_hz as f64)))
                         .min(1.0);
                     if current_value == 1.0 {
                         crossed_threshold.set(true);
@@ -38,7 +42,9 @@ impl AdsrLinear01 {
                 // release
                 crossed_threshold.set(false);
                 current_value = (current_value
-                    - (1.0 / (self.release_s.sample(ctx) * ctx.sample_rate_hz as f64)))
+                    - (1.0
+                        / (self.release_s.sample(ctx)
+                            * ctx.sample_rate_hz as f64)))
                     .max(0.0);
             }
             current.set(current_value);

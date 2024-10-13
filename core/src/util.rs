@@ -5,18 +5,25 @@ use std::{
     rc::Rc,
 };
 
-pub fn bitwise_trigger_router_64(input: Trigger, selection: Signal<u64>) -> Vec<Trigger> {
+pub fn bitwise_trigger_router_64(
+    input: Trigger,
+    selection: Signal<u64>,
+) -> Vec<Trigger> {
     (0..64)
         .map({
             |i| {
                 let selection = selection.clone();
-                input.and_fn_ctx(move |ctx| selection.sample(ctx) & (1 << i) != 0)
+                input.and_fn_ctx(move |ctx| {
+                    selection.sample(ctx) & (1 << i) != 0
+                })
             }
         })
         .collect()
 }
 
-pub fn weighted_random_choice<T: Copy + Default + 'static>(choices: Vec<(T, Sf64)>) -> Signal<T> {
+pub fn weighted_random_choice<T: Copy + Default + 'static>(
+    choices: Vec<(T, Sf64)>,
+) -> Signal<T> {
     let rng = RefCell::new(StdRng::from_entropy());
     Signal::from_fn(move |ctx| {
         let mut total = 0.0;
@@ -55,7 +62,8 @@ pub fn with_fix<
 >(
     f: F,
 ) -> Signal<U> {
-    let signal_cell: Rc<RefCell<Option<Signal<T>>>> = Rc::new(RefCell::new(None));
+    let signal_cell: Rc<RefCell<Option<Signal<T>>>> =
+        Rc::new(RefCell::new(None));
     let signal = Signal::from_fn({
         let signal_cell = Rc::clone(&signal_cell);
         move |ctx| signal_cell.borrow().as_ref().unwrap().sample(ctx)

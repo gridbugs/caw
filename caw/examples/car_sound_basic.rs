@@ -28,6 +28,7 @@ fn make_voice(offset: f64) -> Sf64 {
 }
 
 fn main() -> anyhow::Result<()> {
-    let signal = make_voice(0.0) + make_voice(0.3) + make_voice(0.6) + make_voice(0.8);
+    let signal =
+        make_voice(0.0) + make_voice(0.3) + make_voice(0.6) + make_voice(0.8);
     run(signal)
 }

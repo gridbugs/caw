@@ -33,7 +33,11 @@ impl MidiEvents {
         self.events.iter().cloned().for_each(f)
     }
 
-    pub fn for_each_message_on_channel<F: FnMut(MidiMessage)>(&self, channel: u8, mut f: F) {
+    pub fn for_each_message_on_channel<F: FnMut(MidiMessage)>(
+        &self,
+        channel: u8,
+        mut f: F,
+    ) {
         self.for_each_event(|event| {
             if event.channel.as_int() == channel {
                 f(event.message);
@@ -43,7 +47,9 @@ impl MidiEvents {
 
     pub fn filter_channel(&self, channel: u8) -> MidiMessages {
         let mut midi_messages = MidiMessages::default();
-        self.for_each_message_on_channel(channel, |message| midi_messages.add(message));
+        self.for_each_message_on_channel(channel, |message| {
+            midi_messages.add(message)
+        });
         midi_messages
     }
 }
@@ -124,7 +130,11 @@ pub struct TrackEventSource {
 }
 
 impl TrackEventSource {
-    pub fn new<'a>(track: &[TrackEvent<'a>], timing: Timing, default_s_per_beat: f64) -> Self {
+    pub fn new<'a>(
+        track: &[TrackEvent<'a>],
+        timing: Timing,
+        default_s_per_beat: f64,
+    ) -> Self {
         let track = track
             .into_iter()
             .map(|event| event.to_static())
@@ -134,7 +144,8 @@ impl TrackEventSource {
                 default_s_per_beat / (ticks_per_beat.as_int() as f64)
             }
             Timing::Timecode(frames_per_second, ticks_per_frame) => {
-                1.0 / (frames_per_second.as_f32() as f64 * ticks_per_frame as f64)
+                1.0 / (frames_per_second.as_f32() as f64
+                    * ticks_per_frame as f64)
             }
         };
         Self {
@@ -167,10 +178,16 @@ impl MidiEventSource for TrackEventSource {
                         TrackEventKind::Midi { channel, message } => {
                             f(MidiEvent { channel, message })
                         }
-                        TrackEventKind::Meta(MetaMessage::Tempo(us_per_beat)) => {
-                            if let Timing::Metrical(ticks_per_beat) = self.timing {
-                                self.tick_duration_s = us_per_beat.as_int() as f64
-                                    / (ticks_per_beat.as_int() as f64 * 1_000_000.0);
+                        TrackEventKind::Meta(MetaMessage::Tempo(
+                            us_per_beat,
+                        )) => {
+                            if let Timing::Metrical(ticks_per_beat) =
+                                self.timing
+                            {
+                                self.tick_duration_s = us_per_beat.as_int()
+                                    as f64
+                                    / (ticks_per_beat.as_int() as f64
+                                        * 1_000_000.0);
                             }
                         }
                         _ => (),
@@ -184,7 +201,9 @@ impl MidiEventSource for TrackEventSource {
     }
 }
 
-pub fn event_source_to_signal(event_source: impl MidiEventSource + 'static) -> Signal<MidiEvents> {
+pub fn event_source_to_signal(
+    event_source: impl MidiEventSource + 'static,
+) -> Signal<MidiEvents> {
     let event_source = RefCell::new(event_source);
     Signal::from_fn(move |ctx| {
         let mut midi_events = MidiEvents::default();
@@ -228,8 +247,10 @@ fn midi_note_message_to_key_event(key: u7, vel: u7, pressed: bool) -> KeyEvent {
 }
 
 fn midi_pitch_bend_to_pitch_bend_multiplier_hz(midi_pitch_bend: u14) -> f64 {
-    music::TONE_RATIO
-        .powf(((midi_pitch_bend.as_int() as i32 - 0x2000) as f64 * 2.0) / 0x3FFF as f64)
+    music::TONE_RATIO.powf(
+        ((midi_pitch_bend.as_int() as i32 - 0x2000) as f64 * 2.0)
+            / 0x3FFF as f64,
+    )
 }
 
 impl Signal<MidiMessages> {
@@ -257,7 +278,9 @@ impl Signal<MidiMessages> {
                 messages.for_each(|message| match message {
                     MidiMessage::PitchBend {
                         bend: PitchBend(pitch_bend),
-                    } => state.set(midi_pitch_bend_to_pitch_bend_multiplier_hz(pitch_bend)),
+                    } => state.set(
+                        midi_pitch_bend_to_pitch_bend_multiplier_hz(pitch_bend),
+                    ),
                     _ => (),
                 });
             }
@@ -277,7 +300,8 @@ impl Signal<MidiMessages> {
                 let mut table = table.borrow_mut();
                 signal.sample(ctx).for_each(|message| match message {
                     MidiMessage::Controller { controller, value } => {
-                        table[controller.as_int() as usize] = value.as_int() as f64 / 127.0;
+                        table[controller.as_int() as usize] =
+                            value.as_int() as f64 / 127.0;
                     }
                     _ => (),
                 });

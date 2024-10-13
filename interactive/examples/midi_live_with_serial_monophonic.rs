@@ -1,5 +1,5 @@
-use clap::{Parser, Subcommand};
 use caw_interactive::prelude::*;
+use clap::{Parser, Subcommand};
 
 struct Effects {
     low_pass_cutoff: Sf64,
@@ -39,9 +39,11 @@ fn voice(
         .build()
         .exp_01(1.0);
     osc.filter(
-        low_pass_moog_ladder(env * (30 * note.freq_hz() * effects.low_pass_cutoff))
-            .resonance(4.0 * effects.low_pass_resonance)
-            .build(),
+        low_pass_moog_ladder(
+            env * (30 * note.freq_hz() * effects.low_pass_cutoff),
+        )
+        .resonance(4.0 * effects.low_pass_resonance)
+        .build(),
     )
     .mix(|dry| dry.filter(reverb().room_size(1.0).damping(0.5).build()))
         * 2.0
@@ -52,7 +54,8 @@ fn make_voice(
     serial_midi_messages: Signal<MidiMessages>,
     input: Input,
 ) -> Sf64 {
-    let keyboard_voice_desc = midi_messages.key_events().voice_desc_monophonic();
+    let keyboard_voice_desc =
+        midi_messages.key_events().voice_desc_monophonic();
     let pitch_bend_multiplier_hz = midi_messages.pitch_bend_multiplier_hz();
     let effects = Effects::new(
         midi_messages.controller_table(),
@@ -74,13 +77,16 @@ fn run(
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    let signal = make_voice(midi_messages, serial_midi_messages, window.input());
+    let signal =
+        make_voice(midi_messages, serial_midi_messages, window.input());
     window.play(signal * 0.1)
 }
 
 #[derive(Parser, Debug)]
 #[command(name = "midi_live")]
-#[command(about = "Example of controlling the synthesizer live with a midi controller")]
+#[command(
+    about = "Example of controlling the synthesizer live with a midi controller"
+)]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -118,10 +124,11 @@ fn main() -> anyhow::Result<()> {
                 .signal_builder(midi_port)?
                 .single_channel(0)
                 .build();
-            let serial_midi_messages = MidiLiveSerial::new(serial_port, serial_baud)?
-                .signal_builder()
-                .single_channel(0)
-                .build();
+            let serial_midi_messages =
+                MidiLiveSerial::new(serial_port, serial_baud)?
+                    .signal_builder()
+                    .single_channel(0)
+                    .build();
             run(midi_messages, serial_midi_messages)?
         }
     }
