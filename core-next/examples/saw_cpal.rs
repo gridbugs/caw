@@ -72,6 +72,7 @@ fn main() {
                     {
                         // sample the signal directly into the buffer shared with the cpal thread
                         let mut buf = buf.write().unwrap();
+                        buf.clear();
                         signal.sample_batch(&ctx, n, &mut *buf);
                     }
                     ctx.batch_index += 1;

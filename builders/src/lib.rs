@@ -173,7 +173,7 @@ builder!(
     #[constructor = "oscillator"]
     #[constructor_doc = "A signal which oscillates with a given waveform at a given frequency."]
     #[build_fn = "Oscillator::new"]
-    #[build_ty = "impl Signal<Item = f64>"]
+    #[build_ty = "impl Signal<Item = f64, SampleBuffer = Vec<f64>>"]
     #[generic_setter_type_name = "X"]
     pub struct OscillatorBuilder {
         #[generic_with_constraint = "Waveform"]
