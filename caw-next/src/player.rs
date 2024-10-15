@@ -46,7 +46,7 @@ impl Player {
         Ok(Self { device, config })
     }
 
-    /// Play an audio stream where samples are calculated with synchronous control flow with
+    /// Play an audio stream where samples are calculated with synchronous control flow while
     /// filling the audio buffer. This will have the lowest possible latency but possibly lower
     /// maximum throughput compared to other ways of playing a signal. It's also inflexible as it
     /// needs to own the signal being played.

@@ -166,6 +166,17 @@ pub trait Signal {
     {
         SignalShared::new(self)
     }
+
+    /// A signal with the same values as `self` but which buffers into a `Vec`
+    fn with_vec_buffer(
+        self,
+    ) -> impl Signal<Item = Self::Item, SampleBuffer = Vec<Self::Item>>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        self.map(|x| x)
+    }
 }
 
 pub trait Gate: Signal<Item = bool> {
