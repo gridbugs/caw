@@ -9,5 +9,6 @@ members = [
     "core",
     "core-next",
     "interactive",
+    "interactive-next",
     "proc-macros",
 ]

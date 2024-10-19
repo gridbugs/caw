@@ -26,6 +26,10 @@ pub struct Player {
     config: StreamConfig,
 }
 
+enum SyncCommand {
+    RequestSamples(usize),
+}
+
 impl Player {
     pub fn new() -> anyhow::Result<Self> {
         let host = cpal::default_host();
@@ -46,30 +50,21 @@ impl Player {
         Ok(Self { device, config })
     }
 
-    /// Play an audio stream where samples are calculated with synchronous control flow while
-    /// filling the audio buffer. This will have the lowest possible latency but possibly lower
-    /// maximum throughput compared to other ways of playing a signal. It's also inflexible as it
-    /// needs to own the signal being played.
-    pub fn play_signal_sync<T, S>(&self, mut signal: S) -> anyhow::Result<()>
+    fn make_stream_sync<T>(
+        &self,
+        buf: Arc<RwLock<Vec<T>>>,
+        send_command: mpsc::Sender<SyncCommand>,
+    ) -> Result<cpal::Stream, cpal::BuildStreamError>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: Signal<Item = T, SampleBuffer = Vec<T>>,
     {
-        enum Command {
-            RequestSamples(usize),
-        }
-        // channel for cpal thread to send messages to main thread
-        let (send_command, recv_command) = mpsc::channel::<Command>();
-        // buffer for sending samples from main thread to cpal thread
-        let buf = Arc::new(RwLock::new(Vec::<T>::new()));
-        let stream = self.device.build_output_stream(
+        self.device.build_output_stream(
             &self.config,
             {
-                let buf = Arc::clone(&buf);
                 let channels = self.config.channels;
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
                     send_command
-                        .send(Command::RequestSamples(
+                        .send(SyncCommand::RequestSamples(
                             data.len() / channels as usize,
                         ))
                         .expect("main thread stopped listening on channel");
@@ -85,7 +80,24 @@ impl Player {
             },
             |err| eprintln!("stream error: {}", err),
             None,
-        )?;
+        )
+    }
+
+    fn play_signal_sync_callback_raw<T, S, F>(
+        &self,
+        mut signal: S,
+        mut f: F,
+    ) -> anyhow::Result<()>
+    where
+        T: ToF32 + Send + Sync + Copy + 'static,
+        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+        F: FnMut(&Arc<RwLock<Vec<T>>>),
+    {
+        // channel for cpal thread to send messages to main thread
+        let (send_command, recv_command) = mpsc::channel::<SyncCommand>();
+        // buffer for sending samples from main thread to cpal thread
+        let buf = Arc::new(RwLock::new(Vec::<T>::new()));
+        let stream = self.make_stream_sync(Arc::clone(&buf), send_command)?;
         stream.play()?;
         let mut ctx = SignalCtx {
             sample_rate_hz: self.config.sample_rate.0 as f64,
@@ -96,16 +108,46 @@ impl Player {
                 .recv()
                 .expect("cpal thread stopped unexpectedly")
             {
-                Command::RequestSamples(n) => {
+                SyncCommand::RequestSamples(n) => {
                     {
                         // sample the signal directly into the buffer shared with the cpal thread
                         let mut buf = buf.write().unwrap();
                         buf.clear();
                         signal.sample_batch(&ctx, n, &mut *buf);
                     }
+                    f(&buf);
                     ctx.batch_index += 1;
                 }
             }
         }
+    }
+
+    /// Play an audio stream where samples are calculated with synchronous control flow while
+    /// filling the audio buffer. This will have the lowest possible latency but possibly lower
+    /// maximum throughput compared to other ways of playing a signal. It's also inflexible as it
+    /// needs to own the signal being played.
+    pub fn play_signal_sync<T, S>(&self, signal: S) -> anyhow::Result<()>
+    where
+        T: ToF32 + Send + Sync + Copy + 'static,
+        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+    {
+        self.play_signal_sync_callback_raw(signal, |_| ())
+    }
+
+    /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
+    pub fn play_signal_sync_callback<T, S, F>(
+        &self,
+        signal: S,
+        mut f: F,
+    ) -> anyhow::Result<()>
+    where
+        T: ToF32 + Send + Sync + Copy + 'static,
+        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+        F: FnMut(&[T]),
+    {
+        self.play_signal_sync_callback_raw(signal, |buf| {
+            let buf = buf.read().unwrap();
+            f(&*buf);
+        })
     }
 }

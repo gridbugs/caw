@@ -19,7 +19,7 @@ caw = { version = "0.1", path = "../caw" }
 caw_core = { version = "0.1", path = "../core" }
 line_2d = "0.5"
 rgb_int = "0.1"
-sdl2 = "0.36"
+sdl2 = "0.37"
 
 [dev-dependencies]
 clap = { version = "4.4", features = ["derive"] }
