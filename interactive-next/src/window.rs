@@ -7,6 +7,7 @@ use sdl2::{
     pixels::Color, rect::Rect, render::Canvas, video::Window as Sdl2Window,
 };
 use std::{
+    sync::{Arc, RwLock},
     thread,
     time::{Duration, Instant},
 };
@@ -112,6 +113,72 @@ impl WindowBuilder {
     }
 }
 
+struct WindowRunning<T> {
+    window: Window,
+    canvas: Canvas<sdl2::video::Window>,
+    event_pump: sdl2::EventPump,
+    visualization_state: VisualizationState,
+    scratch: Scratch,
+    foreground: Color,
+    background: Color,
+    sample_buffer: Arc<RwLock<Vec<T>>>,
+}
+
+impl<T> WindowRunning<T>
+where
+    T: ToF32 + Copy,
+{
+    fn render_visualization(&mut self) {
+        render_visualization(
+            &mut self.canvas,
+            &mut self.scratch,
+            &mut self.visualization_state,
+            self.window.width_px,
+            self.window.height_px,
+            self.window.stable,
+            self.window.stride,
+            self.window.scale,
+            self.window.spread,
+            self.foreground,
+            self.background,
+            self.window.line_width,
+        );
+    }
+    fn event_render_loop(&mut self) {
+        let mut warmup_frames = 15;
+        loop {
+            let frame_start = Instant::now();
+            for event in self.event_pump.poll_iter() {
+                use sdl2::event::Event;
+                match event {
+                    Event::Quit { .. } => std::process::exit(0),
+                    _ => (),
+                }
+            }
+            if warmup_frames > 0 {
+                warmup_frames -= 1;
+            } else {
+                let sample_buffer = self
+                    .sample_buffer
+                    .read()
+                    .expect("main thread exited unexpectedly");
+                for sample in sample_buffer.iter() {
+                    self.visualization_state.add_sample(sample.to_f32());
+                }
+            }
+            self.render_visualization();
+            self.canvas.present();
+            let since_frame_start = frame_start.elapsed();
+            if let Some(until_next_frame) =
+                FRAME_DURATION.checked_sub(since_frame_start)
+            {
+                thread::sleep(until_next_frame);
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Window {
     title: String,
     width_px: u32,
@@ -126,71 +193,62 @@ pub struct Window {
 }
 
 impl Window {
-    pub fn play<T, S>(&self, signal: S) -> anyhow::Result<()>
-    where
-        T: ToF32 + Send + Sync + Copy + 'static,
-        S: Signal<Item = T, SampleBuffer = Vec<T>>,
-    {
+    fn run<T>(
+        self,
+        sample_buffer: Arc<RwLock<Vec<T>>>,
+    ) -> anyhow::Result<WindowRunning<T>> {
         let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
         let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
         let window = video_subsystem
             .window(self.title.as_str(), self.width_px, self.height_px)
             .position_centered()
             .build()?;
-        let mut canvas = window
+        let canvas = window
             .into_canvas()
             .target_texture()
             .present_vsync()
             .build()?;
-        // Skip this many frames to prevent choppy audio on startup.
-        let mut warmup_frames = 15;
-        let mut event_pump =
-            sdl_context.event_pump().map_err(|e| anyhow!(e))?;
-        let mut player = Player::new()?;
-        let mut visualization_state = VisualizationState::new();
-        let mut scratch = Scratch::default();
+        let event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
+        let visualization_state = VisualizationState::new();
+        let scratch = Scratch::default();
         let foreground =
             Color::RGB(self.foreground.r, self.foreground.g, self.foreground.b);
         let background =
             Color::RGB(self.background.r, self.background.g, self.background.b);
+        Ok(WindowRunning {
+            window: self,
+            canvas,
+            event_pump,
+            visualization_state,
+            scratch,
+            foreground,
+            background,
+            sample_buffer,
+        })
+    }
+
+    pub fn play<T, S>(&self, signal: S) -> anyhow::Result<()>
+    where
+        T: ToF32 + Send + Sync + Copy + 'static,
+        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+    {
+        let sample_buffer = Arc::new(RwLock::new(Vec::<T>::new()));
+        let self_ = self.clone();
+        thread::spawn({
+            let sample_buffer = Arc::clone(&sample_buffer);
+            move || {
+                let mut window_running =
+                    self_.run(sample_buffer).expect("failed to create window");
+                window_running.event_render_loop()
+            }
+        });
+        let player = Player::new()?;
         player.play_signal_sync_callback(signal, |buf| {
-            let frame_start = Instant::now();
-            for event in event_pump.poll_iter() {
-                use sdl2::event::Event;
-                match event {
-                    Event::Quit { .. } => std::process::exit(0),
-                    _ => (),
-                }
-            }
-            if warmup_frames > 0 {
-                warmup_frames -= 1;
-            } else {
-                for sample in buf {
-                    visualization_state.add_sample(sample.to_f32());
-                }
-            }
-            render_visualization(
-                &mut canvas,
-                &mut scratch,
-                &mut visualization_state,
-                self.width_px,
-                self.height_px,
-                self.stable,
-                self.stride,
-                self.scale,
-                self.spread,
-                foreground,
-                background,
-                self.line_width,
-            )
-            .unwrap();
-            canvas.present();
-            let since_frame_start = frame_start.elapsed();
-            if let Some(until_next_frame) =
-                FRAME_DURATION.checked_sub(since_frame_start)
-            {
-                thread::sleep(until_next_frame);
-            }
+            let mut sample_buffer = sample_buffer
+                .write()
+                .expect("visualization thread exited unexpectedly");
+            sample_buffer.clear();
+            sample_buffer.extend_from_slice(buf);
         })?;
         Ok(())
     }
@@ -303,7 +361,7 @@ fn render_visualization(
     foreground: Color,
     background: Color,
     line_width: u32,
-) -> anyhow::Result<()> {
+) {
     if visualization_state.queue.len() >= width_px as usize {
         if stable {
             if let Some(sample_start_index) = visualization_state
@@ -345,8 +403,7 @@ fn render_visualization(
     for pair in scratch.coords.windows(2) {
         for Coord { x, y } in line_2d::coords_between(pair[0], pair[1]) {
             let rect = Rect::new(x, y, line_width, line_width);
-            canvas.fill_rect(rect).map_err(|e| anyhow!(e))?;
+            let _ = canvas.fill_rect(rect);
         }
     }
-    Ok(())
 }

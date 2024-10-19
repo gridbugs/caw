@@ -26,9 +26,8 @@ pub struct Player {
     config: StreamConfig,
 }
 
-enum SyncCommand {
-    RequestSamples(usize),
-}
+struct SyncCommandRequestNumSamples(usize);
+struct SyncCommandDone;
 
 impl Player {
     pub fn new() -> anyhow::Result<Self> {
@@ -53,7 +52,10 @@ impl Player {
     fn make_stream_sync<T>(
         &self,
         buf: Arc<RwLock<Vec<T>>>,
-        send_command: mpsc::Sender<SyncCommand>,
+        send_sync_command_request_num_samples: mpsc::Sender<
+            SyncCommandRequestNumSamples,
+        >,
+        recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
     ) -> Result<cpal::Stream, cpal::BuildStreamError>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -63,10 +65,13 @@ impl Player {
             {
                 let channels = self.config.channels;
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
-                    send_command
-                        .send(SyncCommand::RequestSamples(
+                    send_sync_command_request_num_samples
+                        .send(SyncCommandRequestNumSamples(
                             data.len() / channels as usize,
                         ))
+                        .expect("main thread stopped listening on channel");
+                    let SyncCommandDone = recv_sync_command_done
+                        .recv()
                         .expect("main thread stopped listening on channel");
                     let buf = buf.read().expect("main thread has stopped");
                     for (output, &input) in
@@ -94,31 +99,40 @@ impl Player {
         F: FnMut(&Arc<RwLock<Vec<T>>>),
     {
         // channel for cpal thread to send messages to main thread
-        let (send_command, recv_command) = mpsc::channel::<SyncCommand>();
+        let (
+            send_sync_command_request_num_samples,
+            recv_sync_command_request_num_samples,
+        ) = mpsc::channel::<SyncCommandRequestNumSamples>();
+        let (send_sync_command_done, recv_sync_command_done) =
+            mpsc::channel::<SyncCommandDone>();
         // buffer for sending samples from main thread to cpal thread
         let buf = Arc::new(RwLock::new(Vec::<T>::new()));
-        let stream = self.make_stream_sync(Arc::clone(&buf), send_command)?;
+        let stream = self.make_stream_sync(
+            Arc::clone(&buf),
+            send_sync_command_request_num_samples,
+            recv_sync_command_done,
+        )?;
         stream.play()?;
         let mut ctx = SignalCtx {
             sample_rate_hz: self.config.sample_rate.0 as f64,
             batch_index: 0,
         };
         loop {
-            match recv_command
-                .recv()
-                .expect("cpal thread stopped unexpectedly")
+            let SyncCommandRequestNumSamples(num_samples) =
+                recv_sync_command_request_num_samples
+                    .recv()
+                    .expect("cpal thread stopped unexpectedly");
             {
-                SyncCommand::RequestSamples(n) => {
-                    {
-                        // sample the signal directly into the buffer shared with the cpal thread
-                        let mut buf = buf.write().unwrap();
-                        buf.clear();
-                        signal.sample_batch(&ctx, n, &mut *buf);
-                    }
-                    f(&buf);
-                    ctx.batch_index += 1;
-                }
+                // sample the signal directly into the buffer shared with the cpal thread
+                let mut buf = buf.write().unwrap();
+                send_sync_command_done
+                    .send(SyncCommandDone)
+                    .expect("cpal thread stopped unexpectedly");
+                buf.clear();
+                signal.sample_batch(&ctx, num_samples, &mut *buf);
             }
+            f(&buf);
+            ctx.batch_index += 1;
         }
     }
 

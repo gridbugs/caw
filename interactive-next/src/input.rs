@@ -1,6 +1,4 @@
 use caw_core_next::{Gate, Signal};
-use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
-use std::{cell::RefCell, rc::Rc};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Key {
