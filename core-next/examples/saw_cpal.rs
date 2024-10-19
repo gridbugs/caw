@@ -13,8 +13,12 @@ fn signal() -> impl Signal<Item = f64, SampleBuffer = Vec<f64>> {
         .map(|(a, b)| (a + b) / 10.0)
 }
 
-enum Command {
+enum Request {
     RequestSamples(usize),
+}
+
+enum Reply {
+    Done,
 }
 
 fn main() {
@@ -37,7 +41,8 @@ fn main() {
     };
     let channels = config.channels();
     let config = StreamConfig::from(config);
-    let (send_command, recv_command) = mpsc::channel::<Command>();
+    let (send_request, recv_request) = mpsc::channel::<Request>();
+    let (send_reply, recv_reply) = mpsc::channel::<Reply>();
     let buf: Arc<RwLock<Vec<f64>>> = Arc::new(RwLock::new(Vec::new()));
     let stream = device
         .build_output_stream(
@@ -45,11 +50,12 @@ fn main() {
             {
                 let buf = Arc::clone(&buf);
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
-                    send_command
-                        .send(Command::RequestSamples(
+                    send_request
+                        .send(Request::RequestSamples(
                             data.len() / channels as usize,
                         ))
                         .unwrap();
+                    let Reply::Done = recv_reply.recv().unwrap();
                     let buf = buf.read().unwrap();
                     for (output, &input) in
                         data.chunks_mut(channels as usize).zip(buf.iter())
@@ -66,15 +72,16 @@ fn main() {
         .unwrap();
     stream.play().unwrap();
     loop {
-        match recv_command.recv() {
-            Ok(command) => match command {
-                Command::RequestSamples(n) => {
+        match recv_request.recv() {
+            Ok(request) => match request {
+                Request::RequestSamples(n) => {
                     {
                         // sample the signal directly into the buffer shared with the cpal thread
                         let mut buf = buf.write().unwrap();
                         buf.clear();
                         signal.sample_batch(&ctx, n, &mut *buf);
                     }
+                    send_reply.send(Reply::Done).unwrap();
                     ctx.batch_index += 1;
                 }
             },
