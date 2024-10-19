@@ -6,11 +6,7 @@ pub use rgb_int::Rgb24;
 use sdl2::{
     pixels::Color, rect::Rect, render::Canvas, video::Window as Sdl2Window,
 };
-use std::{
-    sync::{Arc, RwLock},
-    thread,
-    time::{Duration, Instant},
-};
+use std::time::{Duration, Instant};
 
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
 
@@ -113,7 +109,7 @@ impl WindowBuilder {
     }
 }
 
-struct WindowRunning<T> {
+struct WindowRunning {
     window: Window,
     canvas: Canvas<sdl2::video::Window>,
     event_pump: sdl2::EventPump,
@@ -121,13 +117,10 @@ struct WindowRunning<T> {
     scratch: Scratch,
     foreground: Color,
     background: Color,
-    sample_buffer: Arc<RwLock<Vec<T>>>,
+    last_render: Instant,
 }
 
-impl<T> WindowRunning<T>
-where
-    T: ToF32 + Copy,
-{
+impl WindowRunning {
     fn render_visualization(&mut self) {
         render_visualization(
             &mut self.canvas,
@@ -144,36 +137,33 @@ where
             self.window.line_width,
         );
     }
-    fn event_render_loop(&mut self) {
-        let mut warmup_frames = 15;
-        loop {
-            let frame_start = Instant::now();
-            for event in self.event_pump.poll_iter() {
-                use sdl2::event::Event;
-                match event {
-                    Event::Quit { .. } => std::process::exit(0),
-                    _ => (),
-                }
+
+    fn render(&mut self) {
+        self.render_visualization();
+        self.canvas.present();
+    }
+
+    fn handle_events(&mut self) {
+        for event in self.event_pump.poll_iter() {
+            use sdl2::event::Event;
+            match event {
+                Event::Quit { .. } => std::process::exit(0),
+                _ => (),
             }
-            if warmup_frames > 0 {
-                warmup_frames -= 1;
-            } else {
-                let sample_buffer = self
-                    .sample_buffer
-                    .read()
-                    .expect("main thread exited unexpectedly");
-                for sample in sample_buffer.iter() {
-                    self.visualization_state.add_sample(sample.to_f32());
-                }
-            }
-            self.render_visualization();
-            self.canvas.present();
-            let since_frame_start = frame_start.elapsed();
-            if let Some(until_next_frame) =
-                FRAME_DURATION.checked_sub(since_frame_start)
-            {
-                thread::sleep(until_next_frame);
-            }
+        }
+    }
+
+    fn add_samples_to_visualization<T: ToF32 + Copy>(&mut self, buf: &[T]) {
+        for sample in buf {
+            self.visualization_state.add_sample(sample.to_f32());
+        }
+    }
+
+    fn handle_frame_if_enough_time_since_previous_frame(&mut self) {
+        if self.last_render.elapsed() > FRAME_DURATION {
+            self.handle_events();
+            self.render();
+            self.last_render = Instant::now();
         }
     }
 }
@@ -193,10 +183,7 @@ pub struct Window {
 }
 
 impl Window {
-    fn run<T>(
-        self,
-        sample_buffer: Arc<RwLock<Vec<T>>>,
-    ) -> anyhow::Result<WindowRunning<T>> {
+    fn run(self) -> anyhow::Result<WindowRunning> {
         let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
         let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
         let window = video_subsystem
@@ -223,7 +210,7 @@ impl Window {
             scratch,
             foreground,
             background,
-            sample_buffer,
+            last_render: Instant::now(),
         })
     }
 
@@ -232,23 +219,11 @@ impl Window {
         T: ToF32 + Send + Sync + Copy + 'static,
         S: Signal<Item = T, SampleBuffer = Vec<T>>,
     {
-        let sample_buffer = Arc::new(RwLock::new(Vec::<T>::new()));
-        let self_ = self.clone();
-        thread::spawn({
-            let sample_buffer = Arc::clone(&sample_buffer);
-            move || {
-                let mut window_running =
-                    self_.run(sample_buffer).expect("failed to create window");
-                window_running.event_render_loop()
-            }
-        });
         let player = Player::new()?;
+        let mut window_running = self.clone().run()?;
         player.play_signal_sync_callback(signal, |buf| {
-            let mut sample_buffer = sample_buffer
-                .write()
-                .expect("visualization thread exited unexpectedly");
-            sample_buffer.clear();
-            sample_buffer.extend_from_slice(buf);
+            window_running.add_samples_to_visualization(buf);
+            window_running.handle_frame_if_enough_time_since_previous_frame();
         })?;
         Ok(())
     }
