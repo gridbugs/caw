@@ -6,9 +6,13 @@ pub use rgb_int::Rgb24;
 use sdl2::{
     pixels::Color, rect::Rect, render::Canvas, video::Window as Sdl2Window,
 };
-use std::time::{Duration, Instant};
+use std::{
+    thread,
+    time::{Duration, Instant},
+};
 
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
+const WARMUP_FRAMES: usize = 10;
 
 pub struct WindowBuilder {
     title: Option<String>,
@@ -221,7 +225,16 @@ impl Window {
     {
         let player = Player::new()?;
         let mut window_running = self.clone().run()?;
+        // Render a few frames to warm up. The first few frames can take longer than usual to
+        // render, so warming up prevents the audio from stuttering on startup.
+        for _ in 0..WARMUP_FRAMES {
+            window_running.handle_frame_if_enough_time_since_previous_frame();
+            thread::sleep(FRAME_DURATION);
+        }
         player.play_signal_sync_callback(signal, |buf| {
+            // Interleave rendering with sending samples to the sound card. Rendering needs to
+            // happen on the main thread as this is a requirement of SDL, and sending samples to
+            // the sound card needs to happen on the main thread as signals are not `Send`.
             window_running.add_samples_to_visualization(buf);
             window_running.handle_frame_if_enough_time_since_previous_frame();
         })?;
