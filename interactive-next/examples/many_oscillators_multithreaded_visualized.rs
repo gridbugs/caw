@@ -16,7 +16,7 @@ fn osc(freq: f32) -> SigBuf<impl Sig<Item = f32>> {
         .reset_offset_01(if rand::thread_rng().gen::<f32>() < 0.5 {
             0.0
         } else {
-            0.5
+            0.1
         })
         .build()
 }
@@ -30,13 +30,13 @@ fn signal(
     (0..n)
         .map(move |i| {
             let i = i + (n * thread_index);
-            let offset_total = 10.0;
+            let offset_total = 2.0;
             let offset =
                 ((i as f32 / total_oscillators as f32) - 0.5) * offset_total;
             osc(40.0 + offset)
         })
         .sum::<SigBuf<_>>()
-        .map(move |x| (x / (total_oscillators as f32)) * 100.0)
+        .map(move |x| ((x / (total_oscillators as f32)) * 100.0))
 }
 
 struct Query {
@@ -123,5 +123,5 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play(MultithreadedSignal::new(20).buffered())
+    window.play(MultithreadedSignal::new(8).buffered())
 }
