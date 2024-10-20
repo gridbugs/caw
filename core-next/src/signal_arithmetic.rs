@@ -1,34 +1,34 @@
-use crate::{BufferedSignal, SignalCtx, SignalTrait};
+use crate::{Sig, SigBuf, SigCtx};
 use std::{iter::Sum, ops::Add};
 
 pub struct SignalAdd<L, R>
 where
-    L: SignalTrait,
-    R: SignalTrait,
+    L: Sig,
+    R: Sig,
     L::Item: Clone,
     R::Item: Clone,
     L::Item: Add<R::Item>,
 {
-    lhs: BufferedSignal<L>,
-    rhs: BufferedSignal<R>,
+    lhs: SigBuf<L>,
+    rhs: SigBuf<R>,
 }
 
-impl<L, R> SignalTrait for SignalAdd<L, R>
+impl<L, R> Sig for SignalAdd<L, R>
 where
-    L: SignalTrait,
-    R: SignalTrait,
+    L: Sig,
+    R: Sig,
     L::Item: Clone,
     R::Item: Clone,
     L::Item: Add<R::Item>,
 {
     type Item = <L::Item as Add<R::Item>>::Output;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         self.lhs.sample_batch(ctx, n);
         self.rhs.sample_batch(ctx, n);
@@ -38,38 +38,38 @@ where
     }
 }
 
-impl<S, R> Add<BufferedSignal<R>> for BufferedSignal<S>
+impl<S, R> Add<SigBuf<R>> for SigBuf<S>
 where
-    S: SignalTrait,
-    R: SignalTrait,
+    S: Sig,
+    R: Sig,
     S::Item: Add<R::Item>,
     S::Item: Clone,
     R::Item: Clone,
 {
-    type Output = BufferedSignal<SignalAdd<S, R>>;
+    type Output = SigBuf<SignalAdd<S, R>>;
 
-    fn add(self, rhs: BufferedSignal<R>) -> Self::Output {
+    fn add(self, rhs: SigBuf<R>) -> Self::Output {
         SignalAdd { lhs: self, rhs }.buffered()
     }
 }
 
-pub struct SignalSum<S>(Vec<BufferedSignal<S>>)
+pub struct SignalSum<S>(Vec<SigBuf<S>>)
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Add;
 
-impl<S> SignalTrait for SignalSum<S>
+impl<S> Sig for SignalSum<S>
 where
-    S: SignalTrait<Item = f32>,
+    S: Sig<Item = f32>,
 {
     type Item = f32;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         for _ in 0..n {
             sample_buffer.push(0.0);
@@ -84,11 +84,11 @@ where
         }
     }
 }
-impl<S> Sum<BufferedSignal<S>> for BufferedSignal<SignalSum<S>>
+impl<S> Sum<SigBuf<S>> for SigBuf<SignalSum<S>>
 where
-    S: SignalTrait<Item = f32>,
+    S: Sig<Item = f32>,
 {
-    fn sum<I: Iterator<Item = BufferedSignal<S>>>(iter: I) -> Self {
+    fn sum<I: Iterator<Item = SigBuf<S>>>(iter: I) -> Self {
         SignalSum(iter.collect()).buffered()
     }
 }

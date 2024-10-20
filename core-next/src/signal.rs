@@ -1,11 +1,11 @@
 use std::{cell::RefCell, rc::Rc};
 
-pub struct SignalCtx {
+pub struct SigCtx {
     pub sample_rate_hz: f32,
     pub batch_index: u64,
 }
 
-pub trait SampleBuffer<T>: Default {
+pub trait Buf<T>: Default {
     fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
     where
         T: 'a;
@@ -13,7 +13,7 @@ pub trait SampleBuffer<T>: Default {
     fn clear(&mut self);
 }
 
-impl<T> SampleBuffer<T> for Vec<T> {
+impl<T> Buf<T> for Vec<T> {
     fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
     where
         T: 'a,
@@ -26,12 +26,12 @@ impl<T> SampleBuffer<T> for Vec<T> {
     }
 }
 
-pub struct ConstSampleBuffer<T> {
+pub struct ConstBuf<T> {
     value: Option<T>,
     count: usize,
 }
 
-impl<T> Default for ConstSampleBuffer<T> {
+impl<T> Default for ConstBuf<T> {
     fn default() -> Self {
         Self {
             value: None,
@@ -40,7 +40,7 @@ impl<T> Default for ConstSampleBuffer<T> {
     }
 }
 
-impl<T> SampleBuffer<T> for ConstSampleBuffer<T> {
+impl<T> Buf<T> for ConstBuf<T> {
     fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
     where
         T: 'a,
@@ -53,12 +53,12 @@ impl<T> SampleBuffer<T> for ConstSampleBuffer<T> {
     }
 }
 
-pub struct BufferedSignal<S: SignalTrait> {
+pub struct SigBuf<S: Sig> {
     pub signal: S,
-    pub buffer: S::SampleBuffer,
+    pub buffer: S::Buf,
 }
 
-impl<S: SignalTrait> BufferedSignal<S> {
+impl<S: Sig> SigBuf<S> {
     pub fn new(signal: S) -> Self {
         Self {
             signal,
@@ -66,7 +66,7 @@ impl<S: SignalTrait> BufferedSignal<S> {
         }
     }
 
-    pub fn sample_batch(&mut self, ctx: &SignalCtx, n: usize) {
+    pub fn sample_batch(&mut self, ctx: &SigCtx, n: usize) {
         self.buffer.clear();
         self.signal.sample_batch(ctx, n, &mut self.buffer);
     }
@@ -75,7 +75,7 @@ impl<S: SignalTrait> BufferedSignal<S> {
         self.buffer.iter()
     }
 
-    pub fn map<T, F>(self, f: F) -> BufferedSignal<Map<S, T, F>>
+    pub fn map<T, F>(self, f: F) -> SigBuf<Map<S, T, F>>
     where
         S: Sized,
         S::Item: Clone,
@@ -88,11 +88,11 @@ impl<S: SignalTrait> BufferedSignal<S> {
         .buffered()
     }
 
-    pub fn map_ctx<T, F>(self, f: F) -> BufferedSignal<MapCtx<S, T, F>>
+    pub fn map_ctx<T, F>(self, f: F) -> SigBuf<MapCtx<S, T, F>>
     where
         S: Sized,
         S::Item: Clone,
-        F: FnMut(S::Item, &SignalCtx) -> T,
+        F: FnMut(S::Item, &SigCtx) -> T,
     {
         MapCtx {
             buffered_signal: self,
@@ -101,10 +101,10 @@ impl<S: SignalTrait> BufferedSignal<S> {
         .buffered()
     }
 
-    pub fn zip<O>(self, other: BufferedSignal<O>) -> BufferedSignal<Zip<S, O>>
+    pub fn zip<O>(self, other: SigBuf<O>) -> SigBuf<Zip<S, O>>
     where
         S: Sized,
-        O: SignalTrait,
+        O: Sig,
         S::Item: Clone,
         O::Item: Clone,
     {
@@ -113,12 +113,10 @@ impl<S: SignalTrait> BufferedSignal<S> {
 
     pub fn add<R>(
         self,
-        rhs: BufferedSignal<R>,
-    ) -> BufferedSignal<
-        impl SignalTrait<Item = <S::Item as std::ops::Add<R::Item>>::Output>,
-    >
+        rhs: SigBuf<R>,
+    ) -> SigBuf<impl Sig<Item = <S::Item as std::ops::Add<R::Item>>::Output>>
     where
-        R: SignalTrait,
+        R: Sig,
         S: Sized,
         S::Item: std::ops::Add<R::Item>,
         S::Item: Clone,
@@ -128,38 +126,38 @@ impl<S: SignalTrait> BufferedSignal<S> {
     }
 }
 
-pub trait SignalTrait {
+pub trait Sig {
     type Item;
-    type SampleBuffer: SampleBuffer<Self::Item>;
+    type Buf: Buf<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     );
 
-    fn buffered(self) -> BufferedSignal<Self>
+    fn buffered(self) -> SigBuf<Self>
     where
         Self: Sized,
     {
-        BufferedSignal::new(self)
+        SigBuf::new(self)
     }
 
-    /// Returns a `SignalTrait` with the same values as `self` but which
+    /// Returns a `Sig` with the same values as `self` but which
     /// avoids recomputing the value at each point in time.
     ///
     /// This returns an impl trait so that constant signals can
     /// override this method with a more efficient implementation.
-    fn cached(self) -> impl SignalTrait<Item = Self::Item>
+    fn cached(self) -> impl Sig<Item = Self::Item>
     where
         Self: Sized,
         Self::Item: Default + Clone,
     {
-        SignalCached::new(self)
+        SigCached::new(self)
     }
 
-    /// Returns a `SignalTrait` with the same values as `self` but which
+    /// Returns a `Sig` with the same values as `self` but which
     /// can be cloned.
     ///
     /// For non-trivial implementations of signal, this is implemented
@@ -174,78 +172,78 @@ pub trait SignalTrait {
     ///
     /// This returns an impl trait so that constant signals can
     /// override this method with a more efficient implementation.
-    fn shared(self) -> impl SignalTrait<Item = Self::Item> + Clone
+    fn shared(self) -> impl Sig<Item = Self::Item> + Clone
     where
         Self: Sized,
         Self::Item: Default + Clone,
     {
-        SignalShared::new(self)
+        SigShared::new(self)
     }
 }
 
-pub trait GateTrait: SignalTrait<Item = bool> {
-    fn to_trigger(self) -> impl TriggerTrait
+pub trait Gate: Sig<Item = bool> {
+    fn to_trigger(self) -> impl Trig
     where
         Self: Sized,
     {
-        GateToTrigger::new(self)
+        GateToTrig::new(self)
     }
 
-    fn cached(self) -> impl GateTrait
+    fn cached(self) -> impl Gate
     where
         Self: Sized,
     {
-        SignalCached::new(self)
+        SigCached::new(self)
     }
 
-    fn shared(self) -> impl GateTrait
+    fn shared(self) -> impl Gate
     where
         Self: Sized,
     {
-        SignalShared::new(self)
+        SigShared::new(self)
     }
 }
 
-pub trait TriggerTrait: SignalTrait<Item = bool> {
-    fn cached(self) -> impl TriggerTrait
+pub trait Trig: Sig<Item = bool> {
+    fn cached(self) -> impl Trig
     where
         Self: Sized,
     {
-        SignalCached::new(self)
+        SigCached::new(self)
     }
 
-    fn shared(self) -> impl TriggerTrait
+    fn shared(self) -> impl Trig
     where
         Self: Sized,
     {
-        SignalShared::new(self)
+        SigShared::new(self)
     }
 }
 
 pub struct Map<S, T, F>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Clone,
     F: FnMut(S::Item) -> T,
 {
-    buffered_signal: BufferedSignal<S>,
+    buffered_signal: SigBuf<S>,
     f: F,
 }
 
-impl<S, T, F> SignalTrait for Map<S, T, F>
+impl<S, T, F> Sig for Map<S, T, F>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Clone,
     F: FnMut(S::Item) -> T,
 {
     type Item = T;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         self.buffered_signal.sample_batch(ctx, n);
         for sample in self.buffered_signal.samples() {
@@ -256,28 +254,28 @@ where
 
 pub struct MapCtx<S, T, F>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Clone,
-    F: FnMut(S::Item, &SignalCtx) -> T,
+    F: FnMut(S::Item, &SigCtx) -> T,
 {
-    buffered_signal: BufferedSignal<S>,
+    buffered_signal: SigBuf<S>,
     f: F,
 }
 
-impl<S, T, F> SignalTrait for MapCtx<S, T, F>
+impl<S, T, F> Sig for MapCtx<S, T, F>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Clone,
-    F: FnMut(S::Item, &SignalCtx) -> T,
+    F: FnMut(S::Item, &SigCtx) -> T,
 {
     type Item = T;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         self.buffered_signal.sample_batch(ctx, n);
         for sample in self.buffered_signal.samples() {
@@ -288,30 +286,30 @@ where
 
 pub struct Zip<A, B>
 where
-    A: SignalTrait,
-    B: SignalTrait,
+    A: Sig,
+    B: Sig,
     A::Item: Clone,
     B::Item: Clone,
 {
-    a: BufferedSignal<A>,
-    b: BufferedSignal<B>,
+    a: SigBuf<A>,
+    b: SigBuf<B>,
 }
 
-impl<A, B> SignalTrait for Zip<A, B>
+impl<A, B> Sig for Zip<A, B>
 where
-    A: SignalTrait,
-    B: SignalTrait,
+    A: Sig,
+    B: Sig,
     A::Item: Clone,
     B::Item: Clone,
 {
     type Item = (A::Item, B::Item);
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         self.a.sample_batch(ctx, n);
         self.b.sample_batch(ctx, n);
@@ -321,21 +319,21 @@ where
     }
 }
 
-/// Wrapper for a `SignalTrait` that prevents recomputation of its value
+/// Wrapper for a `Sig` that prevents recomputation of its value
 /// for a particular point in time.
-struct SignalCached<S>
+struct SigCached<S>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Default + Clone,
 {
-    buffered_signal: BufferedSignal<S>,
+    buffered_signal: SigBuf<S>,
     cache: Vec<S::Item>,
     next_batch_index: u64,
 }
 
-impl<S> SignalCached<S>
+impl<S> SigCached<S>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Default + Clone,
 {
     fn new(signal: S) -> Self {
@@ -347,19 +345,19 @@ where
     }
 }
 
-impl<S> SignalTrait for SignalCached<S>
+impl<S> Sig for SigCached<S>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Default + Clone,
 {
     type Item = S::Item;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         if ctx.batch_index < self.next_batch_index {
             sample_buffer.clone_from_slice(&self.cache);
@@ -375,16 +373,16 @@ where
     }
 }
 
-impl<S> GateTrait for SignalCached<S> where S: SignalTrait<Item = bool> {}
-impl<S> TriggerTrait for SignalCached<S> where S: SignalTrait<Item = bool> {}
+impl<S> Gate for SigCached<S> where S: Sig<Item = bool> {}
+impl<S> Trig for SigCached<S> where S: Sig<Item = bool> {}
 
-struct SignalShared<S: SignalTrait>(Rc<RefCell<SignalCached<S>>>)
+struct SigShared<S: Sig>(Rc<RefCell<SigCached<S>>>)
 where
     S::Item: Default + Clone;
 
-impl<S> Clone for SignalShared<S>
+impl<S> Clone for SigShared<S>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Default + Clone,
 {
     fn clone(&self) -> Self {
@@ -392,48 +390,48 @@ where
     }
 }
 
-impl<S> SignalShared<S>
+impl<S> SigShared<S>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Default + Clone,
 {
     fn new(signal: S) -> Self {
-        Self(Rc::new(RefCell::new(SignalCached::new(signal))))
+        Self(Rc::new(RefCell::new(SigCached::new(signal))))
     }
 }
 
-impl<S> SignalTrait for SignalShared<S>
+impl<S> Sig for SigShared<S>
 where
-    S: SignalTrait,
+    S: Sig,
     S::Item: Default + Clone,
 {
     type Item = S::Item;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         self.0.borrow_mut().sample_batch(ctx, n, sample_buffer)
     }
 }
 
-impl<S> GateTrait for SignalShared<S> where S: SignalTrait<Item = bool> {}
-impl<S> TriggerTrait for SignalShared<S> where S: SignalTrait<Item = bool> {}
+impl<S> Gate for SigShared<S> where S: Sig<Item = bool> {}
+impl<S> Trig for SigShared<S> where S: Sig<Item = bool> {}
 
-struct GateToTrigger<G>
+struct GateToTrig<G>
 where
-    G: GateTrait,
+    G: Gate,
 {
     previous: bool,
-    buffered_gate: BufferedSignal<G>,
+    buffered_gate: SigBuf<G>,
 }
 
-impl<G> GateToTrigger<G>
+impl<G> GateToTrig<G>
 where
-    G: GateTrait,
+    G: Gate,
 {
     fn new(gate: G) -> Self {
         Self {
@@ -443,18 +441,18 @@ where
     }
 }
 
-impl<G> SignalTrait for GateToTrigger<G>
+impl<G> Sig for GateToTrig<G>
 where
-    G: GateTrait,
+    G: Gate,
 {
     type Item = bool;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         self.buffered_gate.sample_batch(ctx, n);
         for &sample in self.buffered_gate.samples() {
@@ -465,20 +463,20 @@ where
     }
 }
 
-impl<G> TriggerTrait for GateToTrigger<G> where G: GateTrait {}
+impl<G> Trig for GateToTrig<G> where G: Gate {}
 
-impl<T, F> SignalTrait for F
+impl<T, F> Sig for F
 where
-    F: FnMut(&SignalCtx) -> T,
+    F: FnMut(&SigCtx) -> T,
 {
     type Item = T;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         for _ in 0..n {
             sample_buffer.push((self)(ctx));
@@ -486,37 +484,37 @@ where
     }
 }
 
-impl<F> GateTrait for F where F: FnMut(&SignalCtx) -> bool {}
+impl<F> Gate for F where F: FnMut(&SigCtx) -> bool {}
 
 #[derive(Clone)]
 pub struct Const<T>(T)
 where
     T: Clone;
 
-impl<T> SignalTrait for Const<T>
+impl<T> Sig for Const<T>
 where
     T: Clone,
 {
     type Item = T;
-    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+    type Buf = ConstBuf<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        _ctx: &SignalCtx,
+        _ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
-        *sample_buffer = ConstSampleBuffer {
+        *sample_buffer = ConstBuf {
             value: Some(self.0.clone()),
             count: n,
         };
     }
 
-    fn cached(self) -> impl SignalTrait<Item = Self::Item> {
+    fn cached(self) -> impl Sig<Item = Self::Item> {
         self
     }
 
-    fn shared(self) -> impl SignalTrait<Item = Self::Item> + Clone {
+    fn shared(self) -> impl Sig<Item = Self::Item> + Clone {
         self
     }
 }
@@ -528,57 +526,57 @@ where
     Const(value)
 }
 
-impl SignalTrait for f32 {
+impl Sig for f32 {
     type Item = Self;
-    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+    type Buf = ConstBuf<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        _ctx: &SignalCtx,
+        _ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
-        *sample_buffer = ConstSampleBuffer {
+        *sample_buffer = ConstBuf {
             value: Some(*self),
             count: n,
         };
     }
 
-    fn cached(self) -> impl SignalTrait<Item = Self::Item> {
+    fn cached(self) -> impl Sig<Item = Self::Item> {
         self
     }
 
-    fn shared(self) -> impl SignalTrait<Item = Self::Item> + Clone {
+    fn shared(self) -> impl Sig<Item = Self::Item> + Clone {
         self
     }
 }
 
-impl SignalTrait for bool {
+impl Sig for bool {
     type Item = Self;
-    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+    type Buf = ConstBuf<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        _ctx: &SignalCtx,
+        _ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
-        *sample_buffer = ConstSampleBuffer {
+        *sample_buffer = ConstBuf {
             value: Some(*self),
             count: n,
         };
     }
 
-    fn cached(self) -> impl SignalTrait<Item = Self::Item> {
+    fn cached(self) -> impl Sig<Item = Self::Item> {
         self
     }
 
-    fn shared(self) -> impl SignalTrait<Item = Self::Item> + Clone {
+    fn shared(self) -> impl Sig<Item = Self::Item> + Clone {
         self
     }
 }
 
-impl GateTrait for bool {}
+impl Gate for bool {}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Freq {
@@ -613,27 +611,27 @@ pub fn freq_s(s: f32) -> Freq {
     Freq::from_s(s)
 }
 
-impl SignalTrait for Freq {
+impl Sig for Freq {
     type Item = Self;
-    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+    type Buf = ConstBuf<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        _ctx: &SignalCtx,
+        _ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
-        *sample_buffer = ConstSampleBuffer {
+        *sample_buffer = ConstBuf {
             value: Some(*self),
             count: n,
         };
     }
 
-    fn cached(self) -> impl SignalTrait<Item = Self::Item> {
+    fn cached(self) -> impl Sig<Item = Self::Item> {
         self
     }
 
-    fn shared(self) -> impl SignalTrait<Item = Self::Item> + Clone {
+    fn shared(self) -> impl Sig<Item = Self::Item> + Clone {
         self
     }
 }
@@ -641,29 +639,29 @@ impl SignalTrait for Freq {
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Never;
 
-impl SignalTrait for Never {
+impl Sig for Never {
     type Item = bool;
-    type SampleBuffer = ConstSampleBuffer<Self::Item>;
+    type Buf = ConstBuf<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        _ctx: &SignalCtx,
+        _ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
-        *sample_buffer = ConstSampleBuffer {
+        *sample_buffer = ConstBuf {
             value: Some(false),
             count: n,
         };
     }
 
-    fn cached(self) -> impl SignalTrait<Item = Self::Item> {
+    fn cached(self) -> impl Sig<Item = Self::Item> {
         self
     }
 
-    fn shared(self) -> impl SignalTrait<Item = Self::Item> + Clone {
+    fn shared(self) -> impl Sig<Item = Self::Item> + Clone {
         self
     }
 }
 
-impl TriggerTrait for Never {}
+impl Trig for Never {}

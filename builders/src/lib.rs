@@ -1,6 +1,4 @@
-use caw_core_next::{
-    BufferedSignal, Freq, Never, SignalCtx, SignalTrait, TriggerTrait,
-};
+use caw_core_next::{Freq, Never, Sig, SigBuf, SigCtx, Trig};
 use caw_proc_macros::builder;
 
 pub mod waveform {
@@ -52,36 +50,36 @@ pub use waveform::Waveform;
 struct Oscillator<W, F, P, R, T>
 where
     W: Waveform,
-    F: SignalTrait<Item = Freq>,
-    P: SignalTrait<Item = f32>,
-    R: SignalTrait<Item = f32>,
-    T: TriggerTrait,
+    F: Sig<Item = Freq>,
+    P: Sig<Item = f32>,
+    R: Sig<Item = f32>,
+    T: Trig,
 {
     first_frame: bool,
     state_01: f32,
     waveform: W,
-    freq: BufferedSignal<F>,
-    pulse_width_01: BufferedSignal<P>,
-    reset_offset_01: BufferedSignal<R>,
-    reset_trigger: BufferedSignal<T>,
+    freq: SigBuf<F>,
+    pulse_width_01: SigBuf<P>,
+    reset_offset_01: SigBuf<R>,
+    reset_trigger: SigBuf<T>,
 }
 
-impl<W, F, P, R, T> SignalTrait for Oscillator<W, F, P, R, T>
+impl<W, F, P, R, T> Sig for Oscillator<W, F, P, R, T>
 where
     W: Waveform,
-    F: SignalTrait<Item = Freq>,
-    P: SignalTrait<Item = f32>,
-    R: SignalTrait<Item = f32>,
-    T: TriggerTrait,
+    F: Sig<Item = Freq>,
+    P: Sig<Item = f32>,
+    R: Sig<Item = f32>,
+    T: Trig,
 {
     type Item = f32;
-    type SampleBuffer = Vec<Self::Item>;
+    type Buf = Vec<Self::Item>;
 
     fn sample_batch(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut Self::SampleBuffer,
+        sample_buffer: &mut Self::Buf,
     ) {
         if W::PULSE {
             self.sample_batch_pulse(ctx, n, sample_buffer);
@@ -94,10 +92,10 @@ where
 impl<W, F, P, R, T> Oscillator<W, F, P, R, T>
 where
     W: Waveform,
-    F: SignalTrait<Item = Freq>,
-    P: SignalTrait<Item = f32>,
-    R: SignalTrait<Item = f32>,
-    T: TriggerTrait,
+    F: Sig<Item = Freq>,
+    P: Sig<Item = f32>,
+    R: Sig<Item = f32>,
+    T: Trig,
 {
     fn new_buffered(
         waveform: W,
@@ -105,7 +103,7 @@ where
         pulse_width_01: P,
         reset_offset_01: R,
         reset_trigger: T,
-    ) -> BufferedSignal<Self> {
+    ) -> SigBuf<Self> {
         Self {
             first_frame: true,
             state_01: 0.0,
@@ -120,9 +118,9 @@ where
 
     fn sample_batch_non_pulse(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut <Self as SignalTrait>::SampleBuffer,
+        sample_buffer: &mut <Self as Sig>::Buf,
     ) {
         self.freq.sample_batch(ctx, n);
         self.reset_trigger.sample_batch(ctx, n);
@@ -149,9 +147,9 @@ where
     // compute the values of the pulse width signal.
     fn sample_batch_pulse(
         &mut self,
-        ctx: &SignalCtx,
+        ctx: &SigCtx,
         n: usize,
-        sample_buffer: &mut <Self as SignalTrait>::SampleBuffer,
+        sample_buffer: &mut <Self as Sig>::Buf,
     ) {
         self.freq.sample_batch(ctx, n);
         self.reset_trigger.sample_batch(ctx, n);
@@ -182,24 +180,24 @@ builder!(
     #[constructor = "oscillator"]
     #[constructor_doc = "A signal which oscillates with a given waveform at a given frequency."]
     #[build_fn = "Oscillator::new_buffered"]
-    #[build_ty = "BufferedSignal<impl SignalTrait<Item = f32, SampleBuffer = Vec<f32>>>"]
+    #[build_ty = "SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>>"]
     #[generic_setter_type_name = "X"]
     pub struct OscillatorBuilder {
         #[generic_with_constraint = "Waveform"]
         #[generic_name = "W"]
         waveform: _,
-        #[generic_with_constraint = "SignalTrait<Item = Freq>"]
+        #[generic_with_constraint = "Sig<Item = Freq>"]
         #[generic_name = "F"]
         freq: _,
-        #[generic_with_constraint = "SignalTrait<Item = f32>"]
+        #[generic_with_constraint = "Sig<Item = f32>"]
         #[default = 0.5]
         #[generic_name = "P"]
         pulse_width_01: f32,
-        #[generic_with_constraint = "SignalTrait<Item = f32>"]
+        #[generic_with_constraint = "Sig<Item = f32>"]
         #[default = 0.0]
         #[generic_name = "R"]
         reset_offset_01: f32,
-        #[generic_with_constraint = "TriggerTrait"]
+        #[generic_with_constraint = "Trig"]
         #[default = Never]
         #[generic_name = "T"]
         reset_trigger: Never,

@@ -1,4 +1,4 @@
-use caw_core_next::{GateTrait, SignalTrait};
+use caw_core_next::{Gate, Sig};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Key {
@@ -116,8 +116,8 @@ pub struct MouseGeneric<Position, Button> {
     pub middle: Button,
 }
 
-impl<G: GateTrait + Clone> KeyboardGeneric<G> {
-    pub fn get(&self, key: Key) -> impl GateTrait {
+impl<G: Gate + Clone> KeyboardGeneric<G> {
+    pub fn get(&self, key: Key) -> impl Gate {
         use Key::*;
         match key {
             A => self.a.clone(),
@@ -170,10 +170,8 @@ impl<G: GateTrait + Clone> KeyboardGeneric<G> {
     }
 }
 
-impl<P: SignalTrait<Item = f64> + Clone, G: GateTrait + Clone>
-    MouseGeneric<P, G>
-{
-    pub fn button(&self, mouse_button: MouseButton) -> impl GateTrait {
+impl<P: Sig<Item = f64> + Clone, G: Gate + Clone> MouseGeneric<P, G> {
+    pub fn button(&self, mouse_button: MouseButton) -> impl Gate {
         use MouseButton::*;
         match mouse_button {
             Left => self.left.clone(),
@@ -182,11 +180,11 @@ impl<P: SignalTrait<Item = f64> + Clone, G: GateTrait + Clone>
         }
     }
 
-    pub fn x_01(&self) -> impl SignalTrait<Item = f64> {
+    pub fn x_01(&self) -> impl Sig<Item = f64> {
         self.x_01.clone()
     }
 
-    pub fn y_01(&self) -> impl SignalTrait<Item = f64> {
+    pub fn y_01(&self) -> impl Sig<Item = f64> {
         self.y_01.clone()
     }
 }

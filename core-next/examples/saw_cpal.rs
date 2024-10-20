@@ -6,8 +6,7 @@ use cpal::{
 };
 use std::sync::{mpsc, Arc, RwLock};
 
-fn signal(
-) -> BufferedSignal<impl SignalTrait<Item = f32, SampleBuffer = Vec<f32>>> {
+fn signal() -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
     oscillator(waveform::Saw, freq_hz(40.0))
         .build()
         .zip(oscillator(waveform::Saw, freq_hz(40.1)).build())
@@ -35,7 +34,7 @@ fn main() {
     println!("sample format: {}", config.sample_format());
     println!("sample rate: {}", config.sample_rate().0);
     println!("num channels: {}", config.channels());
-    let mut ctx = SignalCtx {
+    let mut ctx = SigCtx {
         sample_rate_hz: config.sample_rate().0 as f32,
         batch_index: 0,
     };
@@ -43,7 +42,7 @@ fn main() {
     let config = StreamConfig::from(config);
     let (send_request, recv_request) = mpsc::channel::<Request>();
     let (send_reply, recv_reply) = mpsc::channel::<Reply>();
-    let BufferedSignal { mut signal, buffer } = signal();
+    let SigBuf { mut signal, buffer } = signal();
     let buffer = Arc::new(RwLock::new(buffer));
     let stream = device
         .build_output_stream(

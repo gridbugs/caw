@@ -1,4 +1,4 @@
-use caw_core_next::{BufferedSignal, SignalCtx, SignalTrait};
+use caw_core_next::{Sig, SigBuf, SigCtx};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, OutputCallbackInfo, StreamConfig,
@@ -90,15 +90,15 @@ impl Player {
 
     fn play_signal_sync_callback_raw<T, S, F>(
         &self,
-        buffered_signal: BufferedSignal<S>,
+        buffered_signal: SigBuf<S>,
         mut f: F,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
+        S: Sig<Item = T, Buf = Vec<T>>,
         F: FnMut(&Arc<RwLock<Vec<T>>>),
     {
-        let BufferedSignal { mut signal, buffer } = buffered_signal;
+        let SigBuf { mut signal, buffer } = buffered_signal;
         // channel for cpal thread to send messages to main thread
         let (
             send_sync_command_request_num_samples,
@@ -114,7 +114,7 @@ impl Player {
             recv_sync_command_done,
         )?;
         stream.play()?;
-        let mut ctx = SignalCtx {
+        let mut ctx = SigCtx {
             sample_rate_hz: self.config.sample_rate.0 as f32,
             batch_index: 0,
         };
@@ -143,11 +143,11 @@ impl Player {
     /// needs to own the signal being played.
     pub fn play_signal_sync<T, S>(
         &self,
-        signal: BufferedSignal<S>,
+        signal: SigBuf<S>,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
+        S: Sig<Item = T, Buf = Vec<T>>,
     {
         self.play_signal_sync_callback_raw(signal, |_| ())
     }
@@ -155,12 +155,12 @@ impl Player {
     /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
     pub fn play_signal_sync_callback<T, S, F>(
         &self,
-        signal: BufferedSignal<S>,
+        signal: SigBuf<S>,
         mut f: F,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
+        S: Sig<Item = T, Buf = Vec<T>>,
         F: FnMut(&[T]),
     {
         self.play_signal_sync_callback_raw(signal, |buf| {
