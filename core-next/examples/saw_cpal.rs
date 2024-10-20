@@ -6,7 +6,8 @@ use cpal::{
 };
 use std::sync::{mpsc, Arc, RwLock};
 
-fn signal() -> impl Signal<Item = f64, SampleBuffer = Vec<f64>> {
+fn signal(
+) -> BufferedSignal<impl SignalTrait<Item = f32, SampleBuffer = Vec<f32>>> {
     oscillator(waveform::Saw, freq_hz(40.0))
         .build()
         .zip(oscillator(waveform::Saw, freq_hz(40.1)).build())
@@ -34,21 +35,21 @@ fn main() {
     println!("sample format: {}", config.sample_format());
     println!("sample rate: {}", config.sample_rate().0);
     println!("num channels: {}", config.channels());
-    let mut signal = signal();
     let mut ctx = SignalCtx {
-        sample_rate_hz: config.sample_rate().0 as f64,
+        sample_rate_hz: config.sample_rate().0 as f32,
         batch_index: 0,
     };
     let channels = config.channels();
     let config = StreamConfig::from(config);
     let (send_request, recv_request) = mpsc::channel::<Request>();
     let (send_reply, recv_reply) = mpsc::channel::<Reply>();
-    let buf: Arc<RwLock<Vec<f64>>> = Arc::new(RwLock::new(Vec::new()));
+    let BufferedSignal { mut signal, buffer } = signal();
+    let buffer = Arc::new(RwLock::new(buffer));
     let stream = device
         .build_output_stream(
             &config,
             {
-                let buf = Arc::clone(&buf);
+                let buffer = Arc::clone(&buffer);
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
                     send_request
                         .send(Request::RequestSamples(
@@ -56,9 +57,9 @@ fn main() {
                         ))
                         .unwrap();
                     let Reply::Done = recv_reply.recv().unwrap();
-                    let buf = buf.read().unwrap();
+                    let buffer = buffer.read().unwrap();
                     for (output, &input) in
-                        data.chunks_mut(channels as usize).zip(buf.iter())
+                        data.chunks_mut(channels as usize).zip(buffer.iter())
                     {
                         for element in output {
                             *element = input as f32;
@@ -77,9 +78,9 @@ fn main() {
                 Request::RequestSamples(n) => {
                     {
                         // sample the signal directly into the buffer shared with the cpal thread
-                        let mut buf = buf.write().unwrap();
-                        buf.clear();
-                        signal.sample_batch(&ctx, n, &mut *buf);
+                        let mut buffer = buffer.write().unwrap();
+                        buffer.clear();
+                        signal.sample_batch(&ctx, n, &mut *buffer);
                     }
                     send_reply.send(Reply::Done).unwrap();
                     ctx.batch_index += 1;

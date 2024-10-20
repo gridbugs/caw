@@ -1,4 +1,4 @@
-use caw_core_next::{SignalCtx, SignalTrait};
+use caw_core_next::{BufferedSignal, SignalCtx, SignalTrait};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, OutputCallbackInfo, StreamConfig,
@@ -90,7 +90,7 @@ impl Player {
 
     fn play_signal_sync_callback_raw<T, S, F>(
         &self,
-        mut signal: S,
+        buffered_signal: BufferedSignal<S>,
         mut f: F,
     ) -> anyhow::Result<()>
     where
@@ -98,6 +98,7 @@ impl Player {
         S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
         F: FnMut(&Arc<RwLock<Vec<T>>>),
     {
+        let BufferedSignal { mut signal, buffer } = buffered_signal;
         // channel for cpal thread to send messages to main thread
         let (
             send_sync_command_request_num_samples,
@@ -106,15 +107,15 @@ impl Player {
         let (send_sync_command_done, recv_sync_command_done) =
             mpsc::channel::<SyncCommandDone>();
         // buffer for sending samples from main thread to cpal thread
-        let buf = Arc::new(RwLock::new(Vec::<T>::new()));
+        let buffer = Arc::new(RwLock::new(buffer));
         let stream = self.make_stream_sync(
-            Arc::clone(&buf),
+            Arc::clone(&buffer),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
         )?;
         stream.play()?;
         let mut ctx = SignalCtx {
-            sample_rate_hz: self.config.sample_rate.0 as f64,
+            sample_rate_hz: self.config.sample_rate.0 as f32,
             batch_index: 0,
         };
         loop {
@@ -124,14 +125,14 @@ impl Player {
                     .expect("cpal thread stopped unexpectedly");
             {
                 // sample the signal directly into the buffer shared with the cpal thread
-                let mut buf = buf.write().unwrap();
+                let mut buffer = buffer.write().unwrap();
                 send_sync_command_done
                     .send(SyncCommandDone)
                     .expect("cpal thread stopped unexpectedly");
-                buf.clear();
-                signal.sample_batch(&ctx, num_samples, &mut *buf);
+                buffer.clear();
+                signal.sample_batch(&ctx, num_samples, &mut *buffer);
             }
-            f(&buf);
+            f(&buffer);
             ctx.batch_index += 1;
         }
     }
@@ -140,7 +141,10 @@ impl Player {
     /// filling the audio buffer. This will have the lowest possible latency but possibly lower
     /// maximum throughput compared to other ways of playing a signal. It's also inflexible as it
     /// needs to own the signal being played.
-    pub fn play_signal_sync<T, S>(&self, signal: S) -> anyhow::Result<()>
+    pub fn play_signal_sync<T, S>(
+        &self,
+        signal: BufferedSignal<S>,
+    ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
         S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
@@ -151,7 +155,7 @@ impl Player {
     /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
     pub fn play_signal_sync_callback<T, S, F>(
         &self,
-        signal: S,
+        signal: BufferedSignal<S>,
         mut f: F,
     ) -> anyhow::Result<()>
     where

@@ -60,9 +60,9 @@ where
 
 impl<S> SignalTrait for SignalSum<S>
 where
-    S: SignalTrait<Item = f64>,
+    S: SignalTrait<Item = f32>,
 {
-    type Item = f64;
+    type Item = f32;
     type SampleBuffer = Vec<Self::Item>;
 
     fn sample_batch(
@@ -86,7 +86,7 @@ where
 }
 impl<S> Sum<BufferedSignal<S>> for BufferedSignal<SignalSum<S>>
 where
-    S: SignalTrait<Item = f64>,
+    S: SignalTrait<Item = f32>,
 {
     fn sum<I: Iterator<Item = BufferedSignal<S>>>(iter: I) -> Self {
         SignalSum(iter.collect()).buffered()

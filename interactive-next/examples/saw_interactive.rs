@@ -3,7 +3,8 @@ use caw_core_next::*;
 use caw_interactive_next::window::Window;
 use rgb_int::Rgb24;
 
-fn signal() -> impl Signal<Item = f64, SampleBuffer = Vec<f64>> {
+fn signal(
+) -> BufferedSignal<impl SignalTrait<Item = f32, SampleBuffer = Vec<f32>>> {
     oscillator(waveform::Saw, freq_hz(40.0))
         .build()
         .zip(oscillator(waveform::Saw, freq_hz(40.1)).build())
@@ -11,7 +12,9 @@ fn signal() -> impl Signal<Item = f64, SampleBuffer = Vec<f64>> {
 }
 
 fn run(
-    signal: impl Signal<Item = f64, SampleBuffer = Vec<f64>>,
+    signal: BufferedSignal<
+        impl SignalTrait<Item = f32, SampleBuffer = Vec<f32>>,
+    >,
 ) -> anyhow::Result<()> {
     let window = Window::builder()
         .scale(2.0)

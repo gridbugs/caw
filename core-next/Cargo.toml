@@ -8,6 +8,7 @@ edition = "2021"
 [dev-dependencies]
 caw_builders = { version = "0.1", path = "../builders" }
 cpal = "0.15"
+rand = "0.8"
 
 [[example]]
 name = "saw_print_values"

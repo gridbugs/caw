@@ -1,7 +1,7 @@
 use std::{cell::RefCell, rc::Rc};
 
 pub struct SignalCtx {
-    pub sample_rate_hz: f64,
+    pub sample_rate_hz: f32,
     pub batch_index: u64,
 }
 
@@ -528,7 +528,7 @@ where
     Const(value)
 }
 
-impl SignalTrait for f64 {
+impl SignalTrait for f32 {
     type Item = Self;
     type SampleBuffer = ConstSampleBuffer<Self::Item>;
 
@@ -582,34 +582,34 @@ impl GateTrait for bool {}
 
 #[derive(Debug, Default, Clone, Copy, PartialEq)]
 pub struct Freq {
-    hz: f64,
+    hz: f32,
 }
 
 impl Freq {
-    pub const fn from_hz(hz: f64) -> Self {
+    pub const fn from_hz(hz: f32) -> Self {
         Self { hz }
     }
 
     pub const ZERO_HZ: Self = Self::from_hz(0.0);
 
-    pub fn from_s(s: f64) -> Self {
+    pub fn from_s(s: f32) -> Self {
         Self::from_hz(1.0 / s)
     }
 
-    pub const fn hz(&self) -> f64 {
+    pub const fn hz(&self) -> f32 {
         self.hz
     }
 
-    pub fn s(&self) -> f64 {
+    pub fn s(&self) -> f32 {
         self.hz() / 1.0
     }
 }
 
-pub const fn freq_hz(hz: f64) -> Freq {
+pub const fn freq_hz(hz: f32) -> Freq {
     Freq::from_hz(hz)
 }
 
-pub fn freq_s(s: f64) -> Freq {
+pub fn freq_s(s: f32) -> Freq {
     Freq::from_s(s)
 }
 

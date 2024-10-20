@@ -10,7 +10,7 @@ use syn::{
     AngleBracketedGenericArguments, Attribute, Expr, ExprLit, GenericArgument,
     GenericParam, Generics, Ident, ItemStruct, Lit, LitStr, Meta, Path,
     PathArguments, PathSegment, Token, Type, TypeParam, TypeParamBound,
-    TypePath,
+    TypePath, WhereClause, WherePredicate,
 };
 
 fn convert_snake_to_camel(ident: Ident) -> Ident {
@@ -118,6 +118,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
     let mut generic_field_with_default_idents = Vec::new();
     let mut generic_field_with_default_types = Vec::new();
     let mut generic_field_with_default_constraints = Vec::new();
+    let mut generic_field_with_default_extra_where_predicates = Vec::new();
     let mut field_default_values = Vec::new();
     let mut generic_field_with_default_type_param_idents = Vec::new();
     let mut generic_field_type_to_default_type = HashMap::new();
@@ -128,6 +129,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
         Punctuated::new();
     let mut generic_setter_type_name = None;
     let mut constructor_doc = None;
+    let mut constructor_where_predicates = Vec::new();
     let attrs = mem::replace(&mut input.attrs, Vec::new());
     for attr in attrs {
         if attr.path().is_ident("constructor") {
@@ -140,6 +142,14 @@ pub fn builder(input: TokenStream) -> TokenStream {
         if attr.path().is_ident("constructor_doc") {
             if let Some(s) = attr_lit_str(&attr) {
                 constructor_doc = Some(s.value());
+            }
+            continue;
+        }
+        if attr.path().is_ident("constructor_where") {
+            if let Some(s) = attr_lit_str(&attr) {
+                let where_predicates: WherePredicate =
+                    s.parse().expect("Expected where predicates");
+                constructor_where_predicates.push(where_predicates);
             }
             continue;
         }
@@ -177,6 +187,16 @@ pub fn builder(input: TokenStream) -> TokenStream {
         ))
     );
     let constructor_doc: Attribute = parse_quote!(#[doc = #constructor_doc]);
+    let constructor_where_clause = WhereClause {
+        where_token: Token![where](Span::call_site()),
+        predicates: {
+            let mut predicates = Punctuated::new();
+            for where_predicate in constructor_where_predicates {
+                predicates.push(where_predicate);
+            }
+            predicates
+        },
+    };
     if build_fn.len() != build_ty.len() || build_fn.len() > 1 {
         panic!(
             "The `build_fn` and `build_ty` attributes should both be set \
@@ -189,6 +209,8 @@ pub fn builder(input: TokenStream) -> TokenStream {
             let mut default = None;
             let mut generic = false;
             let mut generic_with_constraints: Punctuated<TypeParamBound, Plus> =
+                Punctuated::new();
+            let mut extra_where_predicates: Punctuated<WherePredicate, Comma> =
                 Punctuated::new();
             let mut generic_name = None;
             let attrs = mem::replace(&mut field.attrs, Vec::new());
@@ -218,6 +240,15 @@ pub fn builder(input: TokenStream) -> TokenStream {
                         let name: Ident =
                             s.parse().expect("Expected identifier");
                         generic_name = Some(name);
+                    }
+                    continue;
+                }
+                if attr.path().is_ident("extra_where_predicate") {
+                    generic = true;
+                    if let Some(s) = attr_lit_str(&attr) {
+                        let where_predicate: WherePredicate =
+                            s.parse().expect("Expected where predicates");
+                        extra_where_predicates.push(where_predicate);
                     }
                     continue;
                 }
@@ -259,6 +290,8 @@ pub fn builder(input: TokenStream) -> TokenStream {
                     generic_field_with_default_types.push(field.ty.clone());
                     generic_field_with_default_constraints
                         .push(generic_with_constraints);
+                    generic_field_with_default_extra_where_predicates
+                        .push(extra_where_predicates);
                 } else {
                     regular_field_with_default_idents.push(ident.clone());
                     regular_field_with_default_types.push(field.ty.clone());
@@ -397,7 +430,8 @@ pub fn builder(input: TokenStream) -> TokenStream {
                 #generic_field_with_default_idents: #generic_setter_type_name,
             ) -> #generic_field_with_default_setter_return_types
             where
-                #generic_setter_type_name: #generic_field_with_default_constraints
+                #generic_setter_type_name: #generic_field_with_default_constraints,
+                #generic_field_with_default_extra_where_predicates
             {
                 let Self {
                     #generic_field_with_default_setter_all_fields_except_current,
@@ -424,6 +458,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
         pub fn #constructor #constructor_generics (
             #(#field_without_default_idents: #field_without_default_types),*
         ) -> #new_fn_return_type
+            #constructor_where_clause
         {
             #builder_ident::#new_fn_return_type_generics::new(#(#field_without_default_idents),*)
         }

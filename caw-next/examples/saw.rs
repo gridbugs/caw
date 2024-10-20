@@ -2,7 +2,8 @@ use caw_builders::*;
 use caw_core_next::*;
 use caw_next::player::Player;
 
-fn signal() -> impl Signal<Item = f64, SampleBuffer = Vec<f64>> {
+fn signal(
+) -> BufferedSignal<impl SignalTrait<Item = f32, SampleBuffer = Vec<f32>>> {
     oscillator(waveform::Saw, freq_hz(40.0))
         .build()
         .zip(oscillator(waveform::Saw, freq_hz(40.1)).build())
