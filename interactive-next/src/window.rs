@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use caw_core_next::Signal;
+use caw_core_next::SignalTrait;
 use caw_next::player::{Player, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
@@ -221,7 +221,7 @@ impl Window {
     pub fn play<T, S>(&self, signal: S) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
     {
         let player = Player::new()?;
         let mut window_running = self.clone().run()?;

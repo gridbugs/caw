@@ -1,4 +1,4 @@
-use caw_core_next::{Signal, SignalCtx};
+use caw_core_next::{SignalCtx, SignalTrait};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     Device, OutputCallbackInfo, StreamConfig,
@@ -95,7 +95,7 @@ impl Player {
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
         F: FnMut(&Arc<RwLock<Vec<T>>>),
     {
         // channel for cpal thread to send messages to main thread
@@ -143,7 +143,7 @@ impl Player {
     pub fn play_signal_sync<T, S>(&self, signal: S) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
     {
         self.play_signal_sync_callback_raw(signal, |_| ())
     }
@@ -156,7 +156,7 @@ impl Player {
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: Signal<Item = T, SampleBuffer = Vec<T>>,
+        S: SignalTrait<Item = T, SampleBuffer = Vec<T>>,
         F: FnMut(&[T]),
     {
         self.play_signal_sync_callback_raw(signal, |buf| {
