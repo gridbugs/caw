@@ -1,8 +1,10 @@
 use std::{cell::RefCell, rc::Rc};
 
+#[derive(Clone, Copy)]
 pub struct SigCtx {
     pub sample_rate_hz: f32,
     pub batch_index: u64,
+    pub num_samples: usize,
 }
 
 pub trait Buf<T>: Default {
@@ -66,9 +68,9 @@ impl<S: Sig> SigBuf<S> {
         }
     }
 
-    pub fn sample_batch(&mut self, ctx: &SigCtx, n: usize) {
+    pub fn sample_batch(&mut self, ctx: &SigCtx) {
         self.buffer.clear();
-        self.signal.sample_batch(ctx, n, &mut self.buffer);
+        self.signal.sample_batch(ctx, &mut self.buffer);
     }
 
     pub fn samples(&self) -> impl Iterator<Item = &S::Item> {
@@ -130,12 +132,7 @@ pub trait Sig {
     type Item;
     type Buf: Buf<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    );
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf);
 
     fn buffered(self) -> SigBuf<Self>
     where
@@ -239,13 +236,8 @@ where
     type Item = T;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        self.buffered_signal.sample_batch(ctx, n);
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.buffered_signal.sample_batch(ctx);
         for sample in self.buffered_signal.samples() {
             sample_buffer.push((self.f)(sample.clone()));
         }
@@ -271,13 +263,8 @@ where
     type Item = T;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        self.buffered_signal.sample_batch(ctx, n);
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.buffered_signal.sample_batch(ctx);
         for sample in self.buffered_signal.samples() {
             sample_buffer.push((self.f)(sample.clone(), ctx));
         }
@@ -305,14 +292,9 @@ where
     type Item = (A::Item, B::Item);
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        self.a.sample_batch(ctx, n);
-        self.b.sample_batch(ctx, n);
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.a.sample_batch(ctx);
+        self.b.sample_batch(ctx);
         for (a, b) in self.a.samples().zip(self.b.samples()) {
             sample_buffer.push((a.clone(), b.clone()))
         }
@@ -353,17 +335,12 @@ where
     type Item = S::Item;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         if ctx.batch_index < self.next_batch_index {
             sample_buffer.clone_from_slice(&self.cache);
         } else {
             self.next_batch_index = ctx.batch_index + 1;
-            self.buffered_signal.sample_batch(ctx, n);
+            self.buffered_signal.sample_batch(ctx);
             self.cache.clear();
             for sample in self.buffered_signal.samples() {
                 self.cache.push(sample.clone());
@@ -408,13 +385,8 @@ where
     type Item = S::Item;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        self.0.borrow_mut().sample_batch(ctx, n, sample_buffer)
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.0.borrow_mut().sample_batch(ctx, sample_buffer)
     }
 }
 
@@ -448,13 +420,8 @@ where
     type Item = bool;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        self.buffered_gate.sample_batch(ctx, n);
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.buffered_gate.sample_batch(ctx);
         for &sample in self.buffered_gate.samples() {
             let trigger_sample = sample && !self.previous;
             self.previous = sample;
@@ -472,13 +439,8 @@ where
     type Item = T;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        for _ in 0..n {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        for _ in 0..ctx.num_samples {
             sample_buffer.push((self)(ctx));
         }
     }
@@ -498,15 +460,10 @@ where
     type Item = T;
     type Buf = ConstBuf<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        _ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         *sample_buffer = ConstBuf {
             value: Some(self.0.clone()),
-            count: n,
+            count: ctx.num_samples,
         };
     }
 
@@ -530,15 +487,10 @@ impl Sig for f32 {
     type Item = Self;
     type Buf = ConstBuf<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        _ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         *sample_buffer = ConstBuf {
             value: Some(*self),
-            count: n,
+            count: ctx.num_samples,
         };
     }
 
@@ -555,15 +507,10 @@ impl Sig for bool {
     type Item = Self;
     type Buf = ConstBuf<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        _ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         *sample_buffer = ConstBuf {
             value: Some(*self),
-            count: n,
+            count: ctx.num_samples,
         };
     }
 
@@ -615,15 +562,10 @@ impl Sig for Freq {
     type Item = Self;
     type Buf = ConstBuf<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        _ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         *sample_buffer = ConstBuf {
             value: Some(*self),
-            count: n,
+            count: ctx.num_samples,
         };
     }
 
@@ -643,15 +585,10 @@ impl Sig for Never {
     type Item = bool;
     type Buf = ConstBuf<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        _ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         *sample_buffer = ConstBuf {
             value: Some(false),
-            count: n,
+            count: ctx.num_samples,
         };
     }
 

@@ -117,6 +117,7 @@ impl Player {
         let mut ctx = SigCtx {
             sample_rate_hz: self.config.sample_rate.0 as f32,
             batch_index: 0,
+            num_samples: 0,
         };
         loop {
             let SyncCommandRequestNumSamples(num_samples) =
@@ -124,13 +125,14 @@ impl Player {
                     .recv()
                     .expect("cpal thread stopped unexpectedly");
             {
+                ctx.num_samples = num_samples;
                 // sample the signal directly into the buffer shared with the cpal thread
                 let mut buffer = buffer.write().unwrap();
                 send_sync_command_done
                     .send(SyncCommandDone)
                     .expect("cpal thread stopped unexpectedly");
                 buffer.clear();
-                signal.sample_batch(&ctx, num_samples, &mut *buffer);
+                signal.sample_batch(&ctx, &mut *buffer);
             }
             f(&buffer);
             ctx.batch_index += 1;

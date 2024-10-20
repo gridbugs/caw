@@ -19,3 +19,6 @@ name = "saw"
 
 [[example]]
 name = "many_oscillators"
+
+[[example]]
+name = "many_oscillators_multithreaded"

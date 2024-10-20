@@ -75,16 +75,11 @@ where
     type Item = f32;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
         if W::PULSE {
-            self.sample_batch_pulse(ctx, n, sample_buffer);
+            self.sample_batch_pulse(ctx, sample_buffer);
         } else {
-            self.sample_batch_non_pulse(ctx, n, sample_buffer);
+            self.sample_batch_non_pulse(ctx, sample_buffer);
         }
     }
 }
@@ -119,12 +114,11 @@ where
     fn sample_batch_non_pulse(
         &mut self,
         ctx: &SigCtx,
-        n: usize,
         sample_buffer: &mut <Self as Sig>::Buf,
     ) {
-        self.freq.sample_batch(ctx, n);
-        self.reset_trigger.sample_batch(ctx, n);
-        self.reset_offset_01.sample_batch(ctx, n);
+        self.freq.sample_batch(ctx);
+        self.reset_trigger.sample_batch(ctx);
+        self.reset_offset_01.sample_batch(ctx);
         for ((freq, &reset_trigger), reset_offset_01) in self
             .freq
             .samples()
@@ -148,13 +142,12 @@ where
     fn sample_batch_pulse(
         &mut self,
         ctx: &SigCtx,
-        n: usize,
         sample_buffer: &mut <Self as Sig>::Buf,
     ) {
-        self.freq.sample_batch(ctx, n);
-        self.reset_trigger.sample_batch(ctx, n);
-        self.reset_offset_01.sample_batch(ctx, n);
-        self.pulse_width_01.sample_batch(ctx, n);
+        self.freq.sample_batch(ctx);
+        self.reset_trigger.sample_batch(ctx);
+        self.reset_offset_01.sample_batch(ctx);
+        self.pulse_width_01.sample_batch(ctx);
         for (((freq, &reset_trigger), reset_offset_01), &pulse_width_01) in self
             .freq
             .samples()

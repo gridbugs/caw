@@ -24,14 +24,9 @@ where
     type Item = <L::Item as Add<R::Item>>::Output;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        self.lhs.sample_batch(ctx, n);
-        self.rhs.sample_batch(ctx, n);
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.lhs.sample_batch(ctx);
+        self.rhs.sample_batch(ctx);
         for (lhs, rhs) in self.lhs.samples().zip(self.rhs.samples()) {
             sample_buffer.push(lhs.clone().add(rhs.clone()))
         }
@@ -65,17 +60,12 @@ where
     type Item = f32;
     type Buf = Vec<Self::Item>;
 
-    fn sample_batch(
-        &mut self,
-        ctx: &SigCtx,
-        n: usize,
-        sample_buffer: &mut Self::Buf,
-    ) {
-        for _ in 0..n {
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        for _ in 0..ctx.num_samples {
             sample_buffer.push(0.0);
         }
         for buffered_signal in &mut self.0 {
-            buffered_signal.sample_batch(ctx, n);
+            buffered_signal.sample_batch(ctx);
             for (out, sample) in
                 sample_buffer.iter_mut().zip(buffered_signal.samples())
             {
