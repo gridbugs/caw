@@ -1,4 +1,3 @@
-use caw_builders::*;
 use caw_core_next::*;
 use caw_interactive_next::window::Window;
 use rand::Rng;
@@ -10,33 +9,64 @@ use std::{
     },
     thread,
 };
+use wide::f32x8;
 
-fn osc(freq: f32) -> SigBuf<impl Sig<Item = f32>> {
-    oscillator(waveform::Saw, freq_hz(freq))
-        .reset_offset_01(if rand::thread_rng().gen::<f32>() < 0.5 {
-            0.0
-        } else {
-            0.1
-        })
-        .build()
+struct SawOscillatorWide {
+    state_01: f32x8,
+    freq: f32x8,
 }
 
-fn signal(
+impl Sig for SawOscillatorWide {
+    type Item = f32;
+    type Buf = Vec<f32>;
+
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        let state_delta = self.freq / ctx.sample_rate_hz;
+        sample_buffer.resize(ctx.num_samples, 0.0);
+        for sample_mut in sample_buffer {
+            self.state_01 += state_delta;
+            self.state_01 = self.state_01 - (self.state_01 - 0.5).round();
+            *sample_mut = self.state_01.reduce_add() - 4.0;
+        }
+    }
+}
+
+fn osc_wide(freq: f32x8) -> SigBuf<impl Sig<Item = f32>> {
+    SawOscillatorWide {
+        freq,
+        state_01: if rand::thread_rng().gen::<f32>() < 0.5 {
+            f32x8::splat(0.0)
+        } else {
+            f32x8::splat(0.1)
+        },
+    }
+    .buffered()
+}
+
+fn signal_wide(
+    n: usize,
     thread_index: usize,
     num_threads: usize,
 ) -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
-    let n = 2000;
     let total_oscillators = num_threads * n;
-    (0..n)
-        .map(move |i| {
+    let freqs = (0..n)
+        .map(|i| {
             let i = i + (n * thread_index);
             let offset_total = 2.0;
             let offset =
                 ((i as f32 / total_oscillators as f32) - 0.5) * offset_total;
-            osc(40.0 + offset)
+            40.0 + offset
+        })
+        .collect::<Vec<_>>();
+    freqs
+        .chunks_exact(8)
+        .map(|chunk| {
+            let mut array = [0.0; 8];
+            array.copy_from_slice(chunk);
+            osc_wide(f32x8::new(array))
         })
         .sum::<SigBuf<_>>()
-        .map(move |x| ((x / (total_oscillators as f32)) * 100.0))
+        .map(move |x| (x / (total_oscillators as f32)) * 200.0)
 }
 
 struct Query {
@@ -59,7 +89,7 @@ fn run_thread(
     buf: Arc<RwLock<Vec<f32>>>,
 ) {
     thread::spawn(move || {
-        let mut sig_buf = signal(index, num_threads);
+        let mut sig_buf = signal_wide(25000, index, num_threads);
         loop {
             let Query { ctx } = recv_query.recv().unwrap();
             {

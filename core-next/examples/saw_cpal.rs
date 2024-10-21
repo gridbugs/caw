@@ -37,6 +37,7 @@ fn main() {
     let mut ctx = SigCtx {
         sample_rate_hz: config.sample_rate().0 as f32,
         batch_index: 0,
+        num_samples: 0,
     };
     let channels = config.channels();
     let config = StreamConfig::from(config);
@@ -75,11 +76,12 @@ fn main() {
         match recv_request.recv() {
             Ok(request) => match request {
                 Request::RequestSamples(n) => {
+                    ctx.num_samples = n;
                     {
                         // sample the signal directly into the buffer shared with the cpal thread
                         let mut buffer = buffer.write().unwrap();
                         buffer.clear();
-                        signal.sample_batch(&ctx, n, &mut *buffer);
+                        signal.sample_batch(&ctx, &mut *buffer);
                     }
                     send_reply.send(Reply::Done).unwrap();
                     ctx.batch_index += 1;
