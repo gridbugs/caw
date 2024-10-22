@@ -32,13 +32,13 @@ impl Sig for SawOscillatorWide {
 }
 
 fn osc_wide(freq: f32x8) -> SigBuf<impl Sig<Item = f32>> {
+    let num_steps = 3.0;
+    let mut rng = rand::thread_rng();
     SawOscillatorWide {
         freq,
-        state_01: if rand::thread_rng().gen::<f32>() < 0.5 {
-            f32x8::splat(0.0)
-        } else {
-            f32x8::splat(0.1)
-        },
+        state_01: f32x8::splat(
+            (rng.gen::<f32>() * num_steps).floor() / num_steps,
+        ) * 0.1,
     }
     .buffered()
 }
@@ -49,13 +49,23 @@ fn signal_wide(
     num_threads: usize,
 ) -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
     let total_oscillators = num_threads * n;
+    let base_freq_hz = 60.0;
+    let freq_hz = match thread_index {
+        0..=2 => base_freq_hz,
+        3..=5 => base_freq_hz * 2.0,
+        6..=8 => base_freq_hz * 3.0,
+        9..=11 => base_freq_hz * 4.0,
+        _ => base_freq_hz,
+    };
+    let detune = 0.02;
+    let min_freq_hz = freq_hz / (1.0 + detune);
+    let max_freq_hz = freq_hz * (1.0 + detune);
+    let range_freq_hz = max_freq_hz - min_freq_hz;
     let freqs = (0..n)
         .map(|i| {
-            let i = i + (n * thread_index);
-            let offset_total = 2.0;
-            let offset =
-                ((i as f32 / total_oscillators as f32) - 0.5) * offset_total;
-            40.0 + offset
+            let position_01 =
+                ((n * thread_index) + i) as f32 / ((num_threads * n) as f32);
+            min_freq_hz + (position_01 * range_freq_hz)
         })
         .collect::<Vec<_>>();
     freqs
@@ -66,7 +76,7 @@ fn signal_wide(
             osc_wide(f32x8::new(array))
         })
         .sum::<SigBuf<_>>()
-        .map(move |x| (x / (total_oscillators as f32)) * 200.0)
+        .map(move |x| (x / (total_oscillators as f32)) * 50.0)
 }
 
 struct Query {
@@ -137,7 +147,7 @@ impl Sig for MultithreadedSignal {
             let Done = thread_info.recv_done.recv().unwrap();
             let buf = thread_info.buf.read().unwrap();
             for (out, sample) in sample_buffer.iter_mut().zip(buf.iter()) {
-                *out = *sample;
+                *out += *sample;
             }
         }
     }
@@ -153,5 +163,5 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play(MultithreadedSignal::new(8).buffered())
+    window.play(MultithreadedSignal::new(12).buffered())
 }
