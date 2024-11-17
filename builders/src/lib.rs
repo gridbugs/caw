@@ -1,4 +1,4 @@
-use caw_core_next::{Freq, Never, Sig, SigBuf, SigCtx, Trig};
+use caw_core_next::{Buf, Never, Sig, SigCtx, SigT, TrigT};
 use caw_proc_macros::builder;
 
 pub mod waveform {
@@ -50,47 +50,48 @@ pub use waveform::Waveform;
 struct Oscillator<W, F, P, R, T>
 where
     W: Waveform,
-    F: Sig<Item = Freq>,
-    P: Sig<Item = f32>,
-    R: Sig<Item = f32>,
-    T: Trig,
+    F: SigT<Item = f32>,
+    P: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: TrigT,
 {
     first_frame: bool,
     state_01: f32,
     waveform: W,
-    freq: SigBuf<F>,
-    pulse_width_01: SigBuf<P>,
-    reset_offset_01: SigBuf<R>,
-    reset_trigger: SigBuf<T>,
+    freq: F,
+    pulse_width_01: P,
+    reset_offset_01: R,
+    reset_trigger: T,
+    buf: Vec<f32>,
 }
 
-impl<W, F, P, R, T> Sig for Oscillator<W, F, P, R, T>
+impl<W, F, P, R, T> SigT for Oscillator<W, F, P, R, T>
 where
     W: Waveform,
-    F: Sig<Item = Freq>,
-    P: Sig<Item = f32>,
-    R: Sig<Item = f32>,
-    T: Trig,
+    F: SigT<Item = f32>,
+    P: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: TrigT,
 {
     type Item = f32;
-    type Buf = Vec<Self::Item>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         if W::PULSE {
-            self.sample_batch_pulse(ctx, sample_buffer);
+            self.sample_batch_pulse(ctx);
         } else {
-            self.sample_batch_non_pulse(ctx, sample_buffer);
+            self.sample_batch_non_pulse(ctx);
         }
+        &self.buf
     }
 }
 
 impl<W, F, P, R, T> Oscillator<W, F, P, R, T>
 where
     W: Waveform,
-    F: Sig<Item = Freq>,
-    P: Sig<Item = f32>,
-    R: Sig<Item = f32>,
-    T: Trig,
+    F: SigT<Item = f32>,
+    P: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: TrigT,
 {
     fn new(
         waveform: W,
@@ -98,72 +99,66 @@ where
         pulse_width_01: P,
         reset_offset_01: R,
         reset_trigger: T,
-    ) -> Self {
-        Self {
+    ) -> Sig<Self> {
+        Sig(Self {
             first_frame: true,
             state_01: 0.0,
             waveform,
-            freq: freq.buffered(),
-            pulse_width_01: pulse_width_01.buffered(),
-            reset_offset_01: reset_offset_01.buffered(),
-            reset_trigger: reset_trigger.buffered(),
-        }
+            freq,
+            pulse_width_01,
+            reset_offset_01,
+            reset_trigger,
+            buf: Vec::new(),
+        })
     }
 
-    fn sample_batch_non_pulse(
-        &mut self,
-        ctx: &SigCtx,
-        sample_buffer: &mut <Self as Sig>::Buf,
-    ) {
-        self.freq.sample_batch(ctx);
-        self.reset_trigger.sample_batch(ctx);
-        self.reset_offset_01.sample_batch(ctx);
-        for ((freq, &reset_trigger), reset_offset_01) in self
-            .freq
-            .samples()
-            .zip(self.reset_trigger.samples())
-            .zip(self.reset_offset_01.samples())
+    fn sample_batch_non_pulse(&mut self, ctx: &SigCtx) {
+        let buf_freq = self.freq.sample(ctx);
+        let buf_reset_trigger = self.reset_trigger.sample(ctx);
+        let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
+        self.buf.clear();
+        for ((freq, &reset_trigger), reset_offset_01) in buf_freq
+            .iter()
+            .zip(buf_reset_trigger.iter())
+            .zip(buf_reset_offset_01.iter())
         {
             if reset_trigger || self.first_frame {
                 self.first_frame = false;
                 self.state_01 = *reset_offset_01;
             } else {
-                let state_delta = freq.hz() / ctx.sample_rate_hz;
+                let state_delta = freq / ctx.sample_rate_hz;
                 self.state_01 = self.state_01 + state_delta;
                 self.state_01 = self.state_01 - (self.state_01 - 0.5).round();
             }
             let sample = self.waveform.sample(self.state_01, 0.0);
-            sample_buffer.push(sample);
+            self.buf.push(sample);
         }
     }
 
     // The pulse wave oscillator is specialized because in all other waveforms there's no need to
     // compute the values of the pulse width signal.
-    fn sample_batch_pulse(
-        &mut self,
-        ctx: &SigCtx,
-        sample_buffer: &mut <Self as Sig>::Buf,
-    ) {
-        self.freq.sample_batch(ctx);
-        self.reset_trigger.sample_batch(ctx);
-        self.reset_offset_01.sample_batch(ctx);
-        self.pulse_width_01.sample_batch(ctx);
-        for (((freq, &reset_trigger), reset_offset_01), &pulse_width_01) in self
-            .freq
-            .samples()
-            .zip(self.reset_trigger.samples())
-            .zip(self.reset_offset_01.samples())
-            .zip(self.pulse_width_01.samples())
+    fn sample_batch_pulse(&mut self, ctx: &SigCtx) {
+        let buf_freq = self.freq.sample(ctx);
+        let buf_reset_trigger = self.reset_trigger.sample(ctx);
+        let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
+        let buf_pulse_width_01 = self.pulse_width_01.sample(ctx);
+        self.buf.clear();
+        for (((freq, &reset_trigger), reset_offset_01), &pulse_width_01) in
+            buf_freq
+                .iter()
+                .zip(buf_reset_trigger.iter())
+                .zip(buf_reset_offset_01.iter())
+                .zip(buf_pulse_width_01.iter())
         {
             if reset_trigger || self.first_frame {
                 self.first_frame = false;
                 self.state_01 = *reset_offset_01;
             } else {
-                let state_delta = freq.hz() / ctx.sample_rate_hz;
+                let state_delta = freq / ctx.sample_rate_hz;
                 self.state_01 = (self.state_01 + state_delta).rem_euclid(1.0);
             }
             let sample = self.waveform.sample(self.state_01, pulse_width_01);
-            sample_buffer.push(sample);
+            self.buf.push(sample);
         }
     }
 }
@@ -173,24 +168,24 @@ builder!(
     #[constructor = "oscillator"]
     #[constructor_doc = "A signal which oscillates with a given waveform at a given frequency."]
     #[build_fn = "Oscillator::new"]
-    #[build_ty = "impl Sig<Item = f32, Buf = Vec<f32>>"]
+    #[build_ty = "Sig<impl SigT<Item = f32>>"]
     #[generic_setter_type_name = "X"]
     pub struct OscillatorBuilder {
         #[generic_with_constraint = "Waveform"]
         #[generic_name = "W"]
         waveform: _,
-        #[generic_with_constraint = "Sig<Item = Freq>"]
+        #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "F"]
         freq: _,
-        #[generic_with_constraint = "Sig<Item = f32>"]
+        #[generic_with_constraint = "SigT<Item = f32>"]
         #[default = 0.5]
         #[generic_name = "P"]
         pulse_width_01: f32,
-        #[generic_with_constraint = "Sig<Item = f32>"]
+        #[generic_with_constraint = "SigT<Item = f32>"]
         #[default = 0.0]
         #[generic_name = "R"]
         reset_offset_01: f32,
-        #[generic_with_constraint = "Trig"]
+        #[generic_with_constraint = "TrigT"]
         #[default = Never]
         #[generic_name = "T"]
         reset_trigger: Never,

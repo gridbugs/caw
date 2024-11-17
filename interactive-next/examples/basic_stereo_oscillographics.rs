@@ -3,26 +3,22 @@ use caw_core_next::*;
 use caw_interactive_next::window::{Visualization, Window};
 use rgb_int::Rgb24;
 
-fn signal_left() -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
-    let lfo = (const_(160.0).buffered()
-        + (oscillator(waveform::Triangle, freq_hz(0.002))
-            .reset_offset_01(const_(0.25))
-            .build()
-            .buffered())
-            * const_(1.0).buffered())
-    .map(|x| freq_hz(x));
-    oscillator(waveform::Sine, lfo).build().buffered()
+fn signal_left() -> Sig<impl SigT<Item = f32>> {
+    let lfo = Sig(160.0)
+        + (oscillator(waveform::Triangle, 0.002)
+            .reset_offset_01(0.25)
+            .build())
+            * Sig(1.0);
+    oscillator(waveform::Sine, lfo).build()
 }
 
-fn signal_right() -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
-    let lfo = (const_(200.0).buffered()
-        + (oscillator(waveform::Triangle, freq_hz(-0.0013))
-            .reset_offset_01(const_(0.25))
-            .build()
-            .buffered())
-            * const_(1.0).buffered())
-    .map(|x| freq_hz(x));
-    oscillator(waveform::Sine, lfo).build().buffered()
+fn signal_right() -> Sig<impl SigT<Item = f32>> {
+    let lfo = Sig(200.0)
+        + (oscillator(waveform::Triangle, -0.0013)
+            .reset_offset_01(0.25)
+            .build())
+            * Sig(1.0);
+    oscillator(waveform::Sine, lfo).build()
 }
 
 fn run() -> anyhow::Result<()> {

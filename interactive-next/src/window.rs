@@ -1,5 +1,5 @@
 use anyhow::anyhow;
-use caw_core_next::{Sig, SigBuf};
+use caw_core_next::SigT;
 use caw_next::player::{Player, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
@@ -270,10 +270,10 @@ impl Window {
         })
     }
 
-    pub fn play_mono<T, S>(&self, signal: SigBuf<S>) -> anyhow::Result<()>
+    pub fn play_mono<T, S>(&self, sig: S) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: Sig<Item = T, Buf = Vec<T>>,
+        S: SigT<Item = T>,
     {
         let player = Player::new()?;
         let mut window_running = self.clone().run()?;
@@ -283,7 +283,7 @@ impl Window {
             window_running.handle_frame_if_enough_time_since_previous_frame();
             thread::sleep(FRAME_DURATION);
         }
-        player.play_signal_sync_mono_callback(signal, |buf| {
+        player.play_signal_sync_mono_callback(sig, |buf| {
             // Interleave rendering with sending samples to the sound card. Rendering needs to
             // happen on the main thread as this is a requirement of SDL, and sending samples to
             // the sound card needs to happen on the main thread as signals are not `Send`.
@@ -295,14 +295,14 @@ impl Window {
 
     pub fn play_stereo<TL, TR, SL, SR>(
         &self,
-        signal_left: SigBuf<SL>,
-        signal_right: SigBuf<SR>,
+        sig_left: SL,
+        sig_right: SR,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
-        SL: Sig<Item = TL, Buf = Vec<TL>>,
-        SR: Sig<Item = TR, Buf = Vec<TR>>,
+        SL: SigT<Item = TL>,
+        SR: SigT<Item = TR>,
     {
         let player = Player::new()?;
         let mut window_running = self.clone().run()?;
@@ -313,8 +313,8 @@ impl Window {
             thread::sleep(FRAME_DURATION);
         }
         player.play_signal_sync_stereo_callback(
-            signal_left,
-            signal_right,
+            sig_left,
+            sig_right,
             |buf_left, buf_right| {
                 // Interleave rendering with sending samples to the sound card. Rendering needs to
                 // happen on the main thread as this is a requirement of SDL, and sending samples to

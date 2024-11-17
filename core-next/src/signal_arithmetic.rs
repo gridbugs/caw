@@ -1,4 +1,4 @@
-use crate::{Sig, SigBuf, SigCtx};
+use crate::{Buf, Sig, SigCtx, SigT};
 use std::{
     iter::Sum,
     ops::{Add, Mul},
@@ -8,83 +8,98 @@ use std::{
 
 pub struct SignalAdd<L, R>
 where
-    L: Sig,
-    R: Sig,
+    L: SigT,
+    R: SigT,
     L::Item: Clone,
     R::Item: Clone,
     L::Item: Add<R::Item>,
 {
-    lhs: SigBuf<L>,
-    rhs: SigBuf<R>,
+    lhs: L,
+    rhs: R,
+    buf: Vec<<L::Item as Add<R::Item>>::Output>,
 }
 
-impl<L, R> Sig for SignalAdd<L, R>
+impl<L, R> SigT for SignalAdd<L, R>
 where
-    L: Sig,
-    R: Sig,
+    L: SigT,
+    R: SigT,
     L::Item: Clone,
     R::Item: Clone,
     L::Item: Add<R::Item>,
 {
     type Item = <L::Item as Add<R::Item>>::Output;
-    type Buf = Vec<Self::Item>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
-        self.lhs.sample_batch(ctx);
-        self.rhs.sample_batch(ctx);
-        for (lhs, rhs) in self.lhs.samples().zip(self.rhs.samples()) {
-            sample_buffer.push(lhs.clone().add(rhs.clone()))
-        }
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let buf_lhs = self.lhs.sample(ctx);
+        let buf_rhs = self.rhs.sample(ctx);
+        self.buf.clear();
+        self.buf.extend(
+            buf_lhs
+                .iter()
+                .cloned()
+                .zip(buf_rhs.iter().cloned())
+                .map(|(lhs, rhs)| lhs + rhs),
+        );
+        &self.buf
     }
 }
 
-impl<S, R> Add<SigBuf<R>> for SigBuf<S>
+impl<S, R> Add<R> for Sig<S>
 where
-    S: Sig,
-    R: Sig,
+    S: SigT,
+    R: SigT,
     S::Item: Add<R::Item>,
     S::Item: Clone,
     R::Item: Clone,
 {
-    type Output = SigBuf<SignalAdd<S, R>>;
+    type Output = Sig<SignalAdd<S, R>>;
 
-    fn add(self, rhs: SigBuf<R>) -> Self::Output {
-        SignalAdd { lhs: self, rhs }.buffered()
+    fn add(self, rhs: R) -> Self::Output {
+        Sig(SignalAdd {
+            lhs: self.0,
+            rhs,
+            buf: Vec::new(),
+        })
     }
 }
 
-pub struct SignalSum<S>(Vec<SigBuf<S>>)
-where
-    S: Sig,
-    S::Item: Add;
+// Sum
 
-impl<S> Sig for SignalSum<S>
+pub struct SignalSum<S>
 where
-    S: Sig<Item = f32>,
+    S: SigT,
+    S::Item: Add,
+{
+    sigs: Vec<Sig<S>>,
+    buf: Vec<f32>,
+}
+
+impl<S> SigT for SignalSum<S>
+where
+    S: SigT<Item = f32>,
 {
     type Item = f32;
-    type Buf = Vec<Self::Item>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
-        for _ in 0..ctx.num_samples {
-            sample_buffer.push(0.0);
-        }
-        for buffered_signal in &mut self.0 {
-            buffered_signal.sample_batch(ctx);
-            for (out, sample) in
-                sample_buffer.iter_mut().zip(buffered_signal.samples())
-            {
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.fill(0.0);
+        for buffered_signal in &mut self.sigs {
+            let buf = buffered_signal.sample(ctx);
+            for (out, sample) in self.buf.iter_mut().zip(buf.iter()) {
                 *out += sample;
             }
         }
+        &self.buf
     }
 }
-impl<S> Sum<SigBuf<S>> for SigBuf<SignalSum<S>>
+
+impl<S> Sum<Sig<S>> for Sig<SignalSum<S>>
 where
-    S: Sig<Item = f32>,
+    S: SigT<Item = f32>,
 {
-    fn sum<I: Iterator<Item = SigBuf<S>>>(iter: I) -> Self {
-        SignalSum(iter.collect()).buffered()
+    fn sum<I: Iterator<Item = Sig<S>>>(iter: I) -> Self {
+        let sigs = iter.collect::<Vec<_>>();
+        let buf = vec![0.0; sigs.len()];
+        Sig(SignalSum { sigs, buf })
     }
 }
 
@@ -92,47 +107,57 @@ where
 
 pub struct SignalMul<L, R>
 where
-    L: Sig,
-    R: Sig,
+    L: SigT,
+    R: SigT,
     L::Item: Clone,
     R::Item: Clone,
     L::Item: Mul<R::Item>,
 {
-    lhs: SigBuf<L>,
-    rhs: SigBuf<R>,
+    lhs: L,
+    rhs: R,
+    buf: Vec<<L::Item as Mul<R::Item>>::Output>,
 }
 
-impl<L, R> Sig for SignalMul<L, R>
+impl<L, R> SigT for SignalMul<L, R>
 where
-    L: Sig,
-    R: Sig,
+    L: SigT,
+    R: SigT,
     L::Item: Clone,
     R::Item: Clone,
     L::Item: Mul<R::Item>,
 {
     type Item = <L::Item as Mul<R::Item>>::Output;
-    type Buf = Vec<Self::Item>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
-        self.lhs.sample_batch(ctx);
-        self.rhs.sample_batch(ctx);
-        for (lhs, rhs) in self.lhs.samples().zip(self.rhs.samples()) {
-            sample_buffer.push(lhs.clone().mul(rhs.clone()))
-        }
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let buf_lhs = self.lhs.sample(ctx);
+        let buf_rhs = self.rhs.sample(ctx);
+        self.buf.clear();
+        self.buf.extend(
+            buf_lhs
+                .iter()
+                .cloned()
+                .zip(buf_rhs.iter().cloned())
+                .map(|(lhs, rhs)| lhs * rhs),
+        );
+        &self.buf
     }
 }
 
-impl<S, R> Mul<SigBuf<R>> for SigBuf<S>
+impl<S, R> Mul<R> for Sig<S>
 where
-    S: Sig,
-    R: Sig,
+    S: SigT,
+    R: SigT,
     S::Item: Mul<R::Item>,
     S::Item: Clone,
     R::Item: Clone,
 {
-    type Output = SigBuf<SignalMul<S, R>>;
+    type Output = Sig<SignalMul<S, R>>;
 
-    fn mul(self, rhs: SigBuf<R>) -> Self::Output {
-        SignalMul { lhs: self, rhs }.buffered()
+    fn mul(self, rhs: R) -> Self::Output {
+        Sig(SignalMul {
+            lhs: self.0,
+            rhs,
+            buf: Vec::new(),
+        })
     }
 }
