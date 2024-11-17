@@ -14,6 +14,12 @@ use std::{
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
 const WARMUP_FRAMES: usize = 10;
 
+#[derive(Debug, Clone, Copy)]
+pub enum Visualization {
+    Oscilloscope,
+    StereoOscillographics,
+}
+
 pub struct WindowBuilder {
     title: Option<String>,
     width_px: Option<u32>,
@@ -25,6 +31,7 @@ pub struct WindowBuilder {
     line_width: Option<u32>,
     foreground: Option<Rgb24>,
     background: Option<Rgb24>,
+    visualization: Option<Visualization>,
 }
 
 impl WindowBuilder {
@@ -40,6 +47,7 @@ impl WindowBuilder {
             line_width: None,
             foreground: None,
             background: None,
+            visualization: None,
         }
     }
 
@@ -93,6 +101,11 @@ impl WindowBuilder {
         self
     }
 
+    pub fn visualization(mut self, visualization: Visualization) -> Self {
+        self.visualization = Some(visualization);
+        self
+    }
+
     pub fn sane_default(self) -> Self {
         self.line_width(4).stable(true).spread(2).scale(2.0)
     }
@@ -109,6 +122,9 @@ impl WindowBuilder {
             line_width: self.line_width.unwrap_or(1),
             foreground: self.foreground.unwrap_or_else(|| Rgb24::new_grey(255)),
             background: self.background.unwrap_or_else(|| Rgb24::new_grey(0)),
+            visualization: self
+                .visualization
+                .unwrap_or_else(|| Visualization::Oscilloscope),
         }
     }
 }
@@ -117,8 +133,9 @@ struct WindowRunning {
     window: Window,
     canvas: Canvas<sdl2::video::Window>,
     event_pump: sdl2::EventPump,
-    visualization_state: VisualizationState,
-    scratch: Scratch,
+    oscilloscope_state: OscilloscopeState,
+    oscilloscope_scratch: OscilloscopeScratch,
+    stereo_oscillographics_state: StereoOscillographicsState,
     foreground: Color,
     background: Color,
     last_render: Instant,
@@ -126,20 +143,34 @@ struct WindowRunning {
 
 impl WindowRunning {
     fn render_visualization(&mut self) {
-        render_visualization(
-            &mut self.canvas,
-            &mut self.scratch,
-            &mut self.visualization_state,
-            self.window.width_px,
-            self.window.height_px,
-            self.window.stable,
-            self.window.stride,
-            self.window.scale,
-            self.window.spread,
-            self.foreground,
-            self.background,
-            self.window.line_width,
-        );
+        match self.window.visualization {
+            Visualization::Oscilloscope => self.oscilloscope_state.render(
+                &mut self.canvas,
+                &mut self.oscilloscope_scratch,
+                self.window.width_px,
+                self.window.height_px,
+                self.window.stable,
+                self.window.stride,
+                self.window.scale,
+                self.window.spread,
+                self.foreground,
+                self.background,
+                self.window.line_width,
+            ),
+            Visualization::StereoOscillographics => {
+                self.stereo_oscillographics_state.render(
+                    &mut self.canvas,
+                    self.window.width_px,
+                    self.window.height_px,
+                    self.window.foreground,
+                    self.window.background,
+                    self.window.line_width,
+                    self.window.stable,
+                    self.window.stride,
+                    self.window.scale,
+                )
+            }
+        }
     }
 
     fn render(&mut self) {
@@ -157,9 +188,26 @@ impl WindowRunning {
         }
     }
 
-    fn add_samples_to_visualization<T: ToF32 + Copy>(&mut self, buf: &[T]) {
+    fn add_samples_to_oscilloscope_state<T: ToF32 + Copy>(
+        &mut self,
+        buf: &[T],
+    ) {
         for sample in buf {
-            self.visualization_state.add_sample(sample.to_f32());
+            self.oscilloscope_state.add_sample(sample.to_f32());
+        }
+    }
+
+    fn add_samples_to_stereo_oscillographics_state<
+        TL: ToF32 + Copy,
+        TR: ToF32 + Copy,
+    >(
+        &mut self,
+        buf_left: &[TL],
+        buf_right: &[TR],
+    ) {
+        for (left, right) in buf_left.into_iter().zip(buf_right.into_iter()) {
+            self.stereo_oscillographics_state
+                .add_sample(left.to_f32(), right.to_f32());
         }
     }
 
@@ -184,6 +232,7 @@ pub struct Window {
     line_width: u32,
     foreground: Rgb24,
     background: Rgb24,
+    visualization: Visualization,
 }
 
 impl Window {
@@ -194,14 +243,16 @@ impl Window {
             .window(self.title.as_str(), self.width_px, self.height_px)
             .position_centered()
             .build()?;
-        let canvas = window
+        let mut canvas = window
             .into_canvas()
             .target_texture()
             .present_vsync()
             .build()?;
+        canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
         let event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
-        let visualization_state = VisualizationState::new();
-        let scratch = Scratch::default();
+        let oscilloscope_state = OscilloscopeState::new();
+        let oscilloscope_scratch = OscilloscopeScratch::default();
+        let stereo_oscillographics_state = StereoOscillographicsState::new();
         let foreground =
             Color::RGB(self.foreground.r, self.foreground.g, self.foreground.b);
         let background =
@@ -210,8 +261,9 @@ impl Window {
             window: self,
             canvas,
             event_pump,
-            visualization_state,
-            scratch,
+            oscilloscope_state,
+            oscilloscope_scratch,
+            stereo_oscillographics_state,
             foreground,
             background,
             last_render: Instant::now(),
@@ -235,7 +287,7 @@ impl Window {
             // Interleave rendering with sending samples to the sound card. Rendering needs to
             // happen on the main thread as this is a requirement of SDL, and sending samples to
             // the sound card needs to happen on the main thread as signals are not `Send`.
-            window_running.add_samples_to_visualization(buf);
+            window_running.add_samples_to_oscilloscope_state(buf);
             window_running.handle_frame_if_enough_time_since_previous_frame();
         })?;
         Ok(())
@@ -263,11 +315,13 @@ impl Window {
         player.play_signal_sync_stereo_callback(
             signal_left,
             signal_right,
-            |buf_left, _buf_right| {
+            |buf_left, buf_right| {
                 // Interleave rendering with sending samples to the sound card. Rendering needs to
                 // happen on the main thread as this is a requirement of SDL, and sending samples to
                 // the sound card needs to happen on the main thread as signals are not `Send`.
-                window_running.add_samples_to_visualization(buf_left);
+                window_running.add_samples_to_stereo_oscillographics_state(
+                    buf_left, buf_right,
+                );
                 window_running
                     .handle_frame_if_enough_time_since_previous_frame();
             },
@@ -280,12 +334,12 @@ impl Window {
     }
 }
 
-struct VisualizationState {
+struct OscilloscopeState {
     queue: Vec<f32>,
     zero_cross_index: Option<usize>,
 }
 
-impl VisualizationState {
+impl OscilloscopeState {
     fn new() -> Self {
         Self {
             queue: Vec::new(),
@@ -331,15 +385,75 @@ impl VisualizationState {
             }
         })
     }
+
+    fn render(
+        &mut self,
+        canvas: &mut Canvas<Sdl2Window>,
+        oscilloscope_scratch: &mut OscilloscopeScratch,
+        width_px: u32,
+        height_px: u32,
+        stable: bool,
+        stride: usize,
+        scale: f32,
+        spread: usize,
+        foreground: Color,
+        background: Color,
+        line_width: u32,
+    ) {
+        if self.queue.len() >= width_px as usize {
+            if stable {
+                if let Some(sample_start_index) = self
+                    .stable_start_index((width_px as usize * stride) / spread)
+                {
+                    oscilloscope_scratch.update_coords(
+                        &self.queue[sample_start_index..],
+                        width_px,
+                        height_px,
+                        stride,
+                        scale,
+                        spread,
+                    );
+                } else {
+                    oscilloscope_scratch.update_coords(
+                        &self.queue,
+                        width_px,
+                        height_px,
+                        stride,
+                        scale,
+                        spread,
+                    );
+                }
+            } else {
+                oscilloscope_scratch.update_coords(
+                    &self.queue,
+                    width_px,
+                    height_px,
+                    stride,
+                    scale,
+                    spread,
+                );
+            };
+            self.clear();
+        }
+        canvas.set_draw_color(background);
+        canvas.clear();
+        canvas.set_draw_color(foreground);
+        for pair in oscilloscope_scratch.coords.windows(2) {
+            for Coord { x, y } in line_2d::coords_between(pair[0], pair[1]) {
+                let rect = Rect::new(x, y, line_width, line_width);
+                let _ = canvas.fill_rect(rect);
+            }
+        }
+    }
 }
 
 #[derive(Default)]
-struct Scratch {
+struct OscilloscopeScratch {
     coords: Vec<Coord>,
     mean_y: i32,
 }
 
-impl Scratch {
+impl OscilloscopeScratch {
     fn update_coords(
         &mut self,
         samples: &[f32],
@@ -370,62 +484,86 @@ impl Scratch {
     }
 }
 
-fn render_visualization(
-    canvas: &mut Canvas<Sdl2Window>,
-    scratch: &mut Scratch,
-    visualization_state: &mut VisualizationState,
-    width_px: u32,
-    height_px: u32,
-    stable: bool,
-    stride: usize,
-    scale: f32,
-    spread: usize,
-    foreground: Color,
-    background: Color,
-    line_width: u32,
-) {
-    if visualization_state.queue.len() >= width_px as usize {
-        if stable {
-            if let Some(sample_start_index) = visualization_state
-                .stable_start_index((width_px as usize * stride) / spread)
-            {
-                scratch.update_coords(
-                    &visualization_state.queue[sample_start_index..],
-                    width_px,
-                    height_px,
-                    stride,
-                    scale,
-                    spread,
-                );
-            } else {
-                scratch.update_coords(
-                    &visualization_state.queue,
-                    width_px,
-                    height_px,
-                    stride,
-                    scale,
-                    spread,
-                );
-            }
-        } else {
-            scratch.update_coords(
-                &visualization_state.queue,
-                width_px,
-                height_px,
-                stride,
-                scale,
-                spread,
-            );
-        };
-        visualization_state.clear();
+struct StereoOscillographicsState {
+    samples: Vec<(f32, f32)>,
+}
+
+impl StereoOscillographicsState {
+    fn new() -> Self {
+        Self {
+            samples: Vec::new(),
+        }
     }
-    canvas.set_draw_color(background);
-    canvas.clear();
-    canvas.set_draw_color(foreground);
-    for pair in scratch.coords.windows(2) {
-        for Coord { x, y } in line_2d::coords_between(pair[0], pair[1]) {
-            let rect = Rect::new(x, y, line_width, line_width);
-            let _ = canvas.fill_rect(rect);
+
+    fn add_sample(&mut self, left: f32, right: f32) {
+        self.samples.push((left, right));
+    }
+
+    fn render(
+        &mut self,
+        canvas: &mut Canvas<Sdl2Window>,
+        width_px: u32,
+        height_px: u32,
+        foreground: Rgb24,
+        background: Rgb24,
+        line_width: u32,
+        stable: bool,
+        stride: usize,
+        scale: f32,
+    ) {
+        canvas.set_draw_color(Color::RGB(
+            background.r,
+            background.g,
+            background.b,
+        ));
+        canvas.clear();
+        let start = if stable {
+            let mut start = 0;
+            for (i, w) in self.samples.windows(2).enumerate() {
+                if w[0].0 <= 0.0 && w[0].0 >= 0.0 {
+                    start = i;
+                    break;
+                }
+            }
+            start
+        } else {
+            0
+        };
+        if let Some(&first) = self.samples.get(start) {
+            // Scale points so a value of 1 is the edge of the window in the shortest dimension
+            // (assuming the scale argument is 1).
+            let scale = scale * width_px.min(height_px) as f32 / 2.0;
+            let offset = Coord {
+                x: width_px as i32 / 2,
+                y: height_px as i32 / 2,
+            };
+            let transform = |(x, y): (f32, f32)| {
+                Coord {
+                    x: (x * scale) as i32,
+                    y: (y * scale) as i32,
+                } + offset
+            };
+            let mut prev = transform(first);
+            let mut alpha = 1.0;
+            let alpha_step =
+                1.0 / ((self.samples.len() - start) / stride) as f32;
+            for chunk in self.samples[(start + 1)..].chunks(stride) {
+                let coord = transform(chunk[0]);
+                let foreground = Color::RGBA(
+                    foreground.r,
+                    foreground.g,
+                    foreground.b,
+                    (255.0 * alpha) as u8,
+                );
+                alpha -= alpha_step;
+                canvas.set_draw_color(foreground);
+                for Coord { x, y } in line_2d::coords_between(prev, coord) {
+                    let rect = Rect::new(x, y, line_width, line_width);
+                    let _ = canvas.fill_rect(rect);
+                }
+                prev = coord;
+            }
+            self.samples.clear();
         }
     }
 }

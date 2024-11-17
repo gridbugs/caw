@@ -77,7 +77,7 @@ impl<S: Sig> SigBuf<S> {
         self.buffer.iter()
     }
 
-    pub fn map<T, F>(self, f: F) -> SigBuf<Map<S, T, F>>
+    pub fn map<T, F>(self, f: F) -> Map<S, T, F>
     where
         S: Sized,
         S::Item: Clone,
@@ -87,10 +87,9 @@ impl<S: Sig> SigBuf<S> {
             buffered_signal: self,
             f,
         }
-        .buffered()
     }
 
-    pub fn map_ctx<T, F>(self, f: F) -> SigBuf<MapCtx<S, T, F>>
+    pub fn map_ctx<T, F>(self, f: F) -> MapCtx<S, T, F>
     where
         S: Sized,
         S::Item: Clone,
@@ -100,23 +99,22 @@ impl<S: Sig> SigBuf<S> {
             buffered_signal: self,
             f,
         }
-        .buffered()
     }
 
-    pub fn zip<O>(self, other: SigBuf<O>) -> SigBuf<Zip<S, O>>
+    pub fn zip<O>(self, other: SigBuf<O>) -> Zip<S, O>
     where
         S: Sized,
         O: Sig,
         S::Item: Clone,
         O::Item: Clone,
     {
-        Zip { a: self, b: other }.buffered()
+        Zip { a: self, b: other }
     }
 
     pub fn add<R>(
         self,
         rhs: SigBuf<R>,
-    ) -> SigBuf<impl Sig<Item = <S::Item as std::ops::Add<R::Item>>::Output>>
+    ) -> impl Sig<Item = <S::Item as std::ops::Add<R::Item>>::Output>
     where
         R: Sig,
         S: Sized,
@@ -124,7 +122,7 @@ impl<S: Sig> SigBuf<S> {
         S::Item: Clone,
         R::Item: Clone,
     {
-        self.zip(rhs).map(|(s, r)| s + r)
+        self.zip(rhs).buffered().map(|(s, r)| s + r)
     }
 }
 
@@ -546,7 +544,7 @@ impl Freq {
     }
 
     pub fn s(&self) -> f32 {
-        self.hz() / 1.0
+        1.0 / self.hz()
     }
 }
 

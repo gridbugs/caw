@@ -92,13 +92,13 @@ where
     R: Sig<Item = f32>,
     T: Trig,
 {
-    fn new_buffered(
+    fn new(
         waveform: W,
         freq: F,
         pulse_width_01: P,
         reset_offset_01: R,
         reset_trigger: T,
-    ) -> SigBuf<Self> {
+    ) -> Self {
         Self {
             first_frame: true,
             state_01: 0.0,
@@ -108,7 +108,6 @@ where
             reset_offset_01: reset_offset_01.buffered(),
             reset_trigger: reset_trigger.buffered(),
         }
-        .buffered()
     }
 
     fn sample_batch_non_pulse(
@@ -173,8 +172,8 @@ builder!(
     #[allow(unused)]
     #[constructor = "oscillator"]
     #[constructor_doc = "A signal which oscillates with a given waveform at a given frequency."]
-    #[build_fn = "Oscillator::new_buffered"]
-    #[build_ty = "SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>>"]
+    #[build_fn = "Oscillator::new"]
+    #[build_ty = "impl Sig<Item = f32, Buf = Vec<f32>>"]
     #[generic_setter_type_name = "X"]
     pub struct OscillatorBuilder {
         #[generic_with_constraint = "Waveform"]

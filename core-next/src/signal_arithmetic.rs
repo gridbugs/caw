@@ -1,5 +1,10 @@
 use crate::{Sig, SigBuf, SigCtx};
-use std::{iter::Sum, ops::Add};
+use std::{
+    iter::Sum,
+    ops::{Add, Mul},
+};
+
+// Add
 
 pub struct SignalAdd<L, R>
 where
@@ -80,5 +85,54 @@ where
 {
     fn sum<I: Iterator<Item = SigBuf<S>>>(iter: I) -> Self {
         SignalSum(iter.collect()).buffered()
+    }
+}
+
+// Mul
+
+pub struct SignalMul<L, R>
+where
+    L: Sig,
+    R: Sig,
+    L::Item: Clone,
+    R::Item: Clone,
+    L::Item: Mul<R::Item>,
+{
+    lhs: SigBuf<L>,
+    rhs: SigBuf<R>,
+}
+
+impl<L, R> Sig for SignalMul<L, R>
+where
+    L: Sig,
+    R: Sig,
+    L::Item: Clone,
+    R::Item: Clone,
+    L::Item: Mul<R::Item>,
+{
+    type Item = <L::Item as Mul<R::Item>>::Output;
+    type Buf = Vec<Self::Item>;
+
+    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+        self.lhs.sample_batch(ctx);
+        self.rhs.sample_batch(ctx);
+        for (lhs, rhs) in self.lhs.samples().zip(self.rhs.samples()) {
+            sample_buffer.push(lhs.clone().mul(rhs.clone()))
+        }
+    }
+}
+
+impl<S, R> Mul<SigBuf<R>> for SigBuf<S>
+where
+    S: Sig,
+    R: Sig,
+    S::Item: Mul<R::Item>,
+    S::Item: Clone,
+    R::Item: Clone,
+{
+    type Output = SigBuf<SignalMul<S, R>>;
+
+    fn mul(self, rhs: SigBuf<R>) -> Self::Output {
+        SignalMul { lhs: self, rhs }.buffered()
     }
 }
