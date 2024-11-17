@@ -19,7 +19,7 @@ pkgs.mkShell rec {
     rustfmt
     pkg-config
     udev
-    alsaLib
+    alsa-lib
     nodejs
     wasm-pack
     openssl
