@@ -218,7 +218,7 @@ impl Window {
         })
     }
 
-    pub fn play<T, S>(&self, signal: SigBuf<S>) -> anyhow::Result<()>
+    pub fn play_mono<T, S>(&self, signal: SigBuf<S>) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
         S: Sig<Item = T, Buf = Vec<T>>,
@@ -231,13 +231,47 @@ impl Window {
             window_running.handle_frame_if_enough_time_since_previous_frame();
             thread::sleep(FRAME_DURATION);
         }
-        player.play_signal_sync_callback(signal, |buf| {
+        player.play_signal_sync_mono_callback(signal, |buf| {
             // Interleave rendering with sending samples to the sound card. Rendering needs to
             // happen on the main thread as this is a requirement of SDL, and sending samples to
             // the sound card needs to happen on the main thread as signals are not `Send`.
             window_running.add_samples_to_visualization(buf);
             window_running.handle_frame_if_enough_time_since_previous_frame();
         })?;
+        Ok(())
+    }
+
+    pub fn play_stereo<TL, TR, SL, SR>(
+        &self,
+        signal_left: SigBuf<SL>,
+        signal_right: SigBuf<SR>,
+    ) -> anyhow::Result<()>
+    where
+        TL: ToF32 + Send + Sync + Copy + 'static,
+        TR: ToF32 + Send + Sync + Copy + 'static,
+        SL: Sig<Item = TL, Buf = Vec<TL>>,
+        SR: Sig<Item = TR, Buf = Vec<TR>>,
+    {
+        let player = Player::new()?;
+        let mut window_running = self.clone().run()?;
+        // Render a few frames to warm up. The first few frames can take longer than usual to
+        // render, so warming up prevents the audio from stuttering on startup.
+        for _ in 0..WARMUP_FRAMES {
+            window_running.handle_frame_if_enough_time_since_previous_frame();
+            thread::sleep(FRAME_DURATION);
+        }
+        player.play_signal_sync_stereo_callback(
+            signal_left,
+            signal_right,
+            |buf_left, _buf_right| {
+                // Interleave rendering with sending samples to the sound card. Rendering needs to
+                // happen on the main thread as this is a requirement of SDL, and sending samples to
+                // the sound card needs to happen on the main thread as signals are not `Send`.
+                window_running.add_samples_to_visualization(buf_left);
+                window_running
+                    .handle_frame_if_enough_time_since_previous_frame();
+            },
+        )?;
         Ok(())
     }
 

@@ -21,6 +21,9 @@ wide = "0.7"
 name = "saw_interactive"
 
 [[example]]
+name = "saw_interactive_stereo"
+
+[[example]]
 name = "many_oscillators_multithreaded_visualized"
 
 [[example]]
