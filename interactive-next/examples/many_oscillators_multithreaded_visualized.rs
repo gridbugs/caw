@@ -36,12 +36,9 @@ fn osc_wide(freq: f32x8) -> SigBuf<impl Sig<Item = f32>> {
     let mut rng = rand::thread_rng();
     SawOscillatorWide {
         freq,
-        state_01: f32x8::splat(if rng.gen::<f32>() < 0.95 {
-            (((rng.gen::<f32>() * num_steps).floor() / num_steps) - 0.5)
-                .rem_euclid(1.0)
-        } else {
-            rng.gen::<f32>()
-        }),
+        state_01: f32x8::splat(
+            (rng.gen::<f32>() * num_steps).floor() / num_steps,
+        ) * 0.1,
     }
     .buffered()
 }
@@ -52,17 +49,15 @@ fn signal_wide(
     num_threads: usize,
 ) -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
     let total_oscillators = num_threads * n;
-    let base_freq_hz = 40.0;
-    let ratio = 729.0 / 512.0;
+    let base_freq_hz = 60.0;
     let freq_hz = match thread_index {
-        0..=3 => base_freq_hz,
-        4..=7 => base_freq_hz * ratio,
-        8..=10 => base_freq_hz * 2.0,
-        11..=13 => base_freq_hz * ratio * 2.0,
-        14..=14 => base_freq_hz * 4.0,
+        0..=2 => base_freq_hz,
+        3..=5 => base_freq_hz * 2.0,
+        6..=8 => base_freq_hz * 3.0,
+        9..=11 => base_freq_hz * 4.0,
         _ => base_freq_hz,
     };
-    let detune = 0.01;
+    let detune = 0.02;
     let min_freq_hz = freq_hz / (1.0 + detune);
     let max_freq_hz = freq_hz * (1.0 + detune);
     let range_freq_hz = max_freq_hz - min_freq_hz;
@@ -104,7 +99,7 @@ fn run_thread(
     buf: Arc<RwLock<Vec<f32>>>,
 ) {
     thread::spawn(move || {
-        let mut sig_buf = signal_wide(24440, index, num_threads);
+        let mut sig_buf = signal_wide(25000, index, num_threads);
         loop {
             let Query { ctx } = recv_query.recv().unwrap();
             {
@@ -164,9 +159,9 @@ fn main() -> anyhow::Result<()> {
         .scale(2.0)
         .stable(true)
         .spread(2)
-        .line_width(6)
-        .foreground(Rgb24::new(173, 102, 10))
-        .background(Rgb24::new(0, 0, 0))
+        .line_width(4)
+        .background(Rgb24::new(0, 31, 0))
+        .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play(MultithreadedSignal::new(15).buffered())
+    window.play(MultithreadedSignal::new(12).buffered())
 }
