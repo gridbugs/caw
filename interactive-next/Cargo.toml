@@ -25,6 +25,3 @@ name = "basic_stereo_oscillographics"
 
 [[example]]
 name = "many_oscillators_multithreaded_visualized"
-
-[[example]]
-name = "simd_super_saw_tritone"

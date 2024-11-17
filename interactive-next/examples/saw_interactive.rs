@@ -3,16 +3,14 @@ use caw_core_next::*;
 use caw_interactive_next::window::Window;
 use rgb_int::Rgb24;
 
-fn signal() -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
-    oscillator(waveform::Saw, freq_hz(40.0))
+fn signal() -> Sig<impl SigT<Item = f32>> {
+    oscillator(waveform::Saw, 40.0)
         .build()
-        .zip(oscillator(waveform::Saw, freq_hz(40.1)).build())
+        .zip(oscillator(waveform::Saw, 40.1).build())
         .map(|(a, b)| (a + b) / 10.0)
 }
 
-fn run(
-    signal: SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>>,
-) -> anyhow::Result<()> {
+fn run(signal: Sig<impl SigT<Item = f32>>) -> anyhow::Result<()> {
     let window = Window::builder()
         .scale(2.0)
         .stable(true)
@@ -21,7 +19,7 @@ fn run(
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play(signal)
+    window.play_mono(signal)
 }
 
 fn main() -> anyhow::Result<()> {

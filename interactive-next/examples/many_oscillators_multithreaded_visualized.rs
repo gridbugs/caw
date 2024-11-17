@@ -14,40 +14,41 @@ use wide::f32x8;
 struct SawOscillatorWide {
     state_01: f32x8,
     freq: f32x8,
+    buf: Vec<f32>,
 }
 
-impl Sig for SawOscillatorWide {
+impl SigT for SawOscillatorWide {
     type Item = f32;
-    type Buf = Vec<f32>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         let state_delta = self.freq / ctx.sample_rate_hz;
-        sample_buffer.resize(ctx.num_samples, 0.0);
-        for sample_mut in sample_buffer {
+        self.buf.resize(ctx.num_samples, 0.0);
+        for sample_mut in self.buf.iter_mut() {
             self.state_01 += state_delta;
             self.state_01 = self.state_01 - (self.state_01 - 0.5).round();
             *sample_mut = self.state_01.reduce_add() - 4.0;
         }
+        &self.buf
     }
 }
 
-fn osc_wide(freq: f32x8) -> SigBuf<impl Sig<Item = f32>> {
+fn osc_wide(freq: f32x8) -> Sig<impl SigT<Item = f32>> {
     let num_steps = 3.0;
     let mut rng = rand::thread_rng();
-    SawOscillatorWide {
+    Sig(SawOscillatorWide {
         freq,
         state_01: f32x8::splat(
             (rng.gen::<f32>() * num_steps).floor() / num_steps,
         ) * 0.1,
-    }
-    .buffered()
+        buf: Vec::new(),
+    })
 }
 
 fn signal_wide(
     n: usize,
     thread_index: usize,
     num_threads: usize,
-) -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
+) -> Sig<impl SigT<Item = f32>> {
     let total_oscillators = num_threads * n;
     let base_freq_hz = 60.0;
     let freq_hz = match thread_index {
@@ -75,7 +76,7 @@ fn signal_wide(
             array.copy_from_slice(chunk);
             osc_wide(f32x8::new(array))
         })
-        .sum::<SigBuf<_>>()
+        .sum::<Sig<_>>()
         .map(move |x| (x / (total_oscillators as f32)) * 50.0)
 }
 
@@ -99,13 +100,14 @@ fn run_thread(
     buf: Arc<RwLock<Vec<f32>>>,
 ) {
     thread::spawn(move || {
-        let mut sig_buf = signal_wide(25000, index, num_threads);
+        let mut sig = signal_wide(25000, index, num_threads);
         loop {
             let Query { ctx } = recv_query.recv().unwrap();
             {
+                let in_buf = sig.sample(&ctx);
                 let mut buf = buf.write().unwrap();
                 buf.clear();
-                sig_buf.signal.sample_batch(&ctx, &mut *buf);
+                buf.extend(in_buf.iter());
             }
             send_done.send(Done).unwrap();
         }
@@ -114,6 +116,7 @@ fn run_thread(
 
 struct MultithreadedSignal {
     thread_info: Vec<ThreadInfo>,
+    buf: Vec<f32>,
 }
 
 impl MultithreadedSignal {
@@ -130,26 +133,29 @@ impl MultithreadedSignal {
                 buf,
             });
         }
-        Self { thread_info }
+        Self {
+            thread_info,
+            buf: Vec::new(),
+        }
     }
 }
 
-impl Sig for MultithreadedSignal {
+impl SigT for MultithreadedSignal {
     type Item = f32;
-    type Buf = Vec<f32>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         for thread_info in &self.thread_info {
             thread_info.send_query.send(Query { ctx: *ctx }).unwrap();
         }
-        sample_buffer.resize(ctx.num_samples, 0.0);
+        self.buf.resize(ctx.num_samples, 0.0);
         for thread_info in &self.thread_info {
             let Done = thread_info.recv_done.recv().unwrap();
             let buf = thread_info.buf.read().unwrap();
-            for (out, sample) in sample_buffer.iter_mut().zip(buf.iter()) {
+            for (out, sample) in self.buf.iter_mut().zip(buf.iter()) {
                 *out += *sample;
             }
         }
+        &self.buf
     }
 }
 
@@ -163,5 +169,5 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play(MultithreadedSignal::new(12).buffered())
+    window.play_mono(MultithreadedSignal::new(12))
 }

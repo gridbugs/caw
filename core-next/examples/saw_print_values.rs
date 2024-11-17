@@ -1,8 +1,8 @@
 use caw_builders::*;
 use caw_core_next::*;
 
-fn signal() -> SigBuf<impl Sig<Item = f32>> {
-    oscillator(waveform::Saw, freq_hz(100.0)).build()
+fn signal() -> Sig<impl SigT<Item = f32>> {
+    oscillator(waveform::Saw, 100.0).build()
 }
 
 fn main() {
@@ -10,9 +10,10 @@ fn main() {
     let ctx = SigCtx {
         sample_rate_hz: 3000.0,
         batch_index: 0,
+        num_samples: 42,
     };
-    buffered_signal.sample_batch(&ctx, 42);
-    for x in buffered_signal.samples() {
+    let buf = buffered_signal.sample(&ctx);
+    for x in buf.iter() {
         println!("{}", x);
     }
 }

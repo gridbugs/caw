@@ -6,10 +6,10 @@ use cpal::{
 };
 use std::sync::{mpsc, Arc, RwLock};
 
-fn signal() -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
-    oscillator(waveform::Saw, freq_hz(40.0))
+fn signal() -> Sig<impl SigT<Item = f32>> {
+    oscillator(waveform::Saw, 40.0)
         .build()
-        .zip(oscillator(waveform::Saw, freq_hz(40.1)).build())
+        .zip(oscillator(waveform::Saw, 40.1).build())
         .map(|(a, b)| (a + b) / 10.0)
 }
 
@@ -43,8 +43,8 @@ fn main() {
     let config = StreamConfig::from(config);
     let (send_request, recv_request) = mpsc::channel::<Request>();
     let (send_reply, recv_reply) = mpsc::channel::<Reply>();
-    let SigBuf { mut signal, buffer } = signal();
-    let buffer = Arc::new(RwLock::new(buffer));
+    let mut signal = signal();
+    let buffer = Arc::new(RwLock::new(Vec::<f32>::new()));
     let stream = device
         .build_output_stream(
             &config,
@@ -80,8 +80,9 @@ fn main() {
                     {
                         // sample the signal directly into the buffer shared with the cpal thread
                         let mut buffer = buffer.write().unwrap();
+                        let buf = signal.sample(&ctx);
                         buffer.clear();
-                        signal.sample_batch(&ctx, &mut *buffer);
+                        buffer.extend(buf.iter());
                     }
                     send_reply.send(Reply::Done).unwrap();
                     ctx.batch_index += 1;

@@ -10,8 +10,8 @@ use std::{
     thread,
 };
 
-fn osc(freq: f32) -> SigBuf<impl Sig<Item = f32>> {
-    oscillator(waveform::Saw, freq_hz(freq))
+fn osc(freq: f32) -> Sig<impl SigT<Item = f32>> {
+    oscillator(waveform::Saw, freq)
         .reset_offset_01(rand::thread_rng().gen::<f32>())
         .build()
 }
@@ -19,7 +19,7 @@ fn osc(freq: f32) -> SigBuf<impl Sig<Item = f32>> {
 fn signal(
     thread_index: usize,
     num_threads: usize,
-) -> SigBuf<impl Sig<Item = f32, Buf = Vec<f32>>> {
+) -> Sig<impl SigT<Item = f32>> {
     let n = 2000;
     let total_oscillators = num_threads * n;
     (0..n)
@@ -30,7 +30,7 @@ fn signal(
                 ((i as f32 / total_oscillators as f32) - 0.5) * offset_total;
             osc(40.0 + offset)
         })
-        .sum::<SigBuf<_>>()
+        .sum::<Sig<_>>()
         .map(move |x| (x / (total_oscillators as f32)) * 100.0)
 }
 
@@ -54,13 +54,14 @@ fn run_thread(
     buf: Arc<RwLock<Vec<f32>>>,
 ) {
     thread::spawn(move || {
-        let mut sig_buf = signal(index, num_threads);
+        let mut sig = signal(index, num_threads);
         loop {
             let Query { ctx } = recv_query.recv().unwrap();
             {
+                let in_buf = sig.sample(&ctx);
                 let mut buf = buf.write().unwrap();
                 buf.clear();
-                sig_buf.signal.sample_batch(&ctx, &mut *buf);
+                buf.extend(in_buf.iter());
             }
             send_done.send(Done).unwrap();
         }
@@ -69,6 +70,7 @@ fn run_thread(
 
 struct MultithreadedSignal {
     thread_info: Vec<ThreadInfo>,
+    buf: Vec<f32>,
 }
 
 impl MultithreadedSignal {
@@ -85,31 +87,34 @@ impl MultithreadedSignal {
                 buf,
             });
         }
-        Self { thread_info }
+        Self {
+            thread_info,
+            buf: Vec::new(),
+        }
     }
 }
 
-impl Sig for MultithreadedSignal {
+impl SigT for MultithreadedSignal {
     type Item = f32;
-    type Buf = Vec<f32>;
 
-    fn sample_batch(&mut self, ctx: &SigCtx, sample_buffer: &mut Self::Buf) {
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         for thread_info in &self.thread_info {
             thread_info.send_query.send(Query { ctx: *ctx }).unwrap();
         }
-        sample_buffer.resize(ctx.num_samples, 0.0);
+        self.buf.resize(ctx.num_samples, 0.0);
         for thread_info in &self.thread_info {
             let Done = thread_info.recv_done.recv().unwrap();
             let buf = thread_info.buf.read().unwrap();
-            for (out, sample) in sample_buffer.iter_mut().zip(buf.iter()) {
+            for (out, sample) in self.buf.iter_mut().zip(buf.iter()) {
                 *out = *sample;
             }
         }
+        &self.buf
     }
 }
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
     let player = Player::new()?;
-    player.play_signal_sync(MultithreadedSignal::new(20).buffered())
+    player.play_signal_sync_mono(MultithreadedSignal::new(20))
 }
