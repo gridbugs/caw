@@ -94,6 +94,18 @@ impl SigT for f32 {
     }
 }
 
+/// For convenience, allow ints to be used as signals, but still treat them as yielding floats.
+impl SigT for i32 {
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            value: *self as f32,
+            count: ctx.num_samples,
+        }
+    }
+}
+
 pub struct Map<S, T, F>
 where
     S: SigT,

@@ -148,6 +148,7 @@ impl SigT for MultithreadedSignal {
             thread_info.send_query.send(Query { ctx: *ctx }).unwrap();
         }
         self.buf.resize(ctx.num_samples, 0.0);
+        self.buf.fill(0.0);
         for thread_info in &self.thread_info {
             let Done = thread_info.recv_done.recv().unwrap();
             let buf = thread_info.buf.read().unwrap();

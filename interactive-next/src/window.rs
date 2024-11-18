@@ -319,9 +319,15 @@ impl Window {
                 // Interleave rendering with sending samples to the sound card. Rendering needs to
                 // happen on the main thread as this is a requirement of SDL, and sending samples to
                 // the sound card needs to happen on the main thread as signals are not `Send`.
-                window_running.add_samples_to_stereo_oscillographics_state(
-                    buf_left, buf_right,
-                );
+
+                match self.visualization {
+                    Visualization::Oscilloscope => window_running
+                        .add_samples_to_oscilloscope_state(buf_left),
+                    Visualization::StereoOscillographics => window_running
+                        .add_samples_to_stereo_oscillographics_state(
+                            buf_left, buf_right,
+                        ),
+                }
                 window_running
                     .handle_frame_if_enough_time_since_previous_frame();
             },

@@ -81,6 +81,7 @@ where
     type Item = f32;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, 0.0);
         self.buf.fill(0.0);
         for buffered_signal in &mut self.sigs {
             let buf = buffered_signal.sample(ctx);
@@ -98,7 +99,7 @@ where
 {
     fn sum<I: Iterator<Item = Sig<S>>>(iter: I) -> Self {
         let sigs = iter.collect::<Vec<_>>();
-        let buf = vec![0.0; sigs.len()];
+        let buf = Vec::new();
         Sig(SignalSum { sigs, buf })
     }
 }
