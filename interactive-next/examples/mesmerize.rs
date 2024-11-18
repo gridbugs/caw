@@ -12,10 +12,10 @@ use std::{
 };
 
 fn signal() -> Sig<impl SigT<Item = f32>> {
-    let base_freq_hz = 40.0;
+    let base_freq_hz = 80.0;
     let mut rng = rand::thread_rng();
-    let freq_hz = (rng.gen_range(1..=10) as f32 * base_freq_hz)
-        + (rng.gen::<f32>() * 0.1);
+    let freq_hz =
+        (rng.gen_range(1..=6) as f32 * base_freq_hz) + (rng.gen::<f32>() * 0.1);
     let lfo = oscillator(Sine, rng.gen::<f32>() * 0.1).build()
         * Sig(rng.gen::<f32>());
     oscillator(Sine, Sig(freq_hz) + lfo).build() * Sig(0.2)
