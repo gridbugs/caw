@@ -188,38 +188,3 @@ where
         &self.buf
     }
 }
-
-/// A signal representing the state of a button that can be held, like a key on a piano. This is
-/// intended as a hint for developers about what to expect from the underlying signal (specifically
-/// to help distinguish between trigger and gate signals), but provides no strong guarantee about
-/// its behaviour.
-#[derive(Clone)]
-pub struct Gate<S: SigT<Item = bool>>(pub S);
-
-impl<S: SigT<Item = bool>> SigT for Gate<S> {
-    type Item = bool;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.0.sample(ctx)
-    }
-}
-
-/// A signal representing an event that can happen at specific instances with no duration, such as
-/// plucking a string. This is intended as a hint for developers about what to expect from the
-/// underlying signal (specifically to help distinguish between trigger and gate signals), but
-/// provides no strong guarantee about its behaviour.
-#[derive(Clone)]
-pub struct Trig<S: SigT<Item = bool>>(pub S);
-
-impl<S: SigT<Item = bool>> SigT for Trig<S> {
-    type Item = bool;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.0.sample(ctx)
-    }
-}
-
-pub mod trig {
-    use super::*;
-    pub const NEVER: Trig<bool> = Trig(false);
-}

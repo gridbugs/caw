@@ -6,3 +6,4 @@ edition = "2021"
 [dependencies]
 caw_core_next = { path = "../core-next" }
 caw_proc_macros = { path = "../proc-macros" }
+itertools = "0.13"

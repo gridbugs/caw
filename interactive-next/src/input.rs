@@ -1,4 +1,4 @@
-use caw_core_next::{Buf, ConstBuf, Gate, Sig, SigCtx, SigT};
+use caw_core_next::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
 use std::{cell::RefCell, rc::Rc};
 
@@ -280,8 +280,8 @@ impl<T: Copy> Clone for SigInput<T> {
     }
 }
 
-pub type Keyboard = KeyboardGeneric<Gate<SigInput<bool>>>;
-pub type Mouse = MouseGeneric<Sig<SigInput<f32>>, Gate<SigInput<bool>>>;
+pub type Keyboard = KeyboardGeneric<Sig<SigInput<bool>>>;
+pub type Mouse = MouseGeneric<Sig<SigInput<f32>>, Sig<SigInput<bool>>>;
 
 #[derive(Clone)]
 pub struct Input {
@@ -432,13 +432,13 @@ impl InputState {
     }
 
     pub fn keyboard(&self) -> Keyboard {
-        self.keyboard.map(|key| Gate(SigInput(Rc::clone(key))))
+        self.keyboard.map(|key| Sig(SigInput(Rc::clone(key))))
     }
 
     pub fn mouse(&self) -> Mouse {
         self.mouse.map(
             |position| Sig(SigInput(Rc::clone(position))),
-            |button| Gate(SigInput(Rc::clone(button))),
+            |button| Sig(SigInput(Rc::clone(button))),
         )
     }
 

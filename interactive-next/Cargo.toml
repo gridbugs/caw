@@ -28,3 +28,6 @@ name = "many_oscillators_multithreaded_visualized"
 
 [[example]]
 name = "mesmerize"
+
+[[example]]
+name = "envelope_interactive"

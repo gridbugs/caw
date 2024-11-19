@@ -237,6 +237,7 @@ impl WindowRunning {
     }
 
     fn handle_frame_if_enough_time_since_previous_frame(&mut self) {
+        self.handle_events();
         if self.last_render.elapsed() > FRAME_DURATION {
             self.render();
             self.last_render = Instant::now();
@@ -357,7 +358,6 @@ impl Window {
                             buf_left, buf_right,
                         ),
                 }
-                window_running.handle_events();
                 window_running
                     .handle_frame_if_enough_time_since_previous_frame();
             },

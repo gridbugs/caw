@@ -401,7 +401,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
             ) -> #new_fn_return_type {
                 #builder_ident {
                     #(#field_without_default_idents),*,
-                    #(#field_with_default_idents: #field_default_values),*,
+                    #(#field_with_default_idents: #field_default_values),*
                 }
             }
 
