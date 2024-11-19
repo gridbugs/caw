@@ -16,9 +16,9 @@ fn signal() -> Sig<impl SigT<Item = f32>> {
     let mut rng = rand::thread_rng();
     let freq_hz =
         (rng.gen_range(1..=6) as f32 * base_freq_hz) + (rng.gen::<f32>() * 0.1);
-    let lfo = oscillator(Sine, rng.gen::<f32>() * 0.1).build()
-        * Sig(rng.gen::<f32>());
-    oscillator(Sine, Sig(freq_hz) + lfo).build() * Sig(0.2)
+    let lfo =
+        oscillator(Sine, rng.gen::<f32>() * 0.1).build() * rng.gen::<f32>();
+    oscillator(Sine, freq_hz + lfo).build() * 0.2
 }
 
 struct Query {

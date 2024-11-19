@@ -1,4 +1,4 @@
-mod signal;
-mod signal_arithmetic;
-pub use signal::*;
-pub use signal_arithmetic::*;
+mod sig;
+mod sig_arith;
+pub use sig::*;
+pub use sig_arith::*;
