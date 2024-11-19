@@ -580,7 +580,7 @@ impl StereoOscillographicsState {
                 } + offset
             };
             let mut prev = transform(first);
-            let mut alpha = 1.0;
+            let mut alpha = 0.0;
             let alpha_step =
                 1.0 / ((self.samples.len() - start) / stride) as f32;
             for chunk in self.samples[(start + 1)..].chunks(stride) {
@@ -591,7 +591,7 @@ impl StereoOscillographicsState {
                     foreground.b,
                     (255.0 * alpha) as u8,
                 );
-                alpha -= alpha_step;
+                alpha += alpha_step;
                 canvas.set_draw_color(foreground);
                 for Coord { x, y } in line_2d::coords_between(prev, coord) {
                     let rect = Rect::new(x, y, line_width, line_width);
