@@ -1,24 +1,29 @@
 use caw_builders::*;
 use caw_core_next::*;
-use caw_interactive_next::window::{Visualization, Window};
+use caw_interactive_next::{
+    input::Input,
+    window::{Visualization, Window},
+};
 use rgb_int::Rgb24;
 
-fn signal_left() -> Sig<impl SigT<Item = f32>> {
-    let lfo = Sig(160.0)
+fn signal_left(input: Input) -> Sig<impl SigT<Item = f32>> {
+    let freq = Sig(30.0)
+        + (input.mouse.y_01() * Sig(500.0))
         + (oscillator(waveform::Triangle, 0.002)
             .reset_offset_01(0.25)
             .build())
             * Sig(1.0);
-    oscillator(waveform::Sine, lfo).build()
+    oscillator(waveform::Sine, freq).build()
 }
 
-fn signal_right() -> Sig<impl SigT<Item = f32>> {
-    let lfo = Sig(200.0)
+fn signal_right(input: Input) -> Sig<impl SigT<Item = f32>> {
+    let freq = Sig(30.0)
+        + (input.mouse.x_01() * Sig(500.0))
         + (oscillator(waveform::Triangle, -0.0013)
             .reset_offset_01(0.25)
             .build())
             * Sig(1.0);
-    oscillator(waveform::Sine, lfo).build()
+    oscillator(waveform::Sine, freq).build()
 }
 
 fn run() -> anyhow::Result<()> {
@@ -30,7 +35,8 @@ fn run() -> anyhow::Result<()> {
         .foreground(Rgb24::new(0, 255, 0))
         .visualization(Visualization::StereoOscillographics)
         .build();
-    window.play_stereo(signal_left(), signal_right())
+    let input = window.input();
+    window.play_stereo(signal_left(input.clone()), signal_right(input.clone()))
 }
 
 fn main() -> anyhow::Result<()> {

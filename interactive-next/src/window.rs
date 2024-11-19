@@ -1,3 +1,4 @@
+use crate::input::{Input, InputState};
 use anyhow::anyhow;
 use caw_core_next::SigT;
 use caw_next::player::{Player, ToF32};
@@ -125,6 +126,7 @@ impl WindowBuilder {
             visualization: self
                 .visualization
                 .unwrap_or_else(|| Visualization::Oscilloscope),
+            input_state: InputState::new(),
         }
     }
 }
@@ -183,6 +185,29 @@ impl WindowRunning {
             use sdl2::event::Event;
             match event {
                 Event::Quit { .. } => std::process::exit(0),
+                Event::KeyDown {
+                    scancode: Some(scancode),
+                    repeat: false,
+                    ..
+                } => self.window.input_state.set_key(scancode, true),
+                Event::KeyUp {
+                    scancode: Some(scancode),
+                    repeat: false,
+                    ..
+                } => self.window.input_state.set_key(scancode, false),
+                Event::MouseMotion { x, y, .. } => {
+                    self.window.input_state.set_mouse_position(
+                        x as f32 / self.window.width_px as f32,
+                        y as f32 / self.window.height_px as f32,
+                    )
+                }
+                Event::MouseButtonDown { mouse_btn, .. } => {
+                    self.window.input_state.set_mouse_button(mouse_btn, true)
+                }
+                Event::MouseButtonUp { mouse_btn, .. } => {
+                    self.window.input_state.set_mouse_button(mouse_btn, false)
+                }
+
                 _ => (),
             }
         }
@@ -213,7 +238,6 @@ impl WindowRunning {
 
     fn handle_frame_if_enough_time_since_previous_frame(&mut self) {
         if self.last_render.elapsed() > FRAME_DURATION {
-            self.handle_events();
             self.render();
             self.last_render = Instant::now();
         }
@@ -233,6 +257,7 @@ pub struct Window {
     foreground: Rgb24,
     background: Rgb24,
     visualization: Visualization,
+    input_state: InputState,
 }
 
 impl Window {
@@ -268,6 +293,10 @@ impl Window {
             background,
             last_render: Instant::now(),
         })
+    }
+
+    pub fn input(&self) -> Input {
+        self.input_state.input()
     }
 
     pub fn play_mono<T, S>(&self, sig: S) -> anyhow::Result<()>
@@ -328,6 +357,7 @@ impl Window {
                             buf_left, buf_right,
                         ),
                 }
+                window_running.handle_events();
                 window_running
                     .handle_frame_if_enough_time_since_previous_frame();
             },

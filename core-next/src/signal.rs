@@ -23,8 +23,8 @@ impl<T> Buf<T> for &Vec<T> {
 }
 
 pub struct ConstBuf<T> {
-    value: T,
-    count: usize,
+    pub value: T,
+    pub count: usize,
 }
 
 impl<T> Buf<T> for ConstBuf<T> {
@@ -69,20 +69,6 @@ pub trait SigT {
     }
 }
 
-/// Wrapper type for the `SigT` trait to simplify some trait implementations for signals. For
-/// example this allows arithmetic traits like `std::ops::Add` to be implemented for signals.
-pub struct Sig<S>(pub S)
-where
-    S: SigT;
-
-impl<S: SigT> SigT for Sig<S> {
-    type Item = S::Item;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.0.sample(ctx)
-    }
-}
-
 impl SigT for f32 {
     type Item = f32;
 
@@ -103,6 +89,33 @@ impl SigT for i32 {
             value: *self as f32,
             count: ctx.num_samples,
         }
+    }
+}
+
+/// For gate and trigger signals
+impl SigT for bool {
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            value: *self,
+            count: ctx.num_samples,
+        }
+    }
+}
+
+/// Wrapper type for the `SigT` trait to simplify some trait implementations for signals. For
+/// example this allows arithmetic traits like `std::ops::Add` to be implemented for signals.
+#[derive(Clone)]
+pub struct Sig<S>(pub S)
+where
+    S: SigT;
+
+impl<S: SigT> SigT for Sig<S> {
+    type Item = S::Item;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample(ctx)
     }
 }
 
@@ -164,22 +177,37 @@ where
     }
 }
 
-pub trait GateT: SigT<Item = bool> {}
+/// A signal representing the state of a button that can be held, like a key on a piano. This is
+/// intended as a hint for developers about what to expect from the underlying signal (specifically
+/// to help distinguish between trigger and gate signals), but provides no strong guarantee about
+/// its behaviour.
+#[derive(Clone)]
+pub struct Gate<S: SigT<Item = bool>>(pub S);
 
-pub trait TrigT: SigT<Item = bool> {}
-
-#[derive(Debug, Default, Clone, Copy, PartialEq)]
-pub struct Never;
-
-impl SigT for Never {
+impl<S: SigT<Item = bool>> SigT for Gate<S> {
     type Item = bool;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        ConstBuf {
-            value: false,
-            count: ctx.num_samples,
-        }
+        self.0.sample(ctx)
     }
 }
 
-impl TrigT for Never {}
+/// A signal representing an event that can happen at specific instances with no duration, such as
+/// plucking a string. This is intended as a hint for developers about what to expect from the
+/// underlying signal (specifically to help distinguish between trigger and gate signals), but
+/// provides no strong guarantee about its behaviour.
+#[derive(Clone)]
+pub struct Trig<S: SigT<Item = bool>>(pub S);
+
+impl<S: SigT<Item = bool>> SigT for Trig<S> {
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample(ctx)
+    }
+}
+
+pub mod trig {
+    use super::*;
+    pub const NEVER: Trig<bool> = Trig(false);
+}

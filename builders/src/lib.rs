@@ -1,4 +1,4 @@
-use caw_core_next::{Buf, Never, Sig, SigCtx, SigT, TrigT};
+use caw_core_next::{trig, Buf, Sig, SigCtx, SigT, Trig};
 use caw_proc_macros::builder;
 
 pub mod waveform {
@@ -53,7 +53,7 @@ where
     F: SigT<Item = f32>,
     P: SigT<Item = f32>,
     R: SigT<Item = f32>,
-    T: TrigT,
+    T: SigT<Item = bool>,
 {
     first_frame: bool,
     state_01: f32,
@@ -71,7 +71,7 @@ where
     F: SigT<Item = f32>,
     P: SigT<Item = f32>,
     R: SigT<Item = f32>,
-    T: TrigT,
+    T: SigT<Item = bool>,
 {
     type Item = f32;
 
@@ -91,7 +91,7 @@ where
     F: SigT<Item = f32>,
     P: SigT<Item = f32>,
     R: SigT<Item = f32>,
-    T: TrigT,
+    T: SigT<Item = bool>,
 {
     fn new(
         waveform: W,
@@ -185,9 +185,9 @@ builder!(
         #[default = 0.0]
         #[generic_name = "R"]
         reset_offset_01: f32,
-        #[generic_with_constraint = "TrigT"]
-        #[default = Never]
+        #[generic_with_constraint = "SigT<Item = bool>"]
+        #[default = trig::NEVER]
         #[generic_name = "T"]
-        reset_trigger: Never,
+        reset_trigger: Trig<bool>,
     }
 );
