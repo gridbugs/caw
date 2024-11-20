@@ -1,6 +1,6 @@
 use caw_core_next::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
-use std::{cell::RefCell, rc::Rc};
+use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Key {
@@ -262,13 +262,13 @@ impl<P: Clone, B: Clone> MouseGeneric<P, B> {
 
 /// A signal for keyboard and mouse inputs from sdl. Always yields the same value during any given
 /// frame.
-pub struct SigInput<T: Copy>(Rc<RefCell<T>>);
+pub struct SigInput<T: Copy>(Arc<RwLock<T>>);
 impl<T: Copy> SigT for SigInput<T> {
     type Item = T;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         ConstBuf {
-            value: *self.0.borrow(),
+            value: *self.0.read().unwrap(),
             count: ctx.num_samples,
         }
     }
@@ -276,7 +276,7 @@ impl<T: Copy> SigT for SigInput<T> {
 
 impl<T: Copy> Clone for SigInput<T> {
     fn clone(&self) -> Self {
-        SigInput(Rc::clone(&self.0))
+        SigInput(Arc::clone(&self.0))
     }
 }
 
@@ -291,15 +291,15 @@ pub struct Input {
 
 #[derive(Clone)]
 pub struct InputState {
-    keyboard: KeyboardGeneric<Rc<RefCell<bool>>>,
-    mouse: MouseGeneric<Rc<RefCell<f32>>, Rc<RefCell<bool>>>,
+    keyboard: KeyboardGeneric<Arc<RwLock<bool>>>,
+    mouse: MouseGeneric<Arc<RwLock<f32>>, Arc<RwLock<bool>>>,
 }
 
 impl InputState {
     pub(crate) fn new() -> Self {
-        let mk_key = || Rc::new(RefCell::new(false));
-        let mk_position = || Rc::new(RefCell::new(0.0));
-        let mk_button = || Rc::new(RefCell::new(false));
+        let mk_key = || Arc::new(RwLock::new(false));
+        let mk_position = || Arc::new(RwLock::new(0.0));
+        let mk_button = || Arc::new(RwLock::new(false));
         Self {
             keyboard: KeyboardGeneric {
                 a: mk_key(),
@@ -409,12 +409,12 @@ impl InputState {
             Scancode::Space => &self.keyboard.space,
             _ => return,
         };
-        *key_state.borrow_mut() = pressed;
+        *key_state.write().unwrap() = pressed;
     }
 
     pub(crate) fn set_mouse_position(&self, x_01: f32, y_01: f32) {
-        *self.mouse.x_01.borrow_mut() = x_01;
-        *self.mouse.y_01.borrow_mut() = y_01;
+        *self.mouse.x_01.write().unwrap() = x_01;
+        *self.mouse.y_01.write().unwrap() = y_01;
     }
 
     pub(crate) fn set_mouse_button(
@@ -428,17 +428,17 @@ impl InputState {
             SdlMouseButton::Middle => &self.mouse.middle,
             _ => return,
         };
-        *button_state.borrow_mut() = pressed;
+        *button_state.write().unwrap() = pressed;
     }
 
     pub fn keyboard(&self) -> Keyboard {
-        self.keyboard.map(|key| Sig(SigInput(Rc::clone(key))))
+        self.keyboard.map(|key| Sig(SigInput(Arc::clone(key))))
     }
 
     pub fn mouse(&self) -> Mouse {
         self.mouse.map(
-            |position| Sig(SigInput(Rc::clone(position))),
-            |button| Sig(SigInput(Rc::clone(button))),
+            |position| Sig(SigInput(Arc::clone(position))),
+            |button| Sig(SigInput(Arc::clone(button))),
         )
     }
 
