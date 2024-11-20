@@ -1,5 +1,5 @@
 [package]
-name = "caw_proc_macros"
+name = "caw_builder_proc_macros"
 version = "0.1.0"
 edition = "2021"
 

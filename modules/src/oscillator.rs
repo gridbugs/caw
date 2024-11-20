@@ -1,5 +1,5 @@
+use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Sig, SigCtx, SigT};
-use caw_proc_macros::builder;
 
 pub mod waveform {
     use std::f32::consts::PI;

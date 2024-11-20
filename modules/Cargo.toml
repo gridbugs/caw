@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 caw_core_next = { path = "../core-next" }
-caw_proc_macros = { path = "../builder-proc-macros" }
+caw_builder_proc_macros = { path = "../builder-proc-macros" }
 itertools = "0.13"
 wide = "0.7"
 rand = "0.8"

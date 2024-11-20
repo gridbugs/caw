@@ -54,6 +54,19 @@ pub trait SigT {
         })
     }
 
+    fn map_ctx<T, F>(self, f: F) -> Sig<MapCtx<Self, T, F>>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+        F: FnMut(Self::Item, &SigCtx) -> T,
+    {
+        Sig(MapCtx {
+            sig: self,
+            f,
+            buf: Vec::new(),
+        })
+    }
+
     fn zip<O>(self, other: O) -> Sig<Zip<Self, O>>
     where
         Self: Sized,
@@ -157,6 +170,18 @@ where
     }
 }
 
+impl<S> Sig<S>
+where
+    S: SigT<Item = f32>,
+{
+    pub fn flt<F>(self, flt: F) -> Sig<F::Out<S>>
+    where
+        F: Flt,
+    {
+        Sig(flt.into_sig(self.0))
+    }
+}
+
 pub struct Map<S, T, F>
 where
     S: SigT,
@@ -180,6 +205,34 @@ where
         let buf = self.sig.sample(ctx);
         self.buf.clear();
         self.buf.extend(buf.iter().cloned().map(&mut self.f));
+        &self.buf
+    }
+}
+
+pub struct MapCtx<S, T, F>
+where
+    S: SigT,
+    S::Item: Clone,
+    F: FnMut(S::Item, &SigCtx) -> T,
+{
+    sig: S,
+    f: F,
+    buf: Vec<T>,
+}
+
+impl<S, T, F> SigT for MapCtx<S, T, F>
+where
+    S: SigT,
+    S::Item: Clone,
+    F: FnMut(S::Item, &SigCtx) -> T,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let buf = self.sig.sample(ctx);
+        self.buf.clear();
+        self.buf
+            .extend(buf.iter().cloned().map(|x| (self.f)(x, ctx)));
         &self.buf
     }
 }
@@ -213,4 +266,20 @@ where
             .extend(buf_a.iter().cloned().zip(buf_b.iter().cloned()));
         &self.buf
     }
+}
+
+/// For signals yielding `f32`, this trait provides a general way of defining filters.
+pub trait Flt {
+    /// The type of the signal produced by this filter. Filters take an input signal (`S`) and wrap
+    /// them in a new signal whose type is this associated type. The associated type needs to take
+    /// a parameter to capture the fact that the type of the output will depend on the type of the
+    /// input.
+    type Out<S>: SigT
+    where
+        S: SigT<Item = f32>;
+
+    /// Create a new signal, consuming self in the process.
+    fn into_sig<S>(self, sig: S) -> Self::Out<S>
+    where
+        S: SigT<Item = f32>;
 }

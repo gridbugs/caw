@@ -1,5 +1,5 @@
+use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Sig, SigCtx, SigT};
-use caw_proc_macros::builder;
 use itertools::izip;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use wide::f32x8;
