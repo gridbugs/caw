@@ -58,7 +58,7 @@ where
     first_frame: bool,
     state_01: f32,
     waveform: W,
-    freq: F,
+    freq_hz: F,
     pulse_width_01: P,
     reset_offset_01: R,
     reset_trigger: T,
@@ -95,7 +95,7 @@ where
 {
     fn new(
         waveform: W,
-        freq: F,
+        freq_hz: F,
         pulse_width_01: P,
         reset_offset_01: R,
         reset_trigger: T,
@@ -104,7 +104,7 @@ where
             first_frame: true,
             state_01: 0.0,
             waveform,
-            freq,
+            freq_hz,
             pulse_width_01,
             reset_offset_01,
             reset_trigger,
@@ -113,11 +113,11 @@ where
     }
 
     fn sample_non_pulse(&mut self, ctx: &SigCtx) {
-        let buf_freq = self.freq.sample(ctx);
+        let buf_freq_hz = self.freq_hz.sample(ctx);
         let buf_reset_trigger = self.reset_trigger.sample(ctx);
         let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
         self.buf.clear();
-        for ((freq, &reset_trigger), reset_offset_01) in buf_freq
+        for ((freq_hz, &reset_trigger), reset_offset_01) in buf_freq_hz
             .iter()
             .zip(buf_reset_trigger.iter())
             .zip(buf_reset_offset_01.iter())
@@ -126,7 +126,7 @@ where
                 self.first_frame = false;
                 self.state_01 = *reset_offset_01;
             } else {
-                let state_delta = freq / ctx.sample_rate_hz;
+                let state_delta = freq_hz / ctx.sample_rate_hz;
                 self.state_01 = self.state_01 + state_delta;
                 self.state_01 = self.state_01 - (self.state_01 - 0.5).round();
             }
@@ -138,13 +138,13 @@ where
     // The pulse wave oscillator is specialized because in all other waveforms there's no need to
     // compute the values of the pulse width signal.
     fn sample_pulse(&mut self, ctx: &SigCtx) {
-        let buf_freq = self.freq.sample(ctx);
+        let buf_freq_hz = self.freq_hz.sample(ctx);
         let buf_reset_trigger = self.reset_trigger.sample(ctx);
         let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
         let buf_pulse_width_01 = self.pulse_width_01.sample(ctx);
         self.buf.clear();
-        for (((freq, &reset_trigger), reset_offset_01), &pulse_width_01) in
-            buf_freq
+        for (((freq_hz, &reset_trigger), reset_offset_01), &pulse_width_01) in
+            buf_freq_hz
                 .iter()
                 .zip(buf_reset_trigger.iter())
                 .zip(buf_reset_offset_01.iter())
@@ -154,7 +154,7 @@ where
                 self.first_frame = false;
                 self.state_01 = *reset_offset_01;
             } else {
-                let state_delta = freq / ctx.sample_rate_hz;
+                let state_delta = freq_hz / ctx.sample_rate_hz;
                 self.state_01 = (self.state_01 + state_delta).rem_euclid(1.0);
             }
             let sample = self.waveform.sample(self.state_01, pulse_width_01);
@@ -165,7 +165,7 @@ where
 
 builder! {
     #[constructor = "oscillator"]
-    #[constructor_doc = "A signal which oscillates with a given waveform at a given frequency."]
+    #[constructor_doc = "A signal which oscillates with a given waveform at a given freq_hzuency."]
     #[build_fn = "Oscillator::new"]
     #[build_ty = "Sig<Oscillator<W, F, P, R, T>>"]
     #[generic_setter_type_name = "X"]
@@ -175,7 +175,7 @@ builder! {
         waveform: _,
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "F"]
-        freq: _,
+        freq_hz: _,
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[default = 0.5]
         #[generic_name = "P"]

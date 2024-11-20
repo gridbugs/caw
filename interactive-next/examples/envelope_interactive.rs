@@ -1,5 +1,5 @@
 use caw_core_next::*;
-use caw_interactive_next::{Input, Key, Window};
+use caw_interactive_next::{Input, Key, Visualization, Window};
 use caw_modules::*;
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
@@ -9,13 +9,16 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
         .sustain_01(0.5)
         .release_s(2)
         .build();
-    (oscillator(waveform::Saw, 100).build()
-        + oscillator(waveform::Saw, 101).build())
-        * env
+    let osc = super_saw(input.mouse.x_01() * 1000).build() * 1.0;
+    osc * env
 }
 
 fn main() -> anyhow::Result<()> {
-    let window = Window::builder().sane_default().build();
+    let window = Window::builder()
+        .sane_default()
+        .visualization(Visualization::StereoOscillographics)
+        .line_width(2)
+        .build();
     let input = window.input();
-    window.play_mono(signal(input))
+    window.play_stereo(signal(input.clone()), signal(input.clone()))
 }

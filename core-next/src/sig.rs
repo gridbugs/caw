@@ -1,4 +1,4 @@
-use std::iter;
+use std::{fmt::Debug, iter};
 
 #[derive(Clone, Copy)]
 pub struct SigCtx {
@@ -128,6 +128,32 @@ impl<S: SigT> SigT for Sig<S> {
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.0.sample(ctx)
+    }
+}
+
+impl<S> Sig<S>
+where
+    S: SigT,
+    S::Item: Clone,
+{
+    pub fn debug<F: FnMut(&S::Item)>(
+        self,
+        mut f: F,
+    ) -> impl SigT<Item = S::Item> {
+        self.map(move |x| {
+            f(&x);
+            x
+        })
+    }
+}
+
+impl<S> Sig<S>
+where
+    S: SigT,
+    S::Item: Clone + Debug,
+{
+    pub fn debug_print(self) -> impl SigT<Item = S::Item> {
+        self.debug(|x| println!("{:?}", x))
     }
 }
 
