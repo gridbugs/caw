@@ -1,9 +1,9 @@
-use caw_builders::*;
 use caw_core_next::*;
 use caw_interactive_next::{
     input::Input,
     window::{Visualization, Window},
 };
+use caw_modules::*;
 use rgb_int::Rgb24;
 
 fn signal_left(input: Input) -> Sig<impl SigT<Item = f32>> {

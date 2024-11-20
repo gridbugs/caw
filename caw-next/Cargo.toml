@@ -5,12 +5,12 @@ edition = "2021"
 
 [dependencies]
 caw_core_next = { version = "0.1", path = "../core-next" }
-caw_builders = { version = "0.1", path = "../builders" }
 anyhow = "1.0"
 cpal = "0.15"
 log = "0.4"
 
 [dev-dependencies]
+caw_modules = { version = "0.1", path = "../modules" }
 env_logger = "0.11"
 rand = "0.8"
 

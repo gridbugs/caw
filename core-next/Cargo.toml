@@ -6,7 +6,7 @@ edition = "2021"
 [dependencies]
 
 [dev-dependencies]
-caw_builders = { version = "0.1", path = "../builders" }
+caw_modules = { version = "0.1", path = "../modules" }
 cpal = "0.15"
 rand = "0.8"
 

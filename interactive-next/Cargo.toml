@@ -7,12 +7,12 @@ edition = "2021"
 anyhow = "1.0"
 caw_next = { version = "0.1", path = "../caw-next" }
 caw_core_next = { version = "0.1", path = "../core-next" }
-caw_builders = { version = "0.1", path = "../builders" }
 line_2d = "0.5"
 rgb_int = "0.1"
 sdl2 = "0.37"
 
 [dev-dependencies]
+caw_modules = { version = "0.1", path = "../modules" }
 env_logger = "0.11"
 rand = "0.8"
 wide = "0.7"

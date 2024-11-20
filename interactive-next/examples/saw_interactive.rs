@@ -1,6 +1,6 @@
-use caw_builders::*;
 use caw_core_next::*;
 use caw_interactive_next::window::Window;
+use caw_modules::*;
 use rgb_int::Rgb24;
 
 fn signal() -> Sig<impl SigT<Item = f32>> {

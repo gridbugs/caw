@@ -1,6 +1,6 @@
-use caw_builders::*;
 use caw_core_next::*;
 use caw_interactive_next::window::{Visualization, Window};
+use caw_modules::*;
 use rand::Rng;
 use rgb_int::Rgb24;
 use std::{

@@ -1,6 +1,6 @@
-use caw_builders::*;
 use caw_core_next::*;
 use caw_interactive_next::{Input, Key, Window};
+use caw_modules::*;
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
     let env = adsr_linear_01(input.keyboard.get(Key::Space))

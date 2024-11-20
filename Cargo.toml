@@ -3,12 +3,12 @@
 resolver = "2"
 
 members = [
-    "builders",
+    "builder-proc-macros",
     "caw",
     "caw-next",
     "core",
     "core-next",
     "interactive",
     "interactive-next",
-    "proc-macros",
+    "modules",
 ]
