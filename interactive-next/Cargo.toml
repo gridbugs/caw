@@ -27,7 +27,7 @@ name = "basic_stereo_oscillographics"
 name = "many_oscillators_multithreaded_visualized"
 
 [[example]]
-name = "mesmerize"
+name = "harmonics_oscillographics"
 
 [[example]]
 name = "envelope_interactive"
