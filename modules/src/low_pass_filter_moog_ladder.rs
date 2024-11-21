@@ -1,7 +1,7 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Flt, Sig, SigCtx, SigT};
+use caw_core_next::{Buf, Flt, SigCtx, SigT};
 
-pub struct LowPassFilterMoogLadderFlt<C, R>
+pub struct Props<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
@@ -10,7 +10,7 @@ where
     resonance: R,
 }
 
-impl<C, R> LowPassFilterMoogLadderFlt<C, R>
+impl<C, R> Props<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
@@ -26,10 +26,10 @@ where
 builder! {
     #[constructor = "low_pass_filter_moog_ladder"]
     #[constructor_doc = "A low pass filter with adjustable resonance"]
-    #[build_fn = "LowPassFilterMoogLadderFlt::new"]
-    #[build_ty = "LowPassFilterMoogLadderFlt<C, R>"]
+    #[build_fn = "Props::new"]
+    #[build_ty = "Props<C, R>"]
     #[generic_setter_type_name = "X"]
-    pub struct LowPassFilterMoogLadderFltBuilder {
+    pub struct PropsBuilder {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "C"]
         cutoff_hz: _,
@@ -40,12 +40,12 @@ builder! {
     }
 }
 
-impl<C, R> Flt for LowPassFilterMoogLadderFlt<C, R>
+impl<C, R> Flt for PropsBuilder<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
-    type Out<S> = LowPassFilterMoogLadderSig<S, C, R>
+    type Out<S> = LowPassFilterMoogLadder<S, C, R>
     where
         S: SigT<Item = f32>;
 
@@ -53,28 +53,27 @@ where
     where
         S: SigT<Item = f32>,
     {
-        LowPassFilterMoogLadderSig {
-            cutoff_hz: self.cutoff_hz,
-            resonance: self.resonance,
+        let props = self.build();
+        LowPassFilterMoogLadder {
+            props,
             sig,
             buf: Vec::new(),
         }
     }
 }
 
-pub struct LowPassFilterMoogLadderSig<S, C, R>
+pub struct LowPassFilterMoogLadder<S, C, R>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
-    cutoff_hz: C,
-    resonance: R,
+    props: Props<C, R>,
     sig: S,
     buf: Vec<f32>,
 }
 
-impl<S, C, R> SigT for LowPassFilterMoogLadderSig<S, C, R>
+impl<S, C, R> SigT for LowPassFilterMoogLadder<S, C, R>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,

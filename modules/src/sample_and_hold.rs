@@ -1,15 +1,15 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Flt, Sig, SigCtx, SigT};
+use caw_core_next::{Buf, Flt, SigCtx, SigT};
 use itertools::izip;
 
-pub struct SampleAndHoldFlt<T>
+pub struct Props<T>
 where
     T: SigT<Item = bool>,
 {
     trigger: T,
 }
 
-impl<T> SampleAndHoldFlt<T>
+impl<T> Props<T>
 where
     T: SigT<Item = bool>,
 {
@@ -21,21 +21,21 @@ where
 builder! {
     #[constructor = "sample_and_hold"]
     #[constructor_doc = "Always yields the value of its input signal when the trigger was last true"]
-    #[build_fn = "SampleAndHoldFlt::new"]
-    #[build_ty = "SampleAndHoldFlt<T>"]
+    #[build_fn = "Props::new"]
+    #[build_ty = "Props<T>"]
     #[generic_setter_type_name = "X"]
-    pub struct SampleAndHoldFltBuilder {
+    pub struct PropsBuilder {
         #[generic_with_constraint = "SigT<Item = bool>"]
         #[generic_name = "T"]
         trigger: _,
     }
 }
 
-impl<T> Flt for SampleAndHoldFlt<T>
+impl<T> Flt for PropsBuilder<T>
 where
     T: SigT<Item = bool>,
 {
-    type Out<S> = SampleAndHoldSig<S, T>
+    type Out<S> = SampleAndHold<S, T>
     where
         S: SigT<Item = f32>;
 
@@ -43,28 +43,29 @@ where
     where
         S: SigT<Item = f32>,
     {
-        SampleAndHoldSig {
+        let props = self.build();
+        SampleAndHold {
+            props,
             sig,
-            trigger: self.trigger,
             value: Default::default(),
             buf: Vec::new(),
         }
     }
 }
 
-pub struct SampleAndHoldSig<S, T>
+pub struct SampleAndHold<S, T>
 where
     S: SigT,
     S::Item: Clone + Default,
     T: SigT<Item = bool>,
 {
+    props: Props<T>,
     sig: S,
-    trigger: T,
     value: S::Item,
     buf: Vec<S::Item>,
 }
 
-impl<S, T> SigT for SampleAndHoldSig<S, T>
+impl<S, T> SigT for SampleAndHold<S, T>
 where
     S: SigT,
     S::Item: Clone + Default,
@@ -77,7 +78,7 @@ where
         for (out, sample, &trigger) in izip! {
             self.buf.iter_mut(),
             self.sig.sample(ctx).iter(),
-            self.trigger.sample(ctx).iter(),
+            self.props.trigger.sample(ctx).iter(),
         } {
             if trigger {
                 self.value = sample.clone();
