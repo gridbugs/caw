@@ -172,13 +172,13 @@ where
 
 impl<S> Sig<S>
 where
-    S: SigT<Item = f32>,
+    S: SigT,
 {
-    pub fn flt<F>(self, flt: F) -> Sig<F::Out<S>>
+    pub fn filter<F>(self, filter: F) -> Sig<F::Out<S>>
     where
-        F: Flt,
+        F: Filter<ItemIn = S::Item>,
     {
-        Sig(flt.into_sig(self.0))
+        Sig(filter.into_sig(self.0))
     }
 }
 
@@ -269,17 +269,20 @@ where
 }
 
 /// For signals yielding `f32`, this trait provides a general way of defining filters.
-pub trait Flt {
+pub trait Filter {
+    /// The type of the item of the input signal to this filter.
+    type ItemIn;
+
     /// The type of the signal produced by this filter. Filters take an input signal (`S`) and wrap
-    /// them in a new signal whose type is this associated type. The associated type needs to take
-    /// a parameter to capture the fact that the type of the output will depend on the type of the
-    /// input.
+    /// them it a new signal whose type is this associated type. The output type will usually be
+    /// generic with a type parameter for the input signal, so this associated type must also have
+    /// that type parameter.
     type Out<S>: SigT
     where
-        S: SigT<Item = f32>;
+        S: SigT<Item = Self::ItemIn>;
 
-    /// Create a new signal, consuming self in the process.
+    /// Create a new signal from an existing signal, consuming self in the process.
     fn into_sig<S>(self, sig: S) -> Self::Out<S>
     where
-        S: SigT<Item = f32>;
+        S: SigT<Item = Self::ItemIn>;
 }

@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Flt, SigCtx, SigT};
+use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
 pub struct Props<T>
@@ -31,17 +31,19 @@ builder! {
     }
 }
 
-impl<T> Flt for PropsBuilder<T>
+impl<T> Filter for PropsBuilder<T>
 where
     T: SigT<Item = bool>,
 {
+    type ItemIn = f32;
+
     type Out<S> = SampleAndHold<S, T>
     where
-        S: SigT<Item = f32>;
+        S: SigT<Item = Self::ItemIn>;
 
     fn into_sig<S>(self, sig: S) -> Self::Out<S>
     where
-        S: SigT<Item = f32>,
+        S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
         SampleAndHold {

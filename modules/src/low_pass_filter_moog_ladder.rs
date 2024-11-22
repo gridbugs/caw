@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Flt, SigCtx, SigT};
+use caw_core_next::{Buf, Filter, SigCtx, SigT};
 
 pub struct Props<C, R>
 where
@@ -40,18 +40,20 @@ builder! {
     }
 }
 
-impl<C, R> Flt for PropsBuilder<C, R>
+impl<C, R> Filter for PropsBuilder<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
+    type ItemIn = f32;
+
     type Out<S> = LowPassFilterMoogLadder<S, C, R>
     where
-        S: SigT<Item = f32>;
+        S: SigT<Item = Self::ItemIn>;
 
     fn into_sig<S>(self, sig: S) -> Self::Out<S>
     where
-        S: SigT<Item = f32>,
+        S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
         LowPassFilterMoogLadder {
