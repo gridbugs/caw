@@ -172,6 +172,24 @@ where
 
 impl<S> Sig<S>
 where
+    S: SigT<Item = f32>,
+{
+    pub fn clamp_symetric<C>(
+        self,
+        max_unsigned: C,
+    ) -> Sig<impl SigT<Item = f32>>
+    where
+        C: SigT<Item = f32>,
+    {
+        self.zip(max_unsigned).map(|(s, c)| {
+            let c = c.abs();
+            s.clamp(-c, c)
+        })
+    }
+}
+
+impl<S> Sig<S>
+where
     S: SigT,
 {
     pub fn filter<F>(self, filter: F) -> Sig<F::Out<S>>
