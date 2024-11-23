@@ -21,9 +21,22 @@ impl ToF32 for f64 {
     }
 }
 
+#[derive(Debug, Clone, Copy)]
+pub struct Config {
+    /// default: 0.01
+    pub target_latency_s: f32,
+}
+
+impl Default for Config {
+    fn default() -> Self {
+        Self {
+            target_latency_s: 0.01,
+        }
+    }
+}
+
 pub struct Player {
     device: Device,
-    config: StreamConfig,
 }
 
 struct SyncCommandRequestNumSamples(usize);
@@ -41,21 +54,15 @@ impl Player {
         } else {
             log::info!("cpal device: (no name)");
         }
-        let config = device.default_output_config()?;
-        log::info!("sample format: {}", config.sample_format());
-        log::info!("sample rate: {}", config.sample_rate().0);
-        log::info!("num channels: {}", config.channels());
-        let config = StreamConfig::from(config);
-        Ok(Self { device, config })
+        Ok(Self { device })
     }
 
-    fn choose_config(&self) -> anyhow::Result<StreamConfig> {
+    fn choose_config(&self, config: Config) -> anyhow::Result<StreamConfig> {
         let default_config = self.device.default_output_config()?;
         let sample_rate = default_config.sample_rate();
         let channels = 2;
-        let target_latency_s = 0.01;
         let ideal_buffer_size =
-            (sample_rate.0 as f32 * target_latency_s) as u32 * channels;
+            (sample_rate.0 as f32 * config.target_latency_s) as u32 * channels;
         // Round down to a multiple of 4. It's not clear why this is necessary but alsa complains
         // if the buffer size is not evenly divisible by 4.
         let ideal_buffer_size = ideal_buffer_size & (!3);
@@ -86,16 +93,19 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
+        config: Config,
     ) -> anyhow::Result<cpal::Stream>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
     {
-        let config = self.choose_config()?;
+        let config = self.choose_config(config)?;
+        log::info!("sample rate: {}", config.sample_rate.0);
+        log::info!("num channels: {}", config.channels);
         log::info!("buffer size: {:?}", config.buffer_size);
         let stream = self.device.build_output_stream(
             &config,
             {
-                let channels = self.config.channels;
+                let channels = config.channels;
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
                     send_sync_command_request_num_samples
                         .send(SyncCommandRequestNumSamples(
@@ -125,6 +135,7 @@ impl Player {
         &self,
         mut sig: S,
         mut f: F,
+        config: Config,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -144,10 +155,12 @@ impl Player {
             Arc::clone(&buffer),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
+            config,
         )?;
+        let config = self.choose_config(config)?;
         stream.play()?;
         let mut ctx = SigCtx {
-            sample_rate_hz: self.config.sample_rate.0 as f32,
+            sample_rate_hz: config.sample_rate.0 as f32,
             batch_index: 0,
             num_samples: 0,
         };
@@ -176,12 +189,16 @@ impl Player {
     /// filling the audio buffer. This will have the lowest possible latency but possibly lower
     /// maximum throughput compared to other ways of playing a signal. It's also inflexible as it
     /// needs to own the signal being played.
-    pub fn play_signal_sync_mono<T, S>(&self, signal: S) -> anyhow::Result<()>
+    pub fn play_signal_sync_mono<T, S>(
+        &self,
+        signal: S,
+        config: Config,
+    ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
         S: SigT<Item = T>,
     {
-        self.play_signal_sync_mono_callback_raw(signal, |_| ())
+        self.play_signal_sync_mono_callback_raw(signal, |_| (), config)
     }
 
     /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
@@ -189,16 +206,21 @@ impl Player {
         &self,
         signal: S,
         mut f: F,
+        config: Config,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
         S: SigT<Item = T>,
         F: FnMut(&[T]),
     {
-        self.play_signal_sync_mono_callback_raw(signal, |buf| {
-            let buf = buf.read().unwrap();
-            f(&*buf);
-        })
+        self.play_signal_sync_mono_callback_raw(
+            signal,
+            |buf| {
+                let buf = buf.read().unwrap();
+                f(&*buf);
+            },
+            config,
+        )
     }
 
     fn make_stream_sync_stereo<TL, TR>(
@@ -209,15 +231,18 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
+        config: Config,
     ) -> anyhow::Result<cpal::Stream>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
     {
-        let channels = self.config.channels;
-        assert!(channels >= 2);
-        let config = self.choose_config()?;
+        let config = self.choose_config(config)?;
+        log::info!("sample rate: {}", config.sample_rate.0);
+        log::info!("num channels: {}", config.channels);
         log::info!("buffer size: {:?}", config.buffer_size);
+        let channels = config.channels;
+        assert!(channels >= 2);
         let stream = self.device.build_output_stream(
             &config,
             move |data: &mut [f32], _: &OutputCallbackInfo| {
@@ -253,6 +278,7 @@ impl Player {
         mut sig_left: SL,
         mut sig_right: SR,
         mut f: F,
+        config: Config,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -276,10 +302,12 @@ impl Player {
             Arc::clone(&buffer_right),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
+            config,
         )?;
+        let config = self.choose_config(config)?;
         stream.play()?;
         let mut ctx = SigCtx {
-            sample_rate_hz: self.config.sample_rate.0 as f32,
+            sample_rate_hz: config.sample_rate.0 as f32,
             batch_index: 0,
             num_samples: 0,
         };
@@ -316,6 +344,7 @@ impl Player {
         &self,
         sig_left: SL,
         sig_right: SR,
+        config: Config,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -327,6 +356,7 @@ impl Player {
             sig_left,
             sig_right,
             |_, _| (),
+            config,
         )
     }
 
@@ -336,6 +366,7 @@ impl Player {
         sig_left: SL,
         sig_right: SR,
         mut f: F,
+        config: Config,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -352,6 +383,7 @@ impl Player {
                 let buf_right = buf_right.read().unwrap();
                 f(&*buf_left, &*buf_right);
             },
+            config,
         )
     }
 }

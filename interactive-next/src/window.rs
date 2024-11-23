@@ -1,7 +1,7 @@
 use crate::input::{Input, InputState};
 use anyhow::anyhow;
 use caw_core_next::SigT;
-use caw_next::player::{Player, ToF32};
+use caw_next::player::{Config, Player, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
 use sdl2::{
@@ -300,7 +300,7 @@ impl Window {
         self.input_state.input()
     }
 
-    pub fn play_mono<T, S>(&self, sig: S) -> anyhow::Result<()>
+    pub fn play_mono<T, S>(&self, sig: S, config: Config) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
         S: SigT<Item = T>,
@@ -313,13 +313,18 @@ impl Window {
             window_running.handle_frame_if_enough_time_since_previous_frame();
             thread::sleep(FRAME_DURATION);
         }
-        player.play_signal_sync_mono_callback(sig, |buf| {
-            // Interleave rendering with sending samples to the sound card. Rendering needs to
-            // happen on the main thread as this is a requirement of SDL, and sending samples to
-            // the sound card needs to happen on the main thread as signals are not `Send`.
-            window_running.add_samples_to_oscilloscope_state(buf);
-            window_running.handle_frame_if_enough_time_since_previous_frame();
-        })?;
+        player.play_signal_sync_mono_callback(
+            sig,
+            |buf| {
+                // Interleave rendering with sending samples to the sound card. Rendering needs to
+                // happen on the main thread as this is a requirement of SDL, and sending samples to
+                // the sound card needs to happen on the main thread as signals are not `Send`.
+                window_running.add_samples_to_oscilloscope_state(buf);
+                window_running
+                    .handle_frame_if_enough_time_since_previous_frame();
+            },
+            config,
+        )?;
         Ok(())
     }
 
@@ -327,6 +332,7 @@ impl Window {
         &self,
         sig_left: SL,
         sig_right: SR,
+        config: Config,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -361,6 +367,7 @@ impl Window {
                 window_running
                     .handle_frame_if_enough_time_since_previous_frame();
             },
+            config,
         )?;
         Ok(())
     }

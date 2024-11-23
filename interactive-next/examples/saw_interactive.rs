@@ -19,7 +19,7 @@ fn run(signal: Sig<impl SigT<Item = f32>>) -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play_mono(signal)
+    window.play_mono(signal, Default::default())
 }
 
 fn main() -> anyhow::Result<()> {

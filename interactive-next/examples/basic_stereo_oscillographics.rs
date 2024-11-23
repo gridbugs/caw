@@ -36,7 +36,11 @@ fn run() -> anyhow::Result<()> {
         .visualization(Visualization::StereoOscillographics)
         .build();
     let input = window.input();
-    window.play_stereo(signal_left(input.clone()), signal_right(input.clone()))
+    window.play_stereo(
+        signal_left(input.clone()),
+        signal_right(input.clone()),
+        Default::default(),
+    )
 }
 
 fn main() -> anyhow::Result<()> {

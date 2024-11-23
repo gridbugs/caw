@@ -24,5 +24,9 @@ fn main() -> anyhow::Result<()> {
         .line_width(2)
         .build();
     let input = window.input();
-    window.play_stereo(signal(input.clone()), signal(input.clone()))
+    window.play_stereo(
+        signal(input.clone()),
+        signal(input.clone()),
+        Default::default(),
+    )
 }

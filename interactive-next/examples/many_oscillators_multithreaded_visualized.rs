@@ -170,5 +170,5 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play_mono(MultithreadedSignal::new(12))
+    window.play_mono(MultithreadedSignal::new(12), Default::default())
 }

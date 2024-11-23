@@ -74,7 +74,7 @@ impl OberheimVariationMoogState {
     }
 
     fn set_cutoff_hz(&mut self, cutoff_hz: f32) {
-        self.cutoff_hz = cutoff_hz;
+        self.cutoff_hz = cutoff_hz.max(0.0);
         // prewarp for BZT
         let wd = 2.0 * PI * cutoff_hz;
         let t = 1.0 / self.sample_rate_hz;
@@ -109,6 +109,7 @@ impl OberheimVariationMoogState {
         cutoff_hz: f32,
         resonance: f32,
     ) {
+        let cutoff_hz = cutoff_hz.max(0.0);
         if sample_rate_hz == self.sample_rate_hz {
             if cutoff_hz != self.cutoff_hz {
                 self.set_cutoff_hz(cutoff_hz);

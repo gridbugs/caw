@@ -111,5 +111,5 @@ fn main() -> anyhow::Result<()> {
     let thresh = 10.0;
     let left = MultithreadedSignal::new(6).map(|x| x.clamp(-thresh, thresh));
     let right = MultithreadedSignal::new(6).map(|x| x.clamp(-thresh, thresh));
-    window.play_stereo(left, right)
+    window.play_stereo(left, right, Default::default())
 }
