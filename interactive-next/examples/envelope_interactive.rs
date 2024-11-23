@@ -1,16 +1,19 @@
 use caw_core_next::*;
-use caw_interactive_next::{Input, Key, Visualization, Window};
+use caw_interactive_next::{Input, MouseButton, Visualization, Window};
 use caw_modules::*;
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
-    let env = adsr_linear_01(input.keyboard.get(Key::Space))
-        .attack_s(0.5)
+    let env = adsr_linear_01(input.mouse.button(MouseButton::Left))
+        .attack_s(0)
         .decay_s(0.2)
         .sustain_01(0.5)
         .release_s(2)
         .build();
-    let osc = super_saw(input.mouse.x_01() * 1000).build() * 1.0;
-    osc * env
+    let osc = super_saw(input.mouse.x_01() * 1000).build();
+    osc.filter(
+        low_pass_filter_moog_ladder(env * input.mouse.y_01() * 10000)
+            .resonance(0.5),
+    )
 }
 
 fn main() -> anyhow::Result<()> {

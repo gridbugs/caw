@@ -1,5 +1,7 @@
+use crate::low_level::moog_ladder::OberheimVariationMoogState;
 use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
+use itertools::izip;
 
 pub struct Props<C, R>
 where
@@ -59,6 +61,7 @@ where
         LowPassFilterMoogLadder {
             props,
             sig,
+            state: OberheimVariationMoogState::new(),
             buf: Vec::new(),
         }
     }
@@ -72,6 +75,7 @@ where
 {
     props: Props<C, R>,
     sig: S,
+    state: OberheimVariationMoogState,
     buf: Vec<f32>,
 }
 
@@ -84,6 +88,17 @@ where
     type Item = f32;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, 0.0);
+        for (out, &sample, &cutoff_hz, &resonance) in izip! {
+            self.buf.iter_mut(),
+            self.sig.sample(ctx).iter(),
+            self.props.cutoff_hz.sample(ctx).iter(),
+            self.props.resonance.sample(ctx).iter(),
+        } {
+            self.state
+                .update_params(ctx.sample_rate_hz, cutoff_hz, resonance);
+            *out = self.state.process_sample(sample);
+        }
         &self.buf
     }
 }

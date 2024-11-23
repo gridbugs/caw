@@ -4,6 +4,9 @@
 // correspondence between the two implementations, but the public API to this module will
 // change the names for consistency.
 
+// This is separate from the biquad_filter module because unlike high pass and low pass filters it
+// doesn't use the same common machinery.
+
 #[derive(Default)]
 struct BufferEntry {
     a: f64,
