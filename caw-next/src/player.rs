@@ -1,7 +1,7 @@
 use caw_core_next::{Buf, SigCtx, SigT};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    Device, OutputCallbackInfo, StreamConfig,
+    BufferSize, Device, OutputCallbackInfo, StreamConfig, SupportedBufferSize,
 };
 use std::sync::{mpsc, Arc, RwLock};
 
@@ -49,6 +49,36 @@ impl Player {
         Ok(Self { device, config })
     }
 
+    fn choose_config(&self) -> anyhow::Result<StreamConfig> {
+        let default_config = self.device.default_output_config()?;
+        let sample_rate = default_config.sample_rate();
+        let channels = 2;
+        let target_latency_s = 0.01;
+        let ideal_buffer_size =
+            (sample_rate.0 as f32 * target_latency_s) as u32 * channels;
+        // Round down to a multiple of 4. It's not clear why this is necessary but alsa complains
+        // if the buffer size is not evenly divisible by 4.
+        let ideal_buffer_size = ideal_buffer_size & (!3);
+        let buffer_size = match default_config.buffer_size() {
+            SupportedBufferSize::Range { min, max } => {
+                let frame_count = if ideal_buffer_size < *min {
+                    *min
+                } else if ideal_buffer_size > *max {
+                    *max
+                } else {
+                    ideal_buffer_size
+                };
+                BufferSize::Fixed(frame_count)
+            }
+            SupportedBufferSize::Unknown => BufferSize::Default,
+        };
+        Ok(StreamConfig {
+            channels: channels as u16,
+            sample_rate,
+            buffer_size,
+        })
+    }
+
     fn make_stream_sync_mono<T>(
         &self,
         buf: Arc<RwLock<Vec<T>>>,
@@ -56,12 +86,14 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
-    ) -> Result<cpal::Stream, cpal::BuildStreamError>
+    ) -> anyhow::Result<cpal::Stream>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
     {
-        self.device.build_output_stream(
-            &self.config,
+        let config = self.choose_config()?;
+        log::info!("buffer size: {:?}", config.buffer_size);
+        let stream = self.device.build_output_stream(
+            &config,
             {
                 let channels = self.config.channels;
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
@@ -85,7 +117,8 @@ impl Player {
             },
             |err| eprintln!("stream error: {}", err),
             None,
-        )
+        )?;
+        Ok(stream)
     }
 
     fn play_signal_sync_mono_callback_raw<T, S, F>(
@@ -176,15 +209,17 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
-    ) -> Result<cpal::Stream, cpal::BuildStreamError>
+    ) -> anyhow::Result<cpal::Stream>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
     {
         let channels = self.config.channels;
         assert!(channels >= 2);
-        self.device.build_output_stream(
-            &self.config,
+        let config = self.choose_config()?;
+        log::info!("buffer size: {:?}", config.buffer_size);
+        let stream = self.device.build_output_stream(
+            &config,
             move |data: &mut [f32], _: &OutputCallbackInfo| {
                 send_sync_command_request_num_samples
                     .send(SyncCommandRequestNumSamples(
@@ -209,7 +244,8 @@ impl Player {
             },
             |err| eprintln!("stream error: {}", err),
             None,
-        )
+        )?;
+        Ok(stream)
     }
 
     fn play_signal_sync_stereo_callback_raw<TL, TR, SL, SR, F>(
