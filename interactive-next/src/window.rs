@@ -580,17 +580,27 @@ impl StereoOscillographicsState {
                 x: width_px as i32 / 2,
                 y: height_px as i32 / 2,
             };
+            // Prevents overflows when samples get too large. This usually indicates a bug
+            // somewhere in the patch but we should still avoid crashing due to arithmetic overflow
+            // in such a case.
+            let off_screen_limit_scale = 1000.0;
             let transform = |(x, y): (f32, f32)| {
                 Coord {
-                    x: (x * scale) as i32,
-                    y: (y * scale) as i32,
+                    x: (x * scale).clamp(
+                        -(width_px as f32 * off_screen_limit_scale),
+                        width_px as f32 * off_screen_limit_scale,
+                    ) as i32,
+                    y: (y * scale).clamp(
+                        -(height_px as f32 * off_screen_limit_scale),
+                        height_px as f32 * off_screen_limit_scale,
+                    ) as i32,
                 } + offset
             };
             let mut prev = transform(first);
             let mut alpha = 0.0;
             let alpha_step =
                 1.0 / ((self.samples.len() - start) / stride) as f32;
-            for chunk in self.samples[(start + 1)..].chunks(stride) {
+            'outer: for chunk in self.samples[(start + 1)..].chunks(stride) {
                 let coord = transform(chunk[0]);
                 let foreground = Color::RGBA(
                     foreground.r,
@@ -601,6 +611,15 @@ impl StereoOscillographicsState {
                 alpha += alpha_step;
                 canvas.set_draw_color(foreground);
                 for Coord { x, y } in line_2d::coords_between(prev, coord) {
+                    if x < 0
+                        || x >= width_px as i32
+                        || y < 0
+                        || y >= height_px as i32
+                    {
+                        // stop drawing lines at the edge of the screen
+                        prev = coord;
+                        continue 'outer;
+                    }
                     let rect = Rect::new(x, y, line_width, line_width);
                     let _ = canvas.fill_rect(rect);
                 }

@@ -9,7 +9,13 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
         .sustain_01(0.8)
         .release_s(0.5)
         .build();
-    let osc = super_saw(input.mouse.x_01() * 1000).build();
+    let osc =
+        super_saw(
+            input.mouse.x_01().filter(sample_and_hold(
+                input.mouse.button(MouseButton::Right),
+            )) * 1000,
+        )
+        .build();
     osc.filter(
         low_pass_filter_moog_ladder(env * input.mouse.y_01() * 10000)
             .resonance(0.5),

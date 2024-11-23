@@ -44,7 +44,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = HighPassFilterButterworth<S, C, >
+    type Out<S> = HighPassFilterButterworth<S, C>
     where
         S: SigT<Item = Self::ItemIn>;
 

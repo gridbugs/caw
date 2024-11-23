@@ -152,7 +152,7 @@ where
     pub fn debug<F: FnMut(&S::Item)>(
         self,
         mut f: F,
-    ) -> impl SigT<Item = S::Item> {
+    ) -> Sig<impl SigT<Item = S::Item>> {
         self.map(move |x| {
             f(&x);
             x
@@ -165,7 +165,7 @@ where
     S: SigT,
     S::Item: Clone + Debug,
 {
-    pub fn debug_print(self) -> impl SigT<Item = S::Item> {
+    pub fn debug_print(self) -> Sig<impl SigT<Item = S::Item>> {
         self.debug(|x| println!("{:?}", x))
     }
 }
