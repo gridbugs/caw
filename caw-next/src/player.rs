@@ -325,11 +325,9 @@ impl Player {
                     .send(SyncCommandDone)
                     .expect("cpal thread stopped unexpectedly");
                 let buf = sig_left.sample(&ctx);
-                buffer_left.clear();
-                buffer_left.extend(buf.iter());
+                buf.clone_to_vec(&mut *buffer_left);
                 let buf = sig_right.sample(&ctx);
-                buffer_right.clear();
-                buffer_right.extend(buf.iter());
+                buf.clone_to_vec(&mut *buffer_right);
             }
             f(&buffer_left, &buffer_right);
             ctx.batch_index += 1;

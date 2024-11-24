@@ -11,8 +11,6 @@ macro_rules! impl_binary_op {
         where
             L: SigT,
             R: SigT,
-            L::Item: Clone,
-            R::Item: Clone,
             L::Item: $trait<R::Item>,
         {
             lhs: L,
@@ -24,9 +22,8 @@ macro_rules! impl_binary_op {
         where
             L: SigT,
             R: SigT,
-            L::Item: Clone,
-            R::Item: Clone,
             L::Item: $trait<R::Item>,
+            <L::Item as $trait<R::Item>>::Output: Clone,
         {
             type Item = <L::Item as $trait<R::Item>>::Output;
 
@@ -51,8 +48,7 @@ macro_rules! impl_binary_op {
             S: SigT,
             R: SigT,
             S::Item: $trait<R::Item>,
-            S::Item: Clone,
-            R::Item: Clone,
+            <S::Item as $trait<R::Item>>::Output: Clone,
         {
             type Output = Sig<$sig_struct<S, R>>;
 
@@ -68,8 +64,7 @@ macro_rules! impl_binary_op {
         /// Operate on a signal and an f32 where teh RHS is wrapped in the `Sig` type.
         impl<R> $trait<Sig<R>> for f32
         where
-            R: SigT,
-            R::Item: Clone,
+            R: SigT<Item = f32>,
             f32: $trait<R::Item>,
         {
             type Output = Sig<$sig_struct<f32, R>>;
@@ -86,8 +81,7 @@ macro_rules! impl_binary_op {
         /// Operate on a signal and an i32 where teh RHS is wrapped in the `Sig` type.
         impl<R> $trait<Sig<R>> for i32
         where
-            R: SigT,
-            R::Item: Clone,
+            R: SigT<Item = f32>,
             f32: $trait<R::Item>,
         {
             type Output = Sig<$sig_struct<i32, R>>;
