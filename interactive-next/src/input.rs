@@ -1,56 +1,7 @@
+pub use caw_computer_keyboard::Key;
 use caw_core_next::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
 use std::sync::{Arc, RwLock};
-
-#[derive(Debug, Clone, Copy)]
-pub enum Key {
-    A,
-    B,
-    C,
-    D,
-    E,
-    F,
-    G,
-    H,
-    I,
-    J,
-    K,
-    L,
-    M,
-    N,
-    O,
-    P,
-    Q,
-    R,
-    S,
-    T,
-    U,
-    V,
-    W,
-    X,
-    Y,
-    Z,
-    N0,
-    N1,
-    N2,
-    N3,
-    N4,
-    N5,
-    N6,
-    N7,
-    N8,
-    N9,
-    LeftBracket,
-    RightBracket,
-    Semicolon,
-    Apostrophe,
-    Comma,
-    Period,
-    Minus,
-    Equals,
-    Slash,
-    Space,
-}
 
 #[derive(Debug, Clone, Copy)]
 pub enum MouseButton {

@@ -6,9 +6,11 @@ members = [
     "builder-proc-macros",
     "caw",
     "caw-next",
+    "computer-keyboard",
     "core",
     "core-next",
     "interactive",
     "interactive-next",
+    "keyboard",
     "modules",
 ]
