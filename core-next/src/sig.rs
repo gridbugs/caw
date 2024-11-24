@@ -1,4 +1,4 @@
-use std::{fmt::Debug, iter};
+use std::{cell::RefCell, fmt::Debug, iter, rc::Rc};
 
 #[derive(Clone, Copy)]
 pub struct SigCtx {
@@ -70,15 +70,22 @@ pub trait SigT {
     fn zip<O>(self, other: O) -> Sig<Zip<Self, O>>
     where
         Self: Sized,
-        O: SigT,
         Self::Item: Clone,
-        O::Item: Clone,
+        O: SigT<Item: Clone>,
     {
         Sig(Zip {
             a: self,
             b: other,
             buf: Vec::new(),
         })
+    }
+
+    fn shared(self) -> SigShared<Self>
+    where
+        Self: Sized,
+        Self::Item: Clone,
+    {
+        SigShared(Rc::new(RefCell::new(SigCached::new(self))))
     }
 }
 
@@ -146,8 +153,7 @@ impl<S: SigT> SigT for Sig<S> {
 
 impl<S> Sig<S>
 where
-    S: SigT,
-    S::Item: Clone,
+    S: SigT<Item: Clone>,
 {
     pub fn debug<F: FnMut(&S::Item)>(
         self,
@@ -162,8 +168,7 @@ where
 
 impl<S> Sig<S>
 where
-    S: SigT,
-    S::Item: Clone + Debug,
+    S: SigT<Item: Clone + Debug>,
 {
     pub fn debug_print(self) -> Sig<impl SigT<Item = S::Item>> {
         self.debug(|x| println!("{:?}", x))
@@ -203,7 +208,7 @@ where
 pub struct Map<S, T, F>
 where
     S: SigT,
-    S::Item: Clone,
+    S: SigT<Item: Clone>,
     F: FnMut(S::Item) -> T,
 {
     sig: S,
@@ -213,8 +218,7 @@ where
 
 impl<S, T, F> SigT for Map<S, T, F>
 where
-    S: SigT,
-    S::Item: Clone,
+    S: SigT<Item: Clone>,
     F: FnMut(S::Item) -> T,
 {
     type Item = T;
@@ -229,8 +233,7 @@ where
 
 pub struct MapCtx<S, T, F>
 where
-    S: SigT,
-    S::Item: Clone,
+    S: SigT<Item: Clone>,
     F: FnMut(S::Item, &SigCtx) -> T,
 {
     sig: S,
@@ -240,8 +243,7 @@ where
 
 impl<S, T, F> SigT for MapCtx<S, T, F>
 where
-    S: SigT,
-    S::Item: Clone,
+    S: SigT<Item: Clone>,
     F: FnMut(S::Item, &SigCtx) -> T,
 {
     type Item = T;
@@ -257,10 +259,8 @@ where
 
 pub struct Zip<A, B>
 where
-    A: SigT,
-    B: SigT,
-    A::Item: Clone,
-    B::Item: Clone,
+    A: SigT<Item: Clone>,
+    B: SigT<Item: Clone>,
 {
     a: A,
     b: B,
@@ -269,10 +269,8 @@ where
 
 impl<A, B> SigT for Zip<A, B>
 where
-    A: SigT,
-    B: SigT,
-    A::Item: Clone,
-    B::Item: Clone,
+    A: SigT<Item: Clone>,
+    B: SigT<Item: Clone>,
 {
     type Item = (A::Item, B::Item);
 
@@ -303,4 +301,78 @@ pub trait Filter {
     fn into_sig<S>(self, sig: S) -> Self::Out<S>
     where
         S: SigT<Item = Self::ItemIn>;
+}
+
+/// Wrapper for a `Sig` that prevents recomputation of its value
+/// for a particular point in time.
+struct SigCached<S>
+where
+    S: SigT<Item: Clone>,
+{
+    sig: S,
+    cache: Vec<S::Item>,
+    next_batch_index: u64,
+}
+
+impl<S> SigCached<S>
+where
+    S: SigT<Item: Clone>,
+{
+    fn new(sig: S) -> Self {
+        Self {
+            sig,
+            cache: Vec::new(),
+            next_batch_index: 0,
+        }
+    }
+}
+
+/// A wrapper of a signal that can be shallow-cloned. It doesn't implement `SigT` that would be
+/// less performant than iterating the underlying signal with a callback.
+impl<S> SigT for SigCached<S>
+where
+    S: SigT<Item: Clone>,
+{
+    type Item = S::Item;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        if ctx.batch_index >= self.next_batch_index {
+            self.next_batch_index = ctx.batch_index + 1;
+            let buf = self.sig.sample(ctx);
+            self.cache.clear();
+            for sample in buf.iter() {
+                self.cache.push(sample.clone());
+            }
+        }
+        &self.cache
+    }
+}
+
+pub struct SigShared<S>(Rc<RefCell<SigCached<S>>>)
+where
+    S: SigT<Item: Clone>;
+
+impl<S> Clone for SigShared<S>
+where
+    S: SigT<Item: Clone>,
+{
+    fn clone(&self) -> Self {
+        SigShared(Rc::clone(&self.0))
+    }
+}
+
+impl<S> SigShared<S>
+where
+    S: SigT<Item: Clone>,
+{
+    /// Iterate over all the items computed by the underlying signal for the current batch, first
+    /// computing those items if it's the first time this method has been called on a `SigShared`
+    /// wrapping the same underlying signal during the current audio sample.
+    pub fn for_each_item<F: FnMut(&S::Item)>(&self, ctx: &SigCtx, mut f: F) {
+        let mut sig = self.0.borrow_mut();
+        let buf = sig.sample(ctx);
+        for item in buf.iter() {
+            f(item);
+        }
+    }
 }
