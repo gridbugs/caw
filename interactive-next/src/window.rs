@@ -32,6 +32,7 @@ pub struct WindowBuilder {
     line_width: Option<u32>,
     foreground: Option<Rgb24>,
     background: Option<Rgb24>,
+    fade: Option<bool>,
     visualization: Option<Visualization>,
 }
 
@@ -49,6 +50,7 @@ impl WindowBuilder {
             foreground: None,
             background: None,
             visualization: None,
+            fade: None,
         }
     }
 
@@ -107,6 +109,11 @@ impl WindowBuilder {
         self
     }
 
+    pub fn fade(mut self, fade: bool) -> Self {
+        self.fade = Some(fade);
+        self
+    }
+
     pub fn sane_default(self) -> Self {
         self.line_width(4).stable(true).spread(2).scale(2.0)
     }
@@ -126,6 +133,7 @@ impl WindowBuilder {
             visualization: self
                 .visualization
                 .unwrap_or_else(|| Visualization::Oscilloscope),
+            fade: self.fade.unwrap_or(false),
             input_state: InputState::new(),
         }
     }
@@ -170,6 +178,7 @@ impl WindowRunning {
                     self.window.stable,
                     self.window.stride,
                     self.window.scale,
+                    self.window.fade,
                 )
             }
         }
@@ -258,6 +267,7 @@ pub struct Window {
     foreground: Rgb24,
     background: Rgb24,
     visualization: Visualization,
+    fade: bool,
     input_state: InputState,
 }
 
@@ -553,6 +563,7 @@ impl StereoOscillographicsState {
         stable: bool,
         stride: usize,
         scale: f32,
+        fade: bool,
     ) {
         canvas.set_draw_color(Color::RGB(
             background.r,
@@ -597,9 +608,11 @@ impl StereoOscillographicsState {
                 } + offset
             };
             let mut prev = transform(first);
-            let mut alpha = 0.0;
-            let alpha_step =
-                1.0 / ((self.samples.len() - start) / stride) as f32;
+            let (mut alpha, alpha_step) = if fade {
+                (0.0, 1.0 / ((self.samples.len() - start) / stride) as f32)
+            } else {
+                (1.0, 0.0)
+            };
             'outer: for chunk in self.samples[(start + 1)..].chunks(stride) {
                 let coord = transform(chunk[0]);
                 let foreground = Color::RGBA(

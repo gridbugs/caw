@@ -4,22 +4,23 @@ use caw_modules::*;
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
     let env = adsr_linear_01(input.mouse.button(MouseButton::Left))
-        .attack_s(0.2)
+        .attack_s(0.01)
         .decay_s(0.2)
         .sustain_01(0.8)
-        .release_s(0.5)
+        .release_s(0.1)
         .build();
-    let osc =
-        super_saw(
-            input.mouse.x_01().filter(sample_and_hold(
-                input.mouse.button(MouseButton::Right),
-            )) * 1000,
-        )
-        .build();
+    let osc = super_saw(
+        input.mouse.x_01().filter(
+            sample_and_hold(input.mouse.button(MouseButton::Right))
+                .initial_value(0.05),
+        ) * 1000,
+    )
+    .build();
     osc.filter(
-        low_pass_filter_moog_ladder(env * input.mouse.y_01() * 10000)
+        low_pass_filter::default(env * input.mouse.y_01() * 10000)
             .resonance(0.5),
     )
+    .filter(reverb::default())
 }
 
 fn main() -> anyhow::Result<()> {

@@ -45,7 +45,7 @@ pub mod waveform {
     }
 }
 
-pub use waveform::*;
+pub use waveform::Waveform;
 
 pub struct Oscillator<W, F, P, R, T>
 where

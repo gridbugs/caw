@@ -2,19 +2,25 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<T>
+pub struct Props<T, V>
 where
     T: SigT<Item = bool>,
+    V: Default,
 {
     trigger: T,
+    initial_value: V,
 }
 
-impl<T> Props<T>
+impl<T, V> Props<T, V>
 where
     T: SigT<Item = bool>,
+    V: Default,
 {
-    fn new(trigger: T) -> Self {
-        Self { trigger }
+    fn new(trigger: T, initial_value: V) -> Self {
+        Self {
+            trigger,
+            initial_value,
+        }
     }
 }
 
@@ -22,20 +28,25 @@ builder! {
     #[constructor = "sample_and_hold"]
     #[constructor_doc = "Always yields the value of its input signal when the trigger was last true"]
     #[build_fn = "Props::new"]
-    #[build_ty = "Props<T>"]
+    #[build_ty = "Props<T, V>"]
     #[generic_setter_type_name = "X"]
     pub struct PropsBuilder {
         #[generic_with_constraint = "SigT<Item = bool>"]
         #[generic_name = "T"]
         trigger: _,
+        #[generic_with_constraint = "Default"]
+        #[generic_name = "V"]
+        #[default = 0.0]
+        initial_value: f32,
     }
 }
 
-impl<T> Filter for PropsBuilder<T>
+impl<T, V> Filter for PropsBuilder<T, V>
 where
     T: SigT<Item = bool>,
+    V: Default + Clone,
 {
-    type ItemIn = f32;
+    type ItemIn = V;
 
     type Out<S> = SampleAndHold<S, T>
     where
@@ -45,11 +56,14 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
+        let Props {
+            trigger,
+            initial_value,
+        } = self.build();
         SampleAndHold {
-            props,
+            trigger,
             sig,
-            value: Default::default(),
+            value: initial_value,
             buf: Vec::new(),
         }
     }
@@ -61,7 +75,7 @@ where
     S::Item: Clone + Default,
     T: SigT<Item = bool>,
 {
-    props: Props<T>,
+    trigger: T,
     sig: S,
     value: S::Item,
     buf: Vec<S::Item>,
@@ -80,7 +94,7 @@ where
         for (out, sample, &trigger) in izip! {
             self.buf.iter_mut(),
             self.sig.sample(ctx).iter(),
-            self.props.trigger.sample(ctx).iter(),
+            self.trigger.sample(ctx).iter(),
         } {
             if trigger {
                 self.value = sample.clone();
