@@ -1,5 +1,8 @@
 pub mod oscillator;
-pub use oscillator::{oscillator, waveform::*};
+pub use oscillator::{
+    oscillator,
+    waveform::{self, *},
+};
 
 pub mod envelope;
 pub use envelope::adsr_linear_01;

@@ -116,6 +116,14 @@ pub trait SigT {
         })
     }
 
+    fn filter<F>(self, filter: F) -> Sig<F::Out<Self>>
+    where
+        Self: Sized,
+        F: Filter<ItemIn = Self::Item>,
+    {
+        Sig(filter.into_sig(self))
+    }
+
     fn shared(self) -> Sig<SigShared<Self>>
     where
         Self: Sized,
@@ -231,21 +239,8 @@ where
     }
 }
 
-impl<S> Sig<S>
-where
-    S: SigT,
-{
-    pub fn filter<F>(self, filter: F) -> Sig<F::Out<S>>
-    where
-        F: Filter<ItemIn = S::Item>,
-    {
-        Sig(filter.into_sig(self.0))
-    }
-}
-
 pub struct Map<S, T, F>
 where
-    S: SigT,
     S: SigT,
     F: FnMut(S::Item) -> T,
 {

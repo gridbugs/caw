@@ -15,6 +15,7 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
                 .initial_value(0.05),
         ) * 1000,
     )
+    .num_oscillators(8)
     .build();
     osc.filter(
         low_pass_filter::default(env * input.mouse.y_01() * 10000)

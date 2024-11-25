@@ -18,6 +18,21 @@ macro_rules! impl_binary_op {
             buf: Vec<<L::Item as $trait<R::Item>>::Output>,
         }
 
+        impl<L, R> $sig_struct<L, R>
+        where
+            L: SigT,
+            R: SigT,
+            L::Item: $trait<R::Item>,
+        {
+            pub fn new(lhs: L, rhs: R) -> Self {
+                Self {
+                    lhs,
+                    rhs,
+                    buf: Vec::new(),
+                }
+            }
+        }
+
         impl<L, R> SigT for $sig_struct<L, R>
         where
             L: SigT,
@@ -53,11 +68,7 @@ macro_rules! impl_binary_op {
             type Output = Sig<$sig_struct<S, R>>;
 
             fn $fn(self, rhs: R) -> Self::Output {
-                Sig($sig_struct {
-                    lhs: self.0,
-                    rhs,
-                    buf: Vec::new(),
-                })
+                Sig($sig_struct::new(self.0, rhs))
             }
         }
 
@@ -70,11 +81,7 @@ macro_rules! impl_binary_op {
             type Output = Sig<$sig_struct<f32, R>>;
 
             fn $fn(self, rhs: Sig<R>) -> Self::Output {
-                Sig($sig_struct {
-                    lhs: self,
-                    rhs: rhs.0,
-                    buf: Vec::new(),
-                })
+                Sig($sig_struct::new(self, rhs.0))
             }
         }
 
@@ -87,11 +94,7 @@ macro_rules! impl_binary_op {
             type Output = Sig<$sig_struct<i32, R>>;
 
             fn $fn(self, rhs: Sig<R>) -> Self::Output {
-                Sig($sig_struct {
-                    lhs: self,
-                    rhs: rhs.0,
-                    buf: Vec::new(),
-                })
+                Sig($sig_struct::new(self, rhs.0))
             }
         }
     };
@@ -102,7 +105,7 @@ impl_binary_op!(SigSub, Sub, sub);
 impl_binary_op!(SigMul, Mul, mul);
 impl_binary_op!(SigDiv, Div, div);
 
-pub struct SignalSum<S>
+pub struct SigSum<S>
 where
     S: SigT,
     S::Item: Add,
@@ -111,7 +114,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<S> SigT for SignalSum<S>
+impl<S> SigT for SigSum<S>
 where
     S: SigT<Item = f32>,
 {
@@ -130,13 +133,13 @@ where
     }
 }
 
-impl<S> Sum<Sig<S>> for Sig<SignalSum<S>>
+impl<S> Sum<Sig<S>> for Sig<SigSum<S>>
 where
     S: SigT<Item = f32>,
 {
     fn sum<I: Iterator<Item = Sig<S>>>(iter: I) -> Self {
         let sigs = iter.collect::<Vec<_>>();
         let buf = Vec::new();
-        Sig(SignalSum { sigs, buf })
+        Sig(SigSum { sigs, buf })
     }
 }

@@ -1,5 +1,5 @@
 pub use caw_computer_keyboard::Key;
-use caw_core_next::{Buf, ConstBuf, Sig, SigCtx, SigT};
+use caw_core_next::{FrameSig, FrameSigT, SigCtx};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
 use std::sync::{Arc, RwLock};
 
@@ -213,26 +213,25 @@ impl<P: Clone, B: Clone> MouseGeneric<P, B> {
 
 /// A signal for keyboard and mouse inputs from sdl. Always yields the same value during any given
 /// frame.
-pub struct SigInput<T: Copy>(Arc<RwLock<T>>);
-impl<T: Copy> SigT for SigInput<T> {
+pub struct FrameSigInput<T: Copy>(Arc<RwLock<T>>);
+
+impl<T: Copy> FrameSigT for FrameSigInput<T> {
     type Item = T;
 
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        ConstBuf {
-            value: *self.0.read().unwrap(),
-            count: ctx.num_samples,
-        }
+    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
+        *self.0.read().unwrap()
     }
 }
 
-impl<T: Copy> Clone for SigInput<T> {
+impl<T: Copy> Clone for FrameSigInput<T> {
     fn clone(&self) -> Self {
-        SigInput(Arc::clone(&self.0))
+        FrameSigInput(Arc::clone(&self.0))
     }
 }
 
-pub type Keyboard = KeyboardGeneric<Sig<SigInput<bool>>>;
-pub type Mouse = MouseGeneric<Sig<SigInput<f32>>, Sig<SigInput<bool>>>;
+pub type Keyboard = KeyboardGeneric<FrameSig<FrameSigInput<bool>>>;
+pub type Mouse =
+    MouseGeneric<FrameSig<FrameSigInput<f32>>, FrameSig<FrameSigInput<bool>>>;
 
 #[derive(Clone)]
 pub struct Input {
@@ -383,13 +382,14 @@ impl InputState {
     }
 
     pub fn keyboard(&self) -> Keyboard {
-        self.keyboard.map(|key| Sig(SigInput(Arc::clone(key))))
+        self.keyboard
+            .map(|key| FrameSig(FrameSigInput(Arc::clone(key))))
     }
 
     pub fn mouse(&self) -> Mouse {
         self.mouse.map(
-            |position| Sig(SigInput(Arc::clone(position))),
-            |button| Sig(SigInput(Arc::clone(button))),
+            |position| FrameSig(FrameSigInput(Arc::clone(position))),
+            |button| FrameSig(FrameSigInput(Arc::clone(button))),
         )
     }
 
