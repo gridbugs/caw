@@ -32,7 +32,7 @@ fn voice(
 }
 
 fn make_voice(input: Input) -> Sf64 {
-    opinionated_key_events(input.clone(), Note::C2, 1.0)
+    opinionated_key_events(input.clone(), Note::B2, 1.0)
         .voice_descs_polyphonic(3, 5)
         .into_iter()
         .map(|voice_desc| {

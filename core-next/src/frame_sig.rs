@@ -55,12 +55,38 @@ pub trait FrameSigT {
     }
 }
 
+pub struct FrameSigFn<F, T>(F)
+where
+    F: FnMut(&SigCtx) -> T,
+    T: Clone;
+impl<F, T> FrameSigT for FrameSigFn<F, T>
+where
+    F: FnMut(&SigCtx) -> T,
+    T: Clone,
+{
+    type Item = T;
+
+    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
+        (self.0)(ctx)
+    }
+}
+
 /// Wrapper type for the `FrameSigT` trait to simplify some trait implementations for signals. For
 /// example this allows arithmetic traits like `std::ops::Add` to be implemented for frame signals.
 #[derive(Clone)]
 pub struct FrameSig<S>(pub S)
 where
     S: FrameSigT;
+
+impl<F, T> FrameSig<FrameSigFn<F, T>>
+where
+    F: FnMut(&SigCtx) -> T,
+    T: Clone,
+{
+    pub fn from_fn(f: F) -> Self {
+        Self(FrameSigFn(f))
+    }
+}
 
 impl<S> FrameSigT for FrameSig<S>
 where

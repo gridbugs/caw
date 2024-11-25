@@ -1,4 +1,5 @@
 /// 12-tone equal temperament following the A440Hz convention
+use caw_core_next::{FrameSig, FrameSigT};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Octave(u8);
@@ -190,6 +191,22 @@ impl Note {
 
     pub fn add_octaves(self, num_octaves: i8) -> Self {
         self.add_semitones(num_octaves as i16 * NOTES_PER_OCTAVE as i16)
+    }
+}
+
+pub trait IntoNoteFreqHz<N>
+where
+    N: FrameSigT<Item = Note>,
+{
+    fn freq_hz(self) -> FrameSig<impl FrameSigT<Item = f32>>;
+}
+
+impl<N> IntoNoteFreqHz<N> for FrameSig<N>
+where
+    N: FrameSigT<Item = Note>,
+{
+    fn freq_hz(self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        self.map(|note| note.freq_hz())
     }
 }
 

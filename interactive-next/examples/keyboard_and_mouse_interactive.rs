@@ -1,26 +1,29 @@
 use caw_core_next::*;
 use caw_interactive_next::{Input, MouseButton, Visualization, Window};
+use caw_keyboard::{IntoNoteFreqHz, IntoVoice, MonoVoice, Note};
 use caw_modules::*;
 
-fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
-    let env = adsr_linear_01(input.mouse.button(MouseButton::Left))
+fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
+    let MonoVoice {
+        note,
+        key_down_gate,
+        key_press_trigger,
+        ..
+    } = input.keyboard.opinionated_key_events(Note::B0).mono_voice();
+    let env = adsr_linear_01(key_down_gate)
+        .key_press_trig(key_press_trigger)
         .attack_s(0.01)
         .decay_s(0.2)
         .sustain_01(0.8)
-        .release_s(0.1)
+        .release_s(10.0)
         .build();
-    let osc = super_saw(
-        input.mouse.x_01().filter(
-            sample_and_hold(input.mouse.button(MouseButton::Right))
-                .initial_value(0.05),
-        ) * 1000,
-    )
-    .build();
+
+    let osc = super_saw(note.freq_hz()).build();
     osc.filter(
         low_pass_filter::default(env * input.mouse.y_01() * 10000)
-            .resonance(0.5),
+            .resonance(input.mouse.x_01()),
     )
-    .filter(reverb::default())
+    .filter(reverb::default().room_size(0.9))
 }
 
 fn main() -> anyhow::Result<()> {
@@ -32,8 +35,8 @@ fn main() -> anyhow::Result<()> {
         .build();
     let input = window.input();
     window.play_stereo(
-        signal(input.clone()),
-        signal(input.clone()),
+        sig(input.clone()),
+        sig(input.clone()),
         Default::default(),
     )
 }
