@@ -154,6 +154,50 @@ where
     }
 }
 
+/// Used to implement zip without the need for an explicit buffer for zipped values. The zipping
+/// will take place in the iteration of the signal that consumes this buffer. Since zip operations
+/// often follow map operations, and map operations use the `MapBuf` buffer type, sequences of zip
+/// and map operations are fused without the need for intermediate buffers.
+pub struct ZipBuf<BL, BR, L, R>
+where
+    L: Clone,
+    R: Clone,
+    BL: Buf<L>,
+    BR: Buf<R>,
+{
+    buf_left: BL,
+    buf_right: BR,
+    phantom: PhantomData<(L, R)>,
+}
+
+impl<BL, BR, L, R> ZipBuf<BL, BR, L, R>
+where
+    L: Clone,
+    R: Clone,
+    BL: Buf<L>,
+    BR: Buf<R>,
+{
+    pub fn new(buf_left: BL, buf_right: BR) -> Self {
+        Self {
+            buf_left,
+            buf_right,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<BL, BR, L, R> Buf<(L, R)> for ZipBuf<BL, BR, L, R>
+where
+    L: Clone,
+    R: Clone,
+    BL: Buf<L>,
+    BR: Buf<R>,
+{
+    fn iter(&self) -> impl Iterator<Item = (L, R)> {
+        self.buf_left.iter().zip(self.buf_right.iter())
+    }
+}
+
 /// A signal with values produced for each audio sample. Values are produced in batches of a size
 /// determined by the audio driver. This is suitable for audible audio signals or controls signals
 /// that vary at the same rate as an audio signal (e.g. an envelope follower produced by analyzing
@@ -279,7 +323,6 @@ where
         Sig(Zip {
             a: self.0,
             b: other,
-            buf: Vec::new(),
         })
     }
 
@@ -454,7 +497,6 @@ where
 {
     a: A,
     b: B,
-    buf: Vec<(A::Item, B::Item)>,
 }
 
 impl<A, B> SigT for Zip<A, B>
@@ -465,11 +507,7 @@ where
     type Item = (A::Item, B::Item);
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        let buf_a = self.a.sample(ctx);
-        let buf_b = self.b.sample(ctx);
-        self.buf.clear();
-        self.buf.extend(buf_a.iter().zip(buf_b.iter()));
-        &self.buf
+        ZipBuf::new(self.a.sample(ctx), self.b.sample(ctx))
     }
 }
 
