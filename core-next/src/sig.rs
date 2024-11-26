@@ -101,6 +101,59 @@ where
     }
 }
 
+/// Used to implement arithmetic operations by deferring the computation until the iteration of the
+/// following operation, preventing the need to buffer the result of the map.
+pub struct MapBuf2<BL, BR, F, L, R, O>
+where
+    L: Clone,
+    R: Clone,
+    O: Clone,
+    BL: Buf<L>,
+    BR: Buf<R>,
+    F: Fn(L, R) -> O,
+{
+    buf_left: BL,
+    buf_right: BR,
+    f: F,
+    phantom: PhantomData<(L, R, O)>,
+}
+
+impl<BL, BR, F, L, R, O> MapBuf2<BL, BR, F, L, R, O>
+where
+    L: Clone,
+    R: Clone,
+    O: Clone,
+    BL: Buf<L>,
+    BR: Buf<R>,
+    F: Fn(L, R) -> O,
+{
+    pub fn new(buf_left: BL, buf_right: BR, f: F) -> Self {
+        Self {
+            buf_left,
+            buf_right,
+            f,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<BL, BR, F, L, R, O> Buf<O> for MapBuf2<BL, BR, F, L, R, O>
+where
+    L: Clone,
+    R: Clone,
+    O: Clone,
+    BL: Buf<L>,
+    BR: Buf<R>,
+    F: Fn(L, R) -> O,
+{
+    fn iter(&self) -> impl Iterator<Item = O> {
+        self.buf_left
+            .iter()
+            .zip(self.buf_right.iter())
+            .map(|(l, r)| (self.f)(l, r))
+    }
+}
+
 /// A signal with values produced for each audio sample. Values are produced in batches of a size
 /// determined by the audio driver. This is suitable for audible audio signals or controls signals
 /// that vary at the same rate as an audio signal (e.g. an envelope follower produced by analyzing

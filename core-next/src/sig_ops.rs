@@ -7,7 +7,10 @@ use std::{
 macro_rules! impl_op {
     ($sig_mod:ident, $trait:ident, $fn:ident) => {
         pub mod $sig_mod {
-            use crate::{sig::MapBuf, Buf, FrameSigT, Sig, SigCtx, SigT};
+            use crate::{
+                sig::{MapBuf, MapBuf2},
+                Buf, FrameSigT, Sig, SigCtx, SigT,
+            };
             use std::ops::$trait;
 
             /// Signal for applying the operation pairwise to each element of a pair of signals
@@ -19,7 +22,6 @@ macro_rules! impl_op {
             {
                 lhs: L,
                 rhs: R,
-                buf: Vec<<L::Item as $trait<R::Item>>::Output>,
             }
 
             impl<L, R> OpSigSig<L, R>
@@ -29,11 +31,7 @@ macro_rules! impl_op {
                 L::Item: $trait<R::Item>,
             {
                 pub fn new(lhs: L, rhs: R) -> Self {
-                    Self {
-                        lhs,
-                        rhs,
-                        buf: Vec::new(),
-                    }
+                    Self { lhs, rhs }
                 }
             }
 
@@ -47,16 +45,11 @@ macro_rules! impl_op {
                 type Item = <L::Item as $trait<R::Item>>::Output;
 
                 fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-                    let buf_lhs = self.lhs.sample(ctx);
-                    let buf_rhs = self.rhs.sample(ctx);
-                    self.buf.clear();
-                    self.buf.extend(
-                        buf_lhs
-                            .iter()
-                            .zip(buf_rhs.iter())
-                            .map(|(lhs, rhs)| lhs.$fn(rhs)),
-                    );
-                    &self.buf
+                    MapBuf2::new(
+                        self.lhs.sample(ctx),
+                        self.rhs.sample(ctx),
+                        |lhs, rhs| lhs.$fn(rhs),
+                    )
                 }
             }
 
