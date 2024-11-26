@@ -158,35 +158,31 @@ struct WindowRunning {
 }
 
 impl WindowRunning {
+    fn render_args(&self) -> RenderArgs {
+        RenderArgs {
+            width_px: self.window.width_px,
+            height_px: self.window.height_px,
+            stable: self.window.stable,
+            stride: self.window.stride,
+            scale: self.window.scale,
+            spread: self.window.spread,
+            foreground: self.foreground,
+            background: self.background,
+            line_width: self.window.line_width,
+            fade: self.window.fade,
+        }
+    }
     fn render_visualization(&mut self) {
+        let render_args = self.render_args();
         match self.window.visualization {
             Visualization::Oscilloscope => self.oscilloscope_state.render(
                 &mut self.canvas,
                 &mut self.oscilloscope_scratch,
-                self.window.width_px,
-                self.window.height_px,
-                self.window.stable,
-                self.window.stride,
-                self.window.scale,
-                self.window.spread,
-                self.foreground,
-                self.background,
-                self.window.line_width,
+                render_args,
             ),
-            Visualization::StereoOscillographics => {
-                self.stereo_oscillographics_state.render(
-                    &mut self.canvas,
-                    self.window.width_px,
-                    self.window.height_px,
-                    self.window.foreground,
-                    self.window.background,
-                    self.window.line_width,
-                    self.window.stable,
-                    self.window.stride,
-                    self.window.scale,
-                    self.window.fade,
-                )
-            }
+            Visualization::StereoOscillographics => self
+                .stereo_oscillographics_state
+                .render(&mut self.canvas, render_args),
         }
     }
 
@@ -393,6 +389,19 @@ impl Window {
     }
 }
 
+struct RenderArgs {
+    width_px: u32,
+    height_px: u32,
+    stable: bool,
+    stride: usize,
+    scale: f32,
+    spread: usize,
+    foreground: Color,
+    background: Color,
+    line_width: u32,
+    fade: bool,
+}
+
 struct OscilloscopeState {
     queue: Vec<f32>,
     zero_cross_index: Option<usize>,
@@ -431,9 +440,7 @@ impl OscilloscopeState {
             } else if zero_cross_index >= min_width / 2 {
                 Some(zero_cross_index - (min_width / 2))
             } else {
-                for i in
-                    (min_width / 2)..(self.queue.len() - (min_width / 2))
-                {
+                for i in (min_width / 2)..(self.queue.len() - (min_width / 2)) {
                     if self.queue[i] <= 0.0 && self.queue[i - 1] >= 0.0 {
                         return Some(i - (min_width / 2));
                     }
@@ -447,15 +454,18 @@ impl OscilloscopeState {
         &mut self,
         canvas: &mut Canvas<Sdl2Window>,
         oscilloscope_scratch: &mut OscilloscopeScratch,
-        width_px: u32,
-        height_px: u32,
-        stable: bool,
-        stride: usize,
-        scale: f32,
-        spread: usize,
-        foreground: Color,
-        background: Color,
-        line_width: u32,
+        RenderArgs {
+            width_px,
+            height_px,
+            stable,
+            stride,
+            scale,
+            spread,
+            foreground,
+            background,
+            line_width,
+            ..
+        }: RenderArgs,
     ) {
         if self.queue.len() >= width_px as usize {
             if stable {
@@ -559,15 +569,18 @@ impl StereoOscillographicsState {
     fn render(
         &mut self,
         canvas: &mut Canvas<Sdl2Window>,
-        width_px: u32,
-        height_px: u32,
-        foreground: Rgb24,
-        background: Rgb24,
-        line_width: u32,
-        stable: bool,
-        stride: usize,
-        scale: f32,
-        fade: bool,
+        RenderArgs {
+            width_px,
+            height_px,
+            foreground,
+            background,
+            line_width,
+            stable,
+            stride,
+            scale,
+            fade,
+            ..
+        }: RenderArgs,
     ) {
         canvas.set_draw_color(Color::RGB(
             background.r,

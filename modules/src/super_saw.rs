@@ -102,8 +102,8 @@ where
         if num_oscillators % 8 != 0 {
             state_01.push(f32x8::ZERO);
             let mut final_mask = [0.0; 8];
-            for i in 0..(num_oscillators % 8) {
-                final_mask[i] = 1.0;
+            for x in final_mask.iter_mut().take(num_oscillators % 8) {
+                *x = 1.0;
             }
             mask.push(final_mask.into());
             offset_per_f32x8.push((num_oscillators % 8) as f32 / 2.0);

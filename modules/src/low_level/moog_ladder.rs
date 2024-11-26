@@ -55,7 +55,6 @@ pub struct OberheimVariationMoogState {
     k: f64,
     gamma: f64,
     alpha0: f64,
-    q: f64,
     saturation: f64,
     cutoff_hz: f64,
     resonance: f64,
@@ -64,10 +63,11 @@ pub struct OberheimVariationMoogState {
 
 impl OberheimVariationMoogState {
     pub fn new() -> Self {
-        let mut s = Self::default();
-        s.sample_rate_hz = 44100.0;
-        s.saturation = 1.0;
-        s.q = 3.0;
+        let mut s = Self {
+            sample_rate_hz: 44100.0,
+            saturation: 1.0,
+            ..Default::default()
+        };
         s.set_cutoff_hz(1000.0);
         s.set_resonance(0.0);
         s
@@ -135,7 +135,7 @@ impl OberheimVariationMoogState {
         let stage1 = self.lpf1.tick(u);
         let stage2 = self.lpf2.tick(stage1);
         let stage3 = self.lpf3.tick(stage2);
-        
+
         self.lpf4.tick(stage3)
     }
 }
