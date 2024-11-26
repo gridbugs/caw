@@ -130,13 +130,13 @@ pub struct TrackEventSource {
 }
 
 impl TrackEventSource {
-    pub fn new<'a>(
-        track: &[TrackEvent<'a>],
+    pub fn new(
+        track: &[TrackEvent<'_>],
         timing: Timing,
         default_s_per_beat: f64,
     ) -> Self {
         let track = track
-            .into_iter()
+            .iter()
             .map(|event| event.to_static())
             .collect::<Vec<_>>();
         let tick_duration_s = match timing {
@@ -275,14 +275,11 @@ impl Signal<MidiMessages> {
         self.map({
             let state = Rc::clone(&state);
             move |messages| {
-                messages.for_each(|message| match message {
-                    MidiMessage::PitchBend {
+                messages.for_each(|message| if let MidiMessage::PitchBend {
                         bend: PitchBend(pitch_bend),
-                    } => state.set(
-                        midi_pitch_bend_to_pitch_bend_multiplier_hz(pitch_bend),
-                    ),
-                    _ => (),
-                });
+                    } = message { state.set(
+                    midi_pitch_bend_to_pitch_bend_multiplier_hz(pitch_bend),
+                ) });
             }
         })
         .then({
@@ -298,12 +295,9 @@ impl Signal<MidiMessages> {
             let signal = self.clone();
             move |ctx| {
                 let mut table = table.borrow_mut();
-                signal.sample(ctx).for_each(|message| match message {
-                    MidiMessage::Controller { controller, value } => {
-                        table[controller.as_int() as usize] =
-                            value.as_int() as f64 / 127.0;
-                    }
-                    _ => (),
+                signal.sample(ctx).for_each(|message| if let MidiMessage::Controller { controller, value } = message {
+                    table[controller.as_int() as usize] =
+                        value.as_int() as f64 / 127.0;
                 });
             }
         });

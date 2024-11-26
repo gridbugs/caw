@@ -27,7 +27,7 @@ fn snare(trigger: &Trigger) -> Sf64 {
     let noise = noise();
     let detune = 0.0002;
     let noise = (&noise
-        + &noise.filter(delay_s(&detune))
+        + &noise.filter(delay_s(detune))
         + &noise.filter(delay_s(&detune * 2.0))
         + &noise.filter(delay_s(&detune * 3.0)))
         .filter(compress().ratio(0.1).scale(100.0).build());
@@ -112,7 +112,7 @@ fn voice(trigger: Trigger, input: Input) -> Sf64 {
             let (drum_signals, completion_triggers): (Vec<Sf64>, Vec<Trigger>) =
                 bitwise_trigger_router_64(trigger, loop_selection)
                     .into_iter()
-                    .zip(drum_patterns.into_iter())
+                    .zip(drum_patterns)
                     .map(|(trigger, drum_pattern)| {
                         drum_loop(trigger, drum_pattern)
                     })

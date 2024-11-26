@@ -95,9 +95,9 @@ impl MidiLive {
         })
     }
 
-    pub fn enumerate_port_names<'a>(
-        &'a self,
-    ) -> impl Iterator<Item = (usize, String)> + 'a {
+    pub fn enumerate_port_names(
+        &self,
+    ) -> impl Iterator<Item = (usize, String)> + '_ {
         self.midi_input_ports
             .iter()
             .enumerate()
@@ -232,14 +232,11 @@ impl MidirMidiInputEventSource {
                 port_name.as_str(),
                 move |_timestamp_us, message, &mut ()| {
                     if let Ok(event) = LiveEvent::parse(message) {
-                        match event {
-                            LiveEvent::Midi { channel, message } => {
-                                let midi_event = MidiEvent { channel, message };
-                                if let Err(_) = midi_event_sender.send(midi_event) {
-                                    log::error!("failed to send message from live midi thread");
-                                }
+                        if let LiveEvent::Midi { channel, message } = event {
+                            let midi_event = MidiEvent { channel, message };
+                            if midi_event_sender.send(midi_event).is_err() {
+                                log::error!("failed to send message from live midi thread");
                             }
-                            _ => (),
                         }
                     }
                 },
@@ -307,11 +304,8 @@ impl MidiEventSource for MidiLiveSerialEventSource {
                     }
                 }
                 if let Ok(event) = LiveEvent::parse(&self.message_buf) {
-                    match event {
-                        LiveEvent::Midi { channel, message } => {
-                            f(MidiEvent { channel, message })
-                        }
-                        _ => (),
+                    if let LiveEvent::Midi { channel, message } = event {
+                        f(MidiEvent { channel, message })
                     }
                 }
                 self.message_buf.clear();

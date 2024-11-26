@@ -21,10 +21,10 @@ fn make_voice(offset: f64) -> Sf64 {
     let osc = oscillator_hz(Waveform::Pulse, freq_hz).build() + noise() * 0.8;
     let env = adsr_linear_01(&gate).release_s(0.1).build().exp_01(5.0);
     let volume_env = adsr_linear_01(gate).release_s(0.1).build();
-    let signal = osc
+    
+    osc
         .filter(low_pass_moog_ladder(env * 5000.0).resonance(1.5).build())
-        .mul_lazy(&volume_env);
-    signal
+        .mul_lazy(&volume_env)
 }
 
 fn main() -> anyhow::Result<()> {

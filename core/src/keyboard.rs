@@ -117,20 +117,18 @@ mod polyphonic_voice_reuse_policy {
                     if self.heap.len() > self.n {
                         nth_oldest_unavailable_voice = self.heap.pop();
                     }
-                } else {
-                    if let Some(ref entry) = oldest_available_voice {
-                        if voice.key_press_sample_index < entry.sample_index {
-                            oldest_available_voice = Some(GenerationalEntry {
-                                index: i,
-                                sample_index: voice.key_press_sample_index,
-                            });
-                        }
-                    } else {
+                } else if let Some(ref entry) = oldest_available_voice {
+                    if voice.key_press_sample_index < entry.sample_index {
                         oldest_available_voice = Some(GenerationalEntry {
                             index: i,
                             sample_index: voice.key_press_sample_index,
                         });
                     }
+                } else {
+                    oldest_available_voice = Some(GenerationalEntry {
+                        index: i,
+                        sample_index: voice.key_press_sample_index,
+                    });
                 }
             }
             // Favour available voices but fall back to unavailable ones if necessary.

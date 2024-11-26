@@ -217,7 +217,7 @@ impl Player {
             signal,
             |buf| {
                 let buf = buf.read().unwrap();
-                f(&*buf);
+                f(&buf);
             },
             config,
         )
@@ -379,7 +379,7 @@ impl Player {
             |buf_left, buf_right| {
                 let buf_left = buf_left.read().unwrap();
                 let buf_right = buf_right.read().unwrap();
-                f(&*buf_left, &*buf_right);
+                f(&buf_left, &buf_right);
             },
             config,
         )

@@ -138,7 +138,7 @@ pub mod oscillator {
                     .unwrap_or_else(|| const_(0.5)),
                 reset_trigger: self
                     .reset_trigger
-                    .unwrap_or_else(|| Trigger::never()),
+                    .unwrap_or_else(Trigger::never),
                 reset_offset_01: self
                     .reset_offset_01
                     .unwrap_or_else(|| const_(0.0)),
@@ -574,6 +574,12 @@ pub mod filter {
         min: Option<Sf64>,
     }
 
+    impl Default for SaturateBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl SaturateBuilder {
         pub fn new() -> Self {
             Self {
@@ -620,6 +626,12 @@ pub mod filter {
         scale: Option<Sf64>,
     }
 
+    impl Default for CompressBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl CompressBuilder {
         pub fn new() -> Self {
             Self {
@@ -657,6 +669,12 @@ pub mod filter {
         time_s: Option<Sf64>,
     }
 
+    impl Default for DelayBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl DelayBuilder {
         pub fn new() -> Self {
             Self { time_s: None }
@@ -675,6 +693,12 @@ pub mod filter {
     pub struct EchoBuilder {
         time_s: Option<Sf64>,
         scale: Option<Sf64>,
+    }
+
+    impl Default for EchoBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl EchoBuilder {
@@ -740,6 +764,12 @@ pub mod filter {
         room_size: Option<Sf64>,
     }
 
+    impl Default for ReverbBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl ReverbBuilder {
         pub fn new() -> Self {
             Self {
@@ -770,6 +800,12 @@ pub mod filter {
 
     pub struct EnvelopeFollowerBuilder {
         sensitivity_hz: Option<Sf64>,
+    }
+
+    impl Default for EnvelopeFollowerBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl EnvelopeFollowerBuilder {
@@ -946,6 +982,12 @@ pub mod loopers {
         length: Option<usize>,
     }
 
+    impl Default for ClockedTriggerLooperBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
+    }
+
     impl ClockedTriggerLooperBuilder {
         pub fn new() -> Self {
             Self {
@@ -972,15 +1014,15 @@ pub mod loopers {
         }
 
         pub fn length(mut self, length: usize) -> Self {
-            self.length = Some(length.into());
+            self.length = Some(length);
             self
         }
 
         pub fn build(self) -> Trigger {
             ClockedTriggerLooper {
-                clock: self.clock.unwrap_or_else(|| Trigger::never()),
-                add: self.add.unwrap_or_else(|| Gate::never()),
-                remove: self.remove.unwrap_or_else(|| Gate::never()),
+                clock: self.clock.unwrap_or_else(Trigger::never),
+                add: self.add.unwrap_or_else(Gate::never),
+                remove: self.remove.unwrap_or_else(Gate::never),
                 length: self.length.unwrap_or(8),
             }
             .trigger()
@@ -993,6 +1035,12 @@ pub mod loopers {
         input_midi_index: Option<Su8>,
         clear: Option<Gate>,
         length: Option<usize>,
+    }
+
+    impl Default for ClockedMidiNoteMonophonicLooperBuilder {
+        fn default() -> Self {
+            Self::new()
+        }
     }
 
     impl ClockedMidiNoteMonophonicLooperBuilder {
@@ -1030,18 +1078,18 @@ pub mod loopers {
         }
 
         pub fn length(mut self, length: usize) -> Self {
-            self.length = Some(length.into());
+            self.length = Some(length);
             self
         }
 
         pub fn build(self) -> (Gate, Su8) {
             ClockedMidiNoteMonophonicLooper {
-                clock: self.clock.unwrap_or_else(|| Trigger::never()),
-                input_gate: self.input_gate.unwrap_or_else(|| Gate::never()),
+                clock: self.clock.unwrap_or_else(Trigger::never),
+                input_gate: self.input_gate.unwrap_or_else(Gate::never),
                 input_midi_index: self
                     .input_midi_index
                     .unwrap_or_else(|| const_(0)),
-                clear: self.clear.unwrap_or_else(|| Gate::never()),
+                clear: self.clear.unwrap_or_else(Gate::never),
                 length: self.length.unwrap_or(8),
             }
             .signal()
@@ -1157,7 +1205,7 @@ pub mod patches {
                 self.resolution.unwrap_or(1),
                 self.freq,
                 self.ratio.unwrap_or_else(|| const_(0.01)),
-                self.reset_trigger.unwrap_or_else(|| Trigger::never()),
+                self.reset_trigger.unwrap_or_else(Trigger::never),
                 self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
                 self.hard_sync.unwrap_or_else(|| const_(0.0)),
             )
@@ -1230,7 +1278,7 @@ pub mod patches {
                 self.pwm_freq.unwrap_or_else(|| sfreq_hz(const_(1.0))),
                 self.offset_01.unwrap_or_else(|| const_(0.5)),
                 self.scale_01.unwrap_or_else(|| const_(0.5)),
-                self.reset_trigger.unwrap_or_else(|| Trigger::never()),
+                self.reset_trigger.unwrap_or_else(Trigger::never),
                 self.reset_offset_01.unwrap_or_else(|| const_(0.0)),
             )
         }

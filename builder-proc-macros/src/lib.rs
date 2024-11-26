@@ -2,7 +2,7 @@ use heck::ToUpperCamelCase;
 use proc_macro::TokenStream;
 use proc_macro2::Span;
 use quote::{format_ident, quote};
-use std::{collections::HashMap, mem};
+use std::collections::HashMap;
 use syn::{
     parse_macro_input, parse_quote,
     punctuated::Punctuated,
@@ -130,7 +130,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
     let mut generic_setter_type_name = None;
     let mut constructor_doc = None;
     let mut constructor_where_predicates = Vec::new();
-    let attrs = mem::replace(&mut input.attrs, Vec::new());
+    let attrs = std::mem::take(&mut input.attrs);
     for attr in attrs {
         if attr.path().is_ident("constructor") {
             if let Some(s) = attr_lit_str(&attr) {
@@ -213,7 +213,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
             let mut extra_where_predicates: Punctuated<WherePredicate, Comma> =
                 Punctuated::new();
             let mut generic_name = None;
-            let attrs = mem::replace(&mut field.attrs, Vec::new());
+            let attrs = std::mem::take(&mut field.attrs);
             for attr in attrs {
                 if attr.path().is_ident("default") {
                     if let Meta::NameValue(ref meta_name_value) = attr.meta {

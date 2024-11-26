@@ -104,7 +104,7 @@ impl SamplePlayer {
     }
 
     fn play_sample(&mut self, sample: f32) {
-        if let Err(_) = self.sender.send(sample) {
+        if self.sender.send(sample).is_err() {
             log::error!("failed to send data to cpal thread");
         }
         self.source_cursor += 1;

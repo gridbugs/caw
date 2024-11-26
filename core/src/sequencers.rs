@@ -51,7 +51,7 @@ pub fn drum_loop_8(
         bitwise_pattern_triggers_8(trigger, pattern);
     triggers
         .into_iter()
-        .zip(drums.into_iter())
+        .zip(drums)
         .map(|(trigger, drum)| drum.signal(trigger))
         .sum()
 }

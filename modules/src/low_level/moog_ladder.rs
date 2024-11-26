@@ -135,7 +135,7 @@ impl OberheimVariationMoogState {
         let stage1 = self.lpf1.tick(u);
         let stage2 = self.lpf2.tick(stage1);
         let stage3 = self.lpf3.tick(stage2);
-        let stage4 = self.lpf4.tick(stage3);
-        stage4
+        
+        self.lpf4.tick(stage3)
     }
 }

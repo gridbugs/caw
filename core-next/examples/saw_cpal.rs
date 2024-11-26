@@ -62,7 +62,7 @@ fn main() {
                         data.chunks_mut(channels as usize).zip(buffer.iter())
                     {
                         for element in output {
-                            *element = input as f32;
+                            *element = input;
                         }
                     }
                 }

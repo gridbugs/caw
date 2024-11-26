@@ -714,7 +714,7 @@ pub trait Filter {
 pub fn sum(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
     let mut out = const_(0.0);
     for signal in signals {
-        out = out + signal;
+        out += signal;
     }
     out
 }
@@ -723,7 +723,7 @@ pub fn mean(signals: impl IntoIterator<Item = Sf64>) -> Sf64 {
     let mut out = const_(0.0);
     let mut count = 0;
     for signal in signals {
-        out = out + signal;
+        out += signal;
         count += 1;
     }
     out / (count as f64)

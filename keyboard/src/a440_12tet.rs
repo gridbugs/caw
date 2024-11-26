@@ -133,7 +133,7 @@ pub fn semitone_ratio(num_semitones: f32) -> f32 {
     2.0_f32.powf(num_semitones / (NOTES_PER_OCTAVE as f32))
 }
 
-pub const TONE_RATIO: f32 = 1.122462048309373;
+pub const TONE_RATIO: f32 = 1.122_462;
 
 /// Definition of notes based on MIDI tuned to A440
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]

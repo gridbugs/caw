@@ -30,7 +30,7 @@ pub fn microphone() -> anyhow::Result<Sf64> {
                 for channel_data in data.chunks(channels as usize) {
                     let mean_sample =
                         channel_data.iter().sum::<f32>() / channels as f32;
-                    if let Err(_) = sender.send(mean_sample) {
+                    if sender.send(mean_sample).is_err() {
                         log::error!("failed to send data from cpal thread");
                     }
                 }
@@ -69,10 +69,8 @@ pub fn microphone() -> anyhow::Result<Sf64> {
             while let Ok(sample) = receiver.try_recv() {
                 latest_sample = Some(sample);
             }
-        } else {
-            if let Ok(sample) = receiver.try_recv() {
-                latest_sample = Some(sample);
-            }
+        } else if let Ok(sample) = receiver.try_recv() {
+            latest_sample = Some(sample);
         }
         if let Some(sample) = latest_sample {
             prev_sample.set(sample);

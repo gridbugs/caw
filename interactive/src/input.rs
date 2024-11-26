@@ -223,6 +223,12 @@ pub struct InputState {
     mouse: MouseGeneric<Rc<RefCell<f64>>, Rc<RefCell<bool>>>,
 }
 
+impl Default for InputState {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl InputState {
     pub fn new() -> Self {
         let mk_key = || Rc::new(RefCell::new(false));

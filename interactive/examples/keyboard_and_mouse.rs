@@ -23,12 +23,12 @@ fn voice(
         .release_s(4.0)
         .build()
         .exp_01(1.0);
-    let osc_filtered = osc.filter(
+    
+    osc.filter(
         low_pass_moog_ladder(env * (30 * note.freq_hz() * effect_x))
             .resonance(4.0 * effect_y)
             .build(),
-    ) * 2.0;
-    osc_filtered
+    ) * 2.0
 }
 
 fn make_voice(input: Input) -> Sf64 {

@@ -127,7 +127,7 @@ where
                 self.state_01 = reset_offset_01;
             } else {
                 let state_delta = freq_hz / ctx.sample_rate_hz;
-                self.state_01 = self.state_01 + state_delta;
+                self.state_01 += state_delta;
                 self.state_01 = self.state_01 - (self.state_01 - 0.5).round();
             }
             let sample = self.waveform.sample(self.state_01, 0.0);

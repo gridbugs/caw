@@ -178,21 +178,19 @@ impl ClockedMidiNoteMonophonicLooper {
                     entry.key_up = false;
                 }
                 state.output = (true, input_midi_index.sample(ctx));
-            } else {
-                if state.gate_state {
-                    // key was just released
-                    state.output = (false, input_midi_index.sample(ctx));
-                    let index_to_update = if state
-                        .samples_since_last_clock_pulse
-                        < state.last_period_samples / 2
-                    {
-                        (state.next_index + length - 1) % length
-                    } else {
-                        state.next_index
-                    };
-                    let entry = &mut state.sequence[index_to_update];
-                    entry.key_up = true;
-                }
+            } else if state.gate_state {
+                // key was just released
+                state.output = (false, input_midi_index.sample(ctx));
+                let index_to_update = if state
+                    .samples_since_last_clock_pulse
+                    < state.last_period_samples / 2
+                {
+                    (state.next_index + length - 1) % length
+                } else {
+                    state.next_index
+                };
+                let entry = &mut state.sequence[index_to_update];
+                entry.key_up = true;
             }
             state.gate_state = next_gate_state;
             state.output

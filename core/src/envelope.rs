@@ -25,14 +25,14 @@ impl AdsrLinear01 {
                     current_value = (current_value
                         - (1.0
                             / (self.decay_s.sample(ctx)
-                                * ctx.sample_rate_hz as f64)))
+                                * ctx.sample_rate_hz)))
                         .max(self.sustain_01.sample(ctx));
                 } else {
                     // attack
                     current_value = (current_value
                         + (1.0
                             / (self.attack_s.sample(ctx)
-                                * ctx.sample_rate_hz as f64)))
+                                * ctx.sample_rate_hz)))
                         .min(1.0);
                     if current_value == 1.0 {
                         crossed_threshold.set(true);
@@ -44,7 +44,7 @@ impl AdsrLinear01 {
                 current_value = (current_value
                     - (1.0
                         / (self.release_s.sample(ctx)
-                            * ctx.sample_rate_hz as f64)))
+                            * ctx.sample_rate_hz)))
                     .max(0.0);
             }
             current.set(current_value);

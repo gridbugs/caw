@@ -5,11 +5,10 @@ fn voice(input: Input) -> Sf64 {
         oscillator_hz(Waveform::Pulse, input.mouse.x_01() * 1000.0)
             .pulse_width_01(0.1)
             .build();
-    let follower_osc =
-        oscillator_hz(Waveform::Saw, input.mouse.y_01() * 1000.0)
+    
+    oscillator_hz(Waveform::Saw, input.mouse.y_01() * 1000.0)
             .hard_sync(&leader_osc)
-            .build();
-    follower_osc
+            .build()
 }
 
 fn main() -> anyhow::Result<()> {

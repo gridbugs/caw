@@ -29,6 +29,12 @@ pub struct WindowBuilder {
     background: Option<Rgb24>,
 }
 
+impl Default for WindowBuilder {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl WindowBuilder {
     pub fn new() -> Self {
         Self {
@@ -51,32 +57,32 @@ impl WindowBuilder {
     }
 
     pub fn width_px(mut self, width_px: u32) -> Self {
-        self.width_px = Some(width_px.into());
+        self.width_px = Some(width_px);
         self
     }
 
     pub fn height_px(mut self, height_px: u32) -> Self {
-        self.height_px = Some(height_px.into());
+        self.height_px = Some(height_px);
         self
     }
 
     pub fn stable(mut self, stable: bool) -> Self {
-        self.stable = Some(stable.into());
+        self.stable = Some(stable);
         self
     }
 
     pub fn stride(mut self, stride: usize) -> Self {
-        self.stride = Some(stride.into());
+        self.stride = Some(stride);
         self
     }
 
     pub fn scale(mut self, scale: f32) -> Self {
-        self.scale = Some(scale.into());
+        self.scale = Some(scale);
         self
     }
 
     pub fn spread(mut self, spread: usize) -> Self {
-        self.spread = Some(spread.into());
+        self.spread = Some(spread);
         self
     }
 
@@ -86,12 +92,12 @@ impl WindowBuilder {
     }
 
     pub fn foreground(mut self, foreground: Rgb24) -> Self {
-        self.foreground = Some(foreground.into());
+        self.foreground = Some(foreground);
         self
     }
 
     pub fn background(mut self, background: Rgb24) -> Self {
-        self.background = Some(background.into());
+        self.background = Some(background);
         self
     }
 
@@ -279,19 +285,17 @@ impl VisualizationState {
         self.zero_cross_index.and_then(|zero_cross_index| {
             if self.queue.len() - zero_cross_index < (min_width / 2) {
                 None
+            } else if zero_cross_index >= min_width / 2 {
+                Some(zero_cross_index - (min_width / 2))
             } else {
-                if zero_cross_index >= min_width / 2 {
-                    Some(zero_cross_index - (min_width / 2))
-                } else {
-                    for i in
-                        (min_width / 2)..(self.queue.len() - (min_width / 2))
-                    {
-                        if self.queue[i] <= 0.0 && self.queue[i - 1] >= 0.0 {
-                            return Some(i - (min_width / 2));
-                        }
+                for i in
+                    (min_width / 2)..(self.queue.len() - (min_width / 2))
+                {
+                    if self.queue[i] <= 0.0 && self.queue[i - 1] >= 0.0 {
+                        return Some(i - (min_width / 2));
                     }
-                    None
                 }
+                None
             }
         })
     }

@@ -14,7 +14,7 @@ pub fn detune<F: FnMut(Sfreq) -> Sf64>(
             .into_iter()
             .chain(
                 (0..resolution)
-                    .map(move |i| {
+                    .flat_map(move |i| {
                         [
                             make_oscillator(sfreq_hz(
                                 freq.hz()
@@ -29,8 +29,7 @@ pub fn detune<F: FnMut(Sfreq) -> Sf64>(
                                             * ((i + 1) as f64))),
                             )),
                         ]
-                    })
-                    .flatten(),
+                    }),
             )
             .collect::<Vec<_>>();
         Signal::from_fn(move |ctx| {

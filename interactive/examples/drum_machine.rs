@@ -46,7 +46,7 @@ fn synth_gate_and_midi_index(input: &Input, keys: &[(Key, u8)]) -> (Gate, Su8) {
         midi_index: u8,
     }
     let state = RefCell::new(
-        keys.into_iter()
+        keys.iter()
             .map(|&(key, midi_index)| {
                 let gate = input.key(key);
                 Entry {
@@ -157,14 +157,14 @@ fn bass_voice(gate: Gate, midi_index: Su8, filter: Sf64) -> Sf64 {
         .release_s(1.0)
         .build()
         .exp_01(-1.0);
-    let x = osc
+    
+    osc
         .filter(
             low_pass_moog_ladder(env * freq_hz * 128 * (filter + 0.01))
                 .resonance(1.0)
                 .build(),
         )
-        .map(|x| (x * 8.0).tanh());
-    x
+        .map(|x| (x * 8.0).tanh())
 }
 
 fn bass(input: &Input) -> Sf64 {
@@ -177,13 +177,13 @@ fn bass(input: &Input) -> Sf64 {
 
 fn voice(input: Input) -> Sf64 {
     let clock = periodic_trigger_hz(4.0).build();
-    let x = mean([
+    
+    mean([
         drum_looper(&clock, &input),
         synth_looper(&clock, &input),
         bass(&input) * 0.3,
     ])
-    .filter(saturate().threshold(2.0).build());
-    x
+    .filter(saturate().threshold(2.0).build())
 }
 
 fn main() -> anyhow::Result<()> {

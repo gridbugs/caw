@@ -13,7 +13,7 @@ const C_MAJOR_SCALE: &[NoteName] = &[
 
 fn make_scale_base_freqs(note_names: &[NoteName]) -> Vec<Sfreq> {
     note_names
-        .into_iter()
+        .iter()
         .map(|&name| const_(name.in_octave(OCTAVE_0).freq()))
         .collect()
 }
