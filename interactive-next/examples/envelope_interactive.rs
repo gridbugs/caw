@@ -17,8 +17,7 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
     )
     .build();
     osc.filter(
-        low_pass_filter::default(env * input.mouse.y_01() * 10000)
-            .resonance(0.5),
+        low_pass::default(env * input.mouse.y_01() * 10000).resonance(0.5),
     )
     .filter(reverb::default())
 }
