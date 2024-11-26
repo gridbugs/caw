@@ -1,18 +1,18 @@
-use std::f32::consts::PI;
+use std::f64::consts::PI;
 
 // This is the Oberheim Variation Model implementation of the Moog Ladder low pass filter. It's
 // based on a reference implementation by Will Pirkle which can be found here:
 // https://github.com/ddiakopoulos/MoogLadders/blob/master/src/OberheimVariationModel.h
 
 struct VAOnePole {
-    alpha: f32,
-    beta: f32,
-    gamma: f32,
-    delta: f32,
-    epsilon: f32,
-    a0: f32,
-    feedback: f32,
-    z1: f32,
+    alpha: f64,
+    beta: f64,
+    gamma: f64,
+    delta: f64,
+    epsilon: f64,
+    a0: f64,
+    feedback: f64,
+    z1: f64,
 }
 
 impl Default for VAOnePole {
@@ -31,11 +31,11 @@ impl Default for VAOnePole {
 }
 
 impl VAOnePole {
-    fn feedback_output(&self) -> f32 {
+    fn feedback_output(&self) -> f64 {
         self.beta * (self.z1 + (self.feedback * self.delta))
     }
 
-    fn tick(&mut self, mut s: f32) -> f32 {
+    fn tick(&mut self, mut s: f64) -> f64 {
         s = (s * self.gamma)
             + self.feedback
             + (self.epsilon * self.feedback_output());
@@ -52,14 +52,14 @@ pub struct OberheimVariationMoogState {
     lpf2: VAOnePole,
     lpf3: VAOnePole,
     lpf4: VAOnePole,
-    k: f32,
-    gamma: f32,
-    alpha0: f32,
-    q: f32,
-    saturation: f32,
-    cutoff_hz: f32,
-    resonance: f32,
-    sample_rate_hz: f32,
+    k: f64,
+    gamma: f64,
+    alpha0: f64,
+    q: f64,
+    saturation: f64,
+    cutoff_hz: f64,
+    resonance: f64,
+    sample_rate_hz: f64,
 }
 
 impl OberheimVariationMoogState {
@@ -73,7 +73,7 @@ impl OberheimVariationMoogState {
         s
     }
 
-    fn set_cutoff_hz(&mut self, cutoff_hz: f32) {
+    fn set_cutoff_hz(&mut self, cutoff_hz: f64) {
         self.cutoff_hz = cutoff_hz.max(0.0);
         // prewarp for BZT
         let wd = 2.0 * PI * cutoff_hz;
@@ -98,16 +98,16 @@ impl OberheimVariationMoogState {
         self.alpha0 = 1.0 / (1.0 + (self.k * self.gamma));
     }
 
-    fn set_resonance(&mut self, resonance: f32) {
+    fn set_resonance(&mut self, resonance: f64) {
         self.resonance = resonance;
         self.k = resonance * 4.0;
     }
 
     pub fn update_params(
         &mut self,
-        sample_rate_hz: f32,
-        cutoff_hz: f32,
-        resonance: f32,
+        sample_rate_hz: f64,
+        cutoff_hz: f64,
+        resonance: f64,
     ) {
         let cutoff_hz = cutoff_hz.max(0.0);
         if sample_rate_hz == self.sample_rate_hz {
@@ -123,7 +123,7 @@ impl OberheimVariationMoogState {
         }
     }
 
-    pub fn process_sample(&mut self, mut sample: f32) -> f32 {
+    pub fn process_sample(&mut self, mut sample: f64) -> f64 {
         let sigma = self.lpf1.feedback_output()
             + self.lpf2.feedback_output()
             + self.lpf3.feedback_output()

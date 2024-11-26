@@ -24,7 +24,7 @@ where
 }
 
 builder! {
-    #[constructor = "high_pass_filter_butterworth"]
+    #[constructor = "high_pass_butterworth"]
     #[constructor_doc = "A basic high pass filter"]
     #[build_fn = "Props::new"]
     #[build_ty = "Props<C>"]
@@ -44,7 +44,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = HighPassFilterButterworth<S, C>
+    type Out<S> = HighPassButterworth<S, C>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -53,7 +53,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
-        HighPassFilterButterworth {
+        HighPassButterworth {
             state: butterworth::State::new(props.filter_order_half),
             props,
             sig,
@@ -62,7 +62,7 @@ where
     }
 }
 
-pub struct HighPassFilterButterworth<S, C>
+pub struct HighPassButterworth<S, C>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
@@ -73,7 +73,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<S, C> SigT for HighPassFilterButterworth<S, C>
+impl<S, C> SigT for HighPassButterworth<S, C>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
@@ -89,10 +89,10 @@ where
         } {
             *out = butterworth::high_pass::run(
                 &mut self.state,
-                sample,
-                ctx.sample_rate_hz,
-                cutoff_hz,
-            );
+                sample as f64,
+                ctx.sample_rate_hz as f64,
+                cutoff_hz as f64,
+            ) as f32;
         }
         &self.buf
     }

@@ -1,4 +1,4 @@
-use crate::low_level::moog_ladder::OberheimVariationMoogState;
+use crate::low_level::biquad_filter::chebyshev;
 use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
@@ -10,6 +10,7 @@ where
 {
     cutoff_hz: C,
     resonance: R,
+    filter_order_half: usize,
 }
 
 impl<C, R> Props<C, R>
@@ -17,16 +18,17 @@ where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
-    fn new(cutoff_hz: C, resonance: R) -> Self {
+    fn new(cutoff_hz: C, resonance: R, filter_order_half: usize) -> Self {
         Self {
             cutoff_hz,
             resonance,
+            filter_order_half,
         }
     }
 }
 
 builder! {
-    #[constructor = "low_pass_filter_moog_ladder"]
+    #[constructor = "low_pass_chebyshev"]
     #[constructor_doc = "A low pass filter with adjustable resonance"]
     #[build_fn = "Props::new"]
     #[build_ty = "Props<C, R>"]
@@ -39,6 +41,8 @@ builder! {
         #[generic_name = "R"]
         #[default = 0.0]
         resonance: f32,
+        #[default = 1]
+        filter_order_half: usize,
     }
 }
 
@@ -49,7 +53,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = LowPassFilterMoogLadder<S, C, R>
+    type Out<S> = LowPassChebyshev<S, C, R>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -58,16 +62,16 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
-        LowPassFilterMoogLadder {
+        LowPassChebyshev {
+            state: chebyshev::State::new(props.filter_order_half),
             props,
             sig,
-            state: OberheimVariationMoogState::new(),
             buf: Vec::new(),
         }
     }
 }
 
-pub struct LowPassFilterMoogLadder<S, C, R>
+pub struct LowPassChebyshev<S, C, R>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
@@ -75,11 +79,11 @@ where
 {
     props: Props<C, R>,
     sig: S,
-    state: OberheimVariationMoogState,
+    state: chebyshev::State,
     buf: Vec<f32>,
 }
 
-impl<S, C, R> SigT for LowPassFilterMoogLadder<S, C, R>
+impl<S, C, R> SigT for LowPassChebyshev<S, C, R>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
@@ -95,9 +99,13 @@ where
             self.props.cutoff_hz.sample(ctx).iter(),
             self.props.resonance.sample(ctx).iter(),
         } {
-            self.state
-                .update_params(ctx.sample_rate_hz, cutoff_hz, resonance);
-            *out = self.state.process_sample(sample);
+            *out = chebyshev::low_pass::run(
+                &mut self.state,
+                sample as f64,
+                ctx.sample_rate_hz as f64,
+                cutoff_hz as f64,
+                resonance as f64,
+            ) as f32;
         }
         &self.buf
     }

@@ -1,6 +1,6 @@
 mod frame_sig;
-mod frame_sig_arith;
+mod frame_sig_ops;
 mod sig;
-mod sig_arith;
+mod sig_ops;
 pub use frame_sig::{FrameSig, FrameSigShared, FrameSigT};
 pub use sig::{Buf, ConstBuf, Filter, Sig, SigCtx, SigShared, SigT};

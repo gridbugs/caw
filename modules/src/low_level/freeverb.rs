@@ -3,17 +3,17 @@
 // A description of the algorithm is here: https://ccrma.stanford.edu/~jos/pasp/Freeverb.html
 
 struct Comb {
-    feedback: f32,
-    damp1: f32,
-    damp2: f32,
-    buffer: Vec<f32>,
+    feedback: f64,
+    damp1: f64,
+    damp2: f64,
+    buffer: Vec<f64>,
     bufidx: usize,
-    filter_store: f32,
+    filter_store: f64,
 }
 
 struct CombArgs {
-    feedback: f32,
-    damping: f32,
+    feedback: f64,
+    damping: f64,
     buffer_size: usize,
 }
 
@@ -36,7 +36,7 @@ impl Comb {
         }
     }
 
-    fn process(&mut self, input: f32) -> f32 {
+    fn process(&mut self, input: f64) -> f64 {
         let output = self.buffer[self.bufidx];
         self.filter_store =
             (output * self.damp2) + (self.filter_store * self.damp1);
@@ -48,20 +48,20 @@ impl Comb {
         output
     }
 
-    fn set_damping(&mut self, damping: f32) {
+    fn set_damping(&mut self, damping: f64) {
         self.damp1 = damping;
         self.damp2 = 1.0 - damping;
     }
 }
 
 struct AllPass {
-    feedback: f32,
-    buffer: Vec<f32>,
+    feedback: f64,
+    buffer: Vec<f64>,
     bufidx: usize,
 }
 
 struct AllPassArgs {
-    feedback: f32,
+    feedback: f64,
     buffer_size: usize,
 }
 
@@ -80,7 +80,7 @@ impl AllPass {
         }
     }
 
-    fn process(&mut self, input: f32) -> f32 {
+    fn process(&mut self, input: f64) -> f64 {
         let bufout = self.buffer[self.bufidx];
         let output = bufout - input;
         self.buffer[self.bufidx] = input + (bufout * self.feedback);
@@ -93,16 +93,16 @@ impl AllPass {
 }
 
 mod tuning {
-    pub const GAIN_SCALE: f32 = 0.015;
-    pub const DAMPING_SCALE: f32 = 0.4;
-    pub const INITIAL_DAMPING: f32 = 0.5;
-    pub const SCALE_ROOM: f32 = 0.28;
-    pub const OFFSET_ROOM: f32 = 0.7;
-    pub const INITIAL_ROOM_SIZE: f32 = 0.5;
+    pub const GAIN_SCALE: f64 = 0.015;
+    pub const DAMPING_SCALE: f64 = 0.4;
+    pub const INITIAL_DAMPING: f64 = 0.5;
+    pub const SCALE_ROOM: f64 = 0.28;
+    pub const OFFSET_ROOM: f64 = 0.7;
+    pub const INITIAL_ROOM_SIZE: f64 = 0.5;
     pub const COMB_BUFFER_SIZES: &[usize] =
         &[1116, 1188, 1277, 1356, 1422, 1491, 1557, 1617];
     pub const ALL_PASS_BUFFER_SIZES: &[usize] = &[556, 441, 341, 225];
-    pub const ALL_PASS_FEEDBACK: f32 = 0.5;
+    pub const ALL_PASS_FEEDBACK: f64 = 0.5;
 }
 
 pub use tuning::{INITIAL_DAMPING, INITIAL_ROOM_SIZE};
@@ -112,7 +112,7 @@ pub struct ReverbModel {
     all_pass: Vec<AllPass>,
 }
 
-fn room_size_to_comb_feedback(room_size: f32) -> f32 {
+fn room_size_to_comb_feedback(room_size: f64) -> f64 {
     (room_size * tuning::SCALE_ROOM) + tuning::OFFSET_ROOM
 }
 
@@ -142,7 +142,7 @@ impl ReverbModel {
         Self { comb, all_pass }
     }
 
-    pub fn process(&mut self, input: f32) -> f32 {
+    pub fn process(&mut self, input: f64) -> f64 {
         let input = input * tuning::GAIN_SCALE;
         let mut out = 0.0;
         for comb in self.comb.iter_mut() {
@@ -154,14 +154,14 @@ impl ReverbModel {
         out
     }
 
-    pub fn set_room_size(&mut self, room_size: f32) {
+    pub fn set_room_size(&mut self, room_size: f64) {
         let comb_feedback = room_size_to_comb_feedback(room_size);
         for comb in self.comb.iter_mut() {
             comb.feedback = comb_feedback;
         }
     }
 
-    pub fn set_damping(&mut self, damping: f32) {
+    pub fn set_damping(&mut self, damping: f64) {
         for comb in self.comb.iter_mut() {
             comb.set_damping(damping * tuning::DAMPING_SCALE);
         }

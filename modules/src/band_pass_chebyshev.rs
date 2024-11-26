@@ -37,7 +37,7 @@ where
 }
 
 builder! {
-    #[constructor = "band_pass_filter_chebyshev"]
+    #[constructor = "band_pass_chebyshev"]
     #[constructor_doc = "A band pass filter with adjustable resonance"]
     #[build_fn = "Props::new"]
     #[build_ty = "Props<L, U, R>"]
@@ -66,7 +66,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassFilterChebyshev<S, L, U, R>
+    type Out<S> = BandPassChebyshev<S, L, U, R>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -75,7 +75,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
-        BandPassFilterChebyshev {
+        BandPassChebyshev {
             state: chebyshev::State::new(props.filter_order_half),
             props,
             sig,
@@ -84,7 +84,7 @@ where
     }
 }
 
-pub struct BandPassFilterChebyshev<S, L, U, R>
+pub struct BandPassChebyshev<S, L, U, R>
 where
     L: SigT<Item = f32>,
     U: SigT<Item = f32>,
@@ -96,7 +96,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<S, L, U, R> SigT for BandPassFilterChebyshev<S, L, U, R>
+impl<S, L, U, R> SigT for BandPassChebyshev<S, L, U, R>
 where
     S: SigT<Item = f32>,
     L: SigT<Item = f32>,
@@ -115,12 +115,12 @@ where
             self.props.resonance.sample(ctx).iter(),
         } {
             *out = self.state.run(
-                sample,
-                ctx.sample_rate_hz,
-                lower_cutoff_hz,
-                upper_cutoff_hz,
-                resonance,
-            );
+                sample as f64,
+                ctx.sample_rate_hz as f64,
+                lower_cutoff_hz as f64,
+                upper_cutoff_hz as f64,
+                resonance as f64,
+            ) as f32;
         }
         &self.buf
     }
@@ -164,7 +164,7 @@ where
 }
 
 builder! {
-    #[constructor = "band_pass_filter_chebyshev_centered"]
+    #[constructor = "band_pass_chebyshev_centered"]
     #[constructor_doc = "A band pass filter with adjustable resonance"]
     #[build_fn = "PropsCentered::new"]
     #[build_ty = "PropsCentered<C, W, M, R>"]
@@ -198,7 +198,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassFilterChebyshevCentered<S, C, W, M, R>
+    type Out<S> = BandPassChebyshevCentered<S, C, W, M, R>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -207,7 +207,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
-        BandPassFilterChebyshevCentered {
+        BandPassChebyshevCentered {
             state: chebyshev::State::new(props.filter_order_half),
             props,
             sig,
@@ -216,7 +216,7 @@ where
     }
 }
 
-pub struct BandPassFilterChebyshevCentered<S, C, W, M, R>
+pub struct BandPassChebyshevCentered<S, C, W, M, R>
 where
     C: SigT<Item = f32>,
     W: SigT<Item = f32>,
@@ -229,7 +229,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<S, C, W, M, R> SigT for BandPassFilterChebyshevCentered<S, C, W, M, R>
+impl<S, C, W, M, R> SigT for BandPassChebyshevCentered<S, C, W, M, R>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
@@ -261,12 +261,12 @@ where
                 (mid_cutoff_hz - (width_cutoff_hz / 2.0)).max(min_cutoff_hz);
             let upper_cutoff_hz = lower_cutoff_hz + width_cutoff_hz;
             *out = self.state.run(
-                sample,
-                ctx.sample_rate_hz,
-                lower_cutoff_hz,
-                upper_cutoff_hz,
-                resonance,
-            );
+                sample as f64,
+                ctx.sample_rate_hz as f64,
+                lower_cutoff_hz as f64,
+                upper_cutoff_hz as f64,
+                resonance as f64,
+            ) as f32;
         }
         &self.buf
     }

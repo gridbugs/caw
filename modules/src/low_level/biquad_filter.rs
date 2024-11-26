@@ -6,12 +6,12 @@
 
 #[derive(Default)]
 struct BufferEntry {
-    a: f32,
-    d1: f32,
-    d2: f32,
-    w0: f32,
-    w1: f32,
-    w2: f32,
+    a: f64,
+    d1: f64,
+    d2: f64,
+    w0: f64,
+    w1: f64,
+    w2: f64,
 }
 
 struct Buffer {
@@ -27,7 +27,7 @@ impl Buffer {
         Self { entries }
     }
 
-    fn apply_low_pass(&mut self, mut sample: f32) -> f32 {
+    fn apply_low_pass(&mut self, mut sample: f64) -> f64 {
         for entry in self.entries.iter_mut() {
             entry.w0 = (entry.d1 * entry.w1) + (entry.d2 * entry.w2) + sample;
             sample = entry.a * (entry.w0 + (2.0 * entry.w1) + entry.w2);
@@ -37,7 +37,7 @@ impl Buffer {
         sample
     }
 
-    fn apply_high_pass(&mut self, mut sample: f32) -> f32 {
+    fn apply_high_pass(&mut self, mut sample: f64) -> f64 {
         for entry in self.entries.iter_mut() {
             entry.w0 = (entry.d1 * entry.w1) + (entry.d2 * entry.w2) + sample;
             sample = entry.a * (entry.w0 - (2.0 * entry.w1) + entry.w2);
@@ -49,17 +49,17 @@ impl Buffer {
 }
 
 trait PassTrait {
-    fn apply(buffer: &mut Buffer, sample: f32) -> f32;
+    fn apply(buffer: &mut Buffer, sample: f64) -> f64;
 }
 struct LowPass;
 struct HighPass;
 impl PassTrait for LowPass {
-    fn apply(buffer: &mut Buffer, sample: f32) -> f32 {
+    fn apply(buffer: &mut Buffer, sample: f64) -> f64 {
         buffer.apply_low_pass(sample)
     }
 }
 impl PassTrait for HighPass {
-    fn apply(buffer: &mut Buffer, sample: f32) -> f32 {
+    fn apply(buffer: &mut Buffer, sample: f64) -> f64 {
         buffer.apply_high_pass(sample)
     }
 }
@@ -68,12 +68,12 @@ pub mod butterworth {
     use super::*;
 
     trait UpdateBufferTrait {
-        fn update_entries(buffer: &mut Buffer, half_power_frequency_hz: f32);
+        fn update_entries(buffer: &mut Buffer, half_power_frequency_hz: f64);
     }
 
     pub struct State {
         buffer: Buffer,
-        prev_half_power_frequency_hz: f32,
+        prev_half_power_frequency_hz: f64,
     }
 
     impl State {
@@ -86,10 +86,10 @@ pub mod butterworth {
 
         fn run<U: UpdateBufferTrait, P: PassTrait>(
             &mut self,
-            sample: f32,
-            sample_rate_hz: f32,
-            half_power_frequency_hz: f32,
-        ) -> f32 {
+            sample: f64,
+            sample_rate_hz: f64,
+            half_power_frequency_hz: f64,
+        ) -> f64 {
             let half_power_frequency_hz = half_power_frequency_hz.max(0.0);
             if self.buffer.entries.is_empty() {
                 return sample;
@@ -109,19 +109,19 @@ pub mod butterworth {
 
     pub mod low_pass {
         use super::*;
-        use std::f32::consts::PI;
+        use std::f64::consts::PI;
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
             fn update_entries(
                 buffer: &mut Buffer,
-                half_power_frequency_sample_rate_ratio: f32,
+                half_power_frequency_sample_rate_ratio: f64,
             ) {
                 let a = (PI * half_power_frequency_sample_rate_ratio).tan();
                 let a2 = a * a;
-                let n = buffer.entries.len() as f32;
+                let n = buffer.entries.len() as f64;
                 for (i, entry) in buffer.entries.iter_mut().enumerate() {
-                    let r = ((PI * ((2.0 * i as f32) + 1.0)) / (4.0 * n)).sin();
+                    let r = ((PI * ((2.0 * i as f64) + 1.0)) / (4.0 * n)).sin();
                     let s = a2 + (2.0 * a * r) + 1.0;
                     entry.a = a2 / s;
                     entry.d1 = (2.0 * (1.0 - a2)) / s;
@@ -133,10 +133,10 @@ pub mod butterworth {
         /// Run the butterworth low-pass filter for a single sample.
         pub fn run(
             state: &mut State,
-            sample: f32,
-            sample_rate_hz: f32,
-            half_power_frequency_hz: f32,
-        ) -> f32 {
+            sample: f64,
+            sample_rate_hz: f64,
+            half_power_frequency_hz: f64,
+        ) -> f64 {
             state.run::<UpdateBuffer, LowPass>(
                 sample,
                 sample_rate_hz,
@@ -147,19 +147,19 @@ pub mod butterworth {
 
     pub mod high_pass {
         use super::*;
-        use std::f32::consts::PI;
+        use std::f64::consts::PI;
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
             fn update_entries(
                 buffer: &mut Buffer,
-                half_power_frequency_sample_rate_ratio: f32,
+                half_power_frequency_sample_rate_ratio: f64,
             ) {
                 let a = (PI * half_power_frequency_sample_rate_ratio).tan();
                 let a2 = a * a;
-                let n = buffer.entries.len() as f32;
+                let n = buffer.entries.len() as f64;
                 for (i, entry) in buffer.entries.iter_mut().enumerate() {
-                    let r = ((PI * ((2.0 * i as f32) + 1.0)) / (4.0 * n)).sin();
+                    let r = ((PI * ((2.0 * i as f64) + 1.0)) / (4.0 * n)).sin();
                     let s = a2 + (2.0 * a * r) + 1.0;
                     entry.a = 1.0 / s;
                     entry.d1 = (2.0 * (1.0 - a2)) / s;
@@ -171,10 +171,10 @@ pub mod butterworth {
         /// Run the butterworth high-pass filter for a single sample.
         pub fn run(
             state: &mut State,
-            sample: f32,
-            sample_rate_hz: f32,
-            half_power_frequency_hz: f32,
-        ) -> f32 {
+            sample: f64,
+            sample_rate_hz: f64,
+            half_power_frequency_hz: f64,
+        ) -> f64 {
             state.run::<UpdateBuffer, HighPass>(
                 sample,
                 sample_rate_hz,
@@ -187,16 +187,16 @@ pub mod butterworth {
 pub mod chebyshev {
     use super::*;
 
-    pub const EPSILON_MIN: f32 = 0.01;
+    pub const EPSILON_MIN: f64 = 0.01;
 
     trait UpdateBufferTrait {
-        fn update_entries(buffer: &mut Buffer, cutoff_hz: f32, epsilon: f32);
+        fn update_entries(buffer: &mut Buffer, cutoff_hz: f64, epsilon: f64);
     }
 
     pub struct State {
         buffer: Buffer,
-        prev_cutoff_hz: f32,
-        prev_epsilon: f32,
+        prev_cutoff_hz: f64,
+        prev_epsilon: f64,
     }
 
     impl State {
@@ -210,11 +210,11 @@ pub mod chebyshev {
 
         fn run<U: UpdateBufferTrait, P: PassTrait>(
             &mut self,
-            sample: f32,
-            sample_rate_hz: f32,
-            cutoff_hz: f32,
-            epsilon: f32,
-        ) -> f32 {
+            sample: f64,
+            sample_rate_hz: f64,
+            cutoff_hz: f64,
+            epsilon: f64,
+        ) -> f64 {
             let cutoff_hz = cutoff_hz.max(0.0);
             if self.buffer.entries.is_empty() {
                 return sample;
@@ -239,24 +239,24 @@ pub mod chebyshev {
 
     pub mod low_pass {
         use super::*;
-        use std::f32::consts::PI;
+        use std::f64::consts::PI;
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
             fn update_entries(
                 buffer: &mut Buffer,
-                cutoff_sample_rate_ratio: f32,
-                epsilon: f32,
+                cutoff_sample_rate_ratio: f64,
+                epsilon: f64,
             ) {
                 let a = (PI * cutoff_sample_rate_ratio).tan();
                 let a2 = a * a;
                 let u =
                     ((1.0 + (1.0 + (epsilon * epsilon)).sqrt()) / epsilon).ln();
-                let n = (buffer.entries.len() * 2) as f32;
+                let n = (buffer.entries.len() * 2) as f64;
                 let su = (u / n).sinh();
                 let cu = (u / n).cosh();
                 for (i, entry) in buffer.entries.iter_mut().enumerate() {
-                    let theta = (PI * ((2.0 * i as f32) + 1.0)) / (2.0 * n);
+                    let theta = (PI * ((2.0 * i as f64) + 1.0)) / (2.0 * n);
                     let b = theta.sin() * su;
                     let c = theta.cos() * cu;
                     let c = (b * b) + (c * c);
@@ -271,11 +271,11 @@ pub mod chebyshev {
         /// Run the chebyshev low-pass filter for a single sample.
         pub fn run(
             state: &mut State,
-            sample: f32,
-            sample_rate_hz: f32,
-            cutoff_hz: f32,
-            epsilon: f32,
-        ) -> f32 {
+            sample: f64,
+            sample_rate_hz: f64,
+            cutoff_hz: f64,
+            epsilon: f64,
+        ) -> f64 {
             state.run::<UpdateBuffer, LowPass>(
                 sample,
                 sample_rate_hz,
@@ -287,24 +287,24 @@ pub mod chebyshev {
 
     pub mod high_pass {
         use super::*;
-        use std::f32::consts::PI;
+        use std::f64::consts::PI;
 
         struct UpdateBuffer;
         impl UpdateBufferTrait for UpdateBuffer {
             fn update_entries(
                 buffer: &mut Buffer,
-                cutoff_sample_rate_ratio: f32,
-                epsilon: f32,
+                cutoff_sample_rate_ratio: f64,
+                epsilon: f64,
             ) {
                 let a = (PI * cutoff_sample_rate_ratio).tan();
                 let a2 = a * a;
                 let u =
                     ((1.0 + (1.0 + (epsilon * epsilon)).sqrt()) / epsilon).ln();
-                let n = (buffer.entries.len() * 2) as f32;
+                let n = (buffer.entries.len() * 2) as f64;
                 let su = (u / n).sinh();
                 let cu = (u / n).cosh();
                 for (i, entry) in buffer.entries.iter_mut().enumerate() {
-                    let theta = (PI * ((2.0 * i as f32) + 1.0)) / (2.0 * n);
+                    let theta = (PI * ((2.0 * i as f64) + 1.0)) / (2.0 * n);
                     let b = theta.sin() * su;
                     let c = theta.cos() * cu;
                     let c = (b * b) + (c * c);
@@ -319,11 +319,11 @@ pub mod chebyshev {
         /// Run the chebyshev high-pass filter for a single sample.
         pub fn run(
             state: &mut State,
-            sample: f32,
-            sample_rate_hz: f32,
-            cutoff_hz: f32,
-            epsilon: f32,
-        ) -> f32 {
+            sample: f64,
+            sample_rate_hz: f64,
+            cutoff_hz: f64,
+            epsilon: f64,
+        ) -> f64 {
             state.run::<UpdateBuffer, HighPass>(
                 sample,
                 sample_rate_hz,

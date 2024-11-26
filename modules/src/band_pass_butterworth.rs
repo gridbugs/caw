@@ -32,7 +32,7 @@ where
 }
 
 builder! {
-    #[constructor = "band_pass_filter_butterworth"]
+    #[constructor = "band_pass_butterworth"]
     #[constructor_doc = "A basic band pass filter"]
     #[build_fn = "Props::new"]
     #[build_ty = "Props<L, U>"]
@@ -56,7 +56,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassFilterButterworth<S, L, U>
+    type Out<S> = BandPassButterworth<S, L, U>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -65,7 +65,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
-        BandPassFilterButterworth {
+        BandPassButterworth {
             state: butterworth::State::new(props.filter_order_half),
             props,
             sig,
@@ -74,7 +74,7 @@ where
     }
 }
 
-pub struct BandPassFilterButterworth<S, L, U>
+pub struct BandPassButterworth<S, L, U>
 where
     L: SigT<Item = f32>,
     U: SigT<Item = f32>,
@@ -85,7 +85,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<S, L, U> SigT for BandPassFilterButterworth<S, L, U>
+impl<S, L, U> SigT for BandPassButterworth<S, L, U>
 where
     S: SigT<Item = f32>,
     L: SigT<Item = f32>,
@@ -102,11 +102,11 @@ where
             self.props.upper_cutoff_hz.sample(ctx).iter(),
         } {
             *out = self.state.run(
-                sample,
-                ctx.sample_rate_hz,
-                lower_cutoff_hz,
-                upper_cutoff_hz,
-            );
+                sample as f64,
+                ctx.sample_rate_hz as f64,
+                lower_cutoff_hz as f64,
+                upper_cutoff_hz as f64,
+            ) as f32;
         }
         &self.buf
     }
@@ -145,7 +145,7 @@ where
 }
 
 builder! {
-    #[constructor = "band_pass_filter_butterworth_centered"]
+    #[constructor = "band_pass_butterworth_centered"]
     #[constructor_doc = "A basic band pass filter"]
     #[build_fn = "PropsCentered::new"]
     #[build_ty = "PropsCentered<C, W, M>"]
@@ -174,7 +174,7 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassFilterButterworthCentered<S, C, W, M>
+    type Out<S> = BandPassButterworthCentered<S, C, W, M>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -183,7 +183,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let props = self.build();
-        BandPassFilterButterworthCentered {
+        BandPassButterworthCentered {
             state: butterworth::State::new(props.filter_order_half),
             props,
             sig,
@@ -192,7 +192,7 @@ where
     }
 }
 
-pub struct BandPassFilterButterworthCentered<S, C, W, M>
+pub struct BandPassButterworthCentered<S, C, W, M>
 where
     C: SigT<Item = f32>,
     W: SigT<Item = f32>,
@@ -204,7 +204,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<S, C, W, M> SigT for BandPassFilterButterworthCentered<S, C, W, M>
+impl<S, C, W, M> SigT for BandPassButterworthCentered<S, C, W, M>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
@@ -233,11 +233,11 @@ where
                 (mid_cutoff_hz - (width_cutoff_hz / 2.0)).max(min_cutoff_hz);
             let upper_cutoff_hz = lower_cutoff_hz + width_cutoff_hz;
             *out = self.state.run(
-                sample,
-                ctx.sample_rate_hz,
-                lower_cutoff_hz,
-                upper_cutoff_hz,
-            );
+                sample as f64,
+                ctx.sample_rate_hz as f64,
+                lower_cutoff_hz as f64,
+                upper_cutoff_hz as f64,
+            ) as f32;
         }
         &self.buf
     }

@@ -1,10 +1,10 @@
 use crate::{Buf, Sig, SigCtx, SigT};
 use std::{
     iter::Sum,
-    ops::{Add, Div, Mul, Sub},
+    ops::{Add, BitAnd, BitOr, Div, Mul, Sub},
 };
 
-macro_rules! impl_binary_op {
+macro_rules! impl_arith_op {
     ($sig_struct:ident, $trait:ident, $fn:ident) => {
         /// Signal for applying the operation pairwise to each element of a pair of signals
         pub struct $sig_struct<L, R>
@@ -72,7 +72,7 @@ macro_rules! impl_binary_op {
             }
         }
 
-        /// Operate on a signal and an f32 where teh RHS is wrapped in the `Sig` type.
+        /// Operate on a signal and an f32 where the RHS is wrapped in the `Sig` type.
         impl<R> $trait<Sig<R>> for f32
         where
             R: SigT<Item = f32>,
@@ -85,7 +85,7 @@ macro_rules! impl_binary_op {
             }
         }
 
-        /// Operate on a signal and an i32 where teh RHS is wrapped in the `Sig` type.
+        /// Operate on a signal and an i32 where the RHS is wrapped in the `Sig` type.
         impl<R> $trait<Sig<R>> for i32
         where
             R: SigT<Item = f32>,
@@ -100,10 +100,10 @@ macro_rules! impl_binary_op {
     };
 }
 
-impl_binary_op!(SigAdd, Add, add);
-impl_binary_op!(SigSub, Sub, sub);
-impl_binary_op!(SigMul, Mul, mul);
-impl_binary_op!(SigDiv, Div, div);
+impl_arith_op!(SigAdd, Add, add);
+impl_arith_op!(SigSub, Sub, sub);
+impl_arith_op!(SigMul, Mul, mul);
+impl_arith_op!(SigDiv, Div, div);
 
 pub struct SigSum<S>
 where
@@ -143,3 +143,89 @@ where
         Sig(SigSum { sigs, buf })
     }
 }
+
+macro_rules! impl_bool_op {
+    ($sig_struct:ident, $trait:ident, $fn:ident) => {
+        /// Signal for applying the operation pairwise to each element of a pair of signals
+        pub struct $sig_struct<L, R>
+        where
+            L: SigT,
+            R: SigT,
+            L::Item: $trait<R::Item>,
+        {
+            lhs: L,
+            rhs: R,
+            buf: Vec<<L::Item as $trait<R::Item>>::Output>,
+        }
+
+        impl<L, R> $sig_struct<L, R>
+        where
+            L: SigT,
+            R: SigT,
+            L::Item: $trait<R::Item>,
+        {
+            pub fn new(lhs: L, rhs: R) -> Self {
+                Self {
+                    lhs,
+                    rhs,
+                    buf: Vec::new(),
+                }
+            }
+        }
+
+        impl<L, R> SigT for $sig_struct<L, R>
+        where
+            L: SigT,
+            R: SigT,
+            L::Item: $trait<R::Item>,
+            <L::Item as $trait<R::Item>>::Output: Clone,
+        {
+            type Item = <L::Item as $trait<R::Item>>::Output;
+
+            fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+                let buf_lhs = self.lhs.sample(ctx);
+                let buf_rhs = self.rhs.sample(ctx);
+                self.buf.clear();
+                self.buf.extend(
+                    buf_lhs
+                        .iter()
+                        .cloned()
+                        .zip(buf_rhs.iter().cloned())
+                        .map(|(lhs, rhs)| lhs.$fn(rhs)),
+                );
+                &self.buf
+            }
+        }
+
+        /// Operate on a pair of signals where at least the LHS is wrapped in the `Sig` type.
+        impl<S, R> $trait<R> for Sig<S>
+        where
+            S: SigT,
+            R: SigT,
+            S::Item: $trait<R::Item>,
+            <S::Item as $trait<R::Item>>::Output: Clone,
+        {
+            type Output = Sig<$sig_struct<S, R>>;
+
+            fn $fn(self, rhs: R) -> Self::Output {
+                Sig($sig_struct::new(self.0, rhs))
+            }
+        }
+
+        /// Operate on a signal and an bool where the RHS is wrapped in the `Sig` type.
+        impl<R> $trait<Sig<R>> for bool
+        where
+            R: SigT<Item = bool>,
+            bool: $trait<R::Item>,
+        {
+            type Output = Sig<$sig_struct<bool, R>>;
+
+            fn $fn(self, rhs: Sig<R>) -> Self::Output {
+                Sig($sig_struct::new(self, rhs.0))
+            }
+        }
+    };
+}
+
+impl_bool_op!(SigBitAnd, BitAnd, bitand);
+impl_bool_op!(SigBitOr, BitOr, bitor);
