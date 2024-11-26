@@ -17,7 +17,8 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
         .decay_s(0.2)
         .sustain_01(0.8)
         .release_s(10.0)
-        .build();
+        .build()
+        .exp_01(1);
     let osc = super_saw(note.freq_hz()).build();
     osc.filter(
         low_pass::default(env * input.mouse.y_01() * 10000)

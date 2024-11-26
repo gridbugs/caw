@@ -59,7 +59,7 @@ struct MultithreadedSignal {
 }
 
 impl MultithreadedSignal {
-    fn new(num_threads: usize) -> Self {
+    fn new(num_threads: usize) -> Sig<Self> {
         let mut thread_info = Vec::new();
         for _ in 0..num_threads {
             let (send_query, recv_query) = mpsc::channel();
@@ -72,10 +72,10 @@ impl MultithreadedSignal {
                 buf,
             });
         }
-        Self {
+        Sig(Self {
             thread_info,
             buf: Vec::new(),
-        }
+        })
     }
 }
 

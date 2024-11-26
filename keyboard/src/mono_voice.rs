@@ -1,5 +1,7 @@
 use crate::KeyEvents;
-use caw_core_next::{FrameSig, FrameSigShared, FrameSigT, SigCtx};
+use caw_core_next::{
+    frame_sig_shared, FrameSig, FrameSigShared, FrameSigT, SigCtx,
+};
 
 /// A collection of signals associated with a monophonic keyboard voice
 pub struct MonoVoice<K>
@@ -23,7 +25,7 @@ where
     K: FrameSigT<Item = KeyEvents>,
 {
     pub fn from_key_events(key_events: K) -> Self {
-        let key_events_shared = key_events.shared().0;
+        let key_events_shared = frame_sig_shared(key_events);
         Self {
             note: FrameSig(Note::new(key_events_shared.clone())),
             velocity_01: FrameSig(Velocity01::new(key_events_shared.clone())),

@@ -164,80 +164,6 @@ pub trait SigT {
     type Item: Clone;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item>;
-
-    fn map_mut<T, F>(self, f: F) -> Sig<MapMut<Self, T, F>>
-    where
-        T: Clone,
-        Self: Sized,
-        F: FnMut(Self::Item) -> T,
-    {
-        Sig(MapMut {
-            sig: self,
-            f,
-            buf: Vec::new(),
-        })
-    }
-
-    fn map_mut_ctx<T, F>(self, f: F) -> Sig<MapMutCtx<Self, T, F>>
-    where
-        T: Clone,
-        Self: Sized,
-        F: FnMut(Self::Item, &SigCtx) -> T,
-    {
-        Sig(MapMutCtx {
-            sig: self,
-            f,
-            buf: Vec::new(),
-        })
-    }
-
-    fn map<T, F>(self, f: F) -> Sig<Map<Self, T, F>>
-    where
-        T: Clone,
-        Self: Sized,
-        F: Fn(Self::Item) -> T,
-    {
-        Sig(Map { sig: self, f })
-    }
-
-    fn map_ctx<T, F>(self, f: F) -> Sig<MapCtx<Self, T, F>>
-    where
-        T: Clone,
-        Self: Sized,
-        F: Fn(Self::Item, &SigCtx) -> T,
-    {
-        Sig(MapCtx { sig: self, f })
-    }
-
-    fn zip<O>(self, other: O) -> Sig<Zip<Self, O>>
-    where
-        Self: Sized,
-        O: SigT,
-    {
-        Sig(Zip {
-            a: self,
-            b: other,
-            buf: Vec::new(),
-        })
-    }
-
-    fn filter<F>(self, filter: F) -> Sig<F::Out<Self>>
-    where
-        Self: Sized,
-        F: Filter<ItemIn = Self::Item>,
-    {
-        Sig(filter.into_sig(self))
-    }
-
-    fn shared(self) -> Sig<SigShared<Self>>
-    where
-        Self: Sized,
-    {
-        Sig(SigShared {
-            shared_cached_sig: Rc::new(RefCell::new(SigCached::new(self))),
-            buf: Vec::new(),
-        })
-    }
 }
 
 impl SigT for f32 {
@@ -304,8 +230,66 @@ impl<S: SigT> SigT for Sig<S> {
 
 impl<S> Sig<S>
 where
-    S: SigT,
+    S: SigT<Item: Clone>,
 {
+    pub fn map_mut<T, F>(self, f: F) -> Sig<MapMut<S, T, F>>
+    where
+        T: Clone,
+        F: FnMut(S::Item) -> T,
+    {
+        Sig(MapMut {
+            sig: self.0,
+            f,
+            buf: Vec::new(),
+        })
+    }
+
+    pub fn map_mut_ctx<T, F>(self, f: F) -> Sig<MapMutCtx<S, T, F>>
+    where
+        T: Clone,
+        F: FnMut(S::Item, &SigCtx) -> T,
+    {
+        Sig(MapMutCtx {
+            sig: self.0,
+            f,
+            buf: Vec::new(),
+        })
+    }
+
+    pub fn map<T, F>(self, f: F) -> Sig<Map<S, T, F>>
+    where
+        T: Clone,
+        F: Fn(S::Item) -> T,
+    {
+        Sig(Map { sig: self.0, f })
+    }
+
+    pub fn map_ctx<T, F>(self, f: F) -> Sig<MapCtx<S, T, F>>
+    where
+        T: Clone,
+        F: Fn(S::Item, &SigCtx) -> T,
+    {
+        Sig(MapCtx { sig: self.0, f })
+    }
+
+    pub fn zip<O>(self, other: O) -> Sig<Zip<S, O>>
+    where
+        O: SigT,
+    {
+        Sig(Zip {
+            a: self.0,
+            b: other,
+            buf: Vec::new(),
+        })
+    }
+
+    pub fn filter<F>(self, filter: F) -> Sig<F::Out<S>>
+    where
+        F: Filter<ItemIn = S::Item>,
+    {
+        Sig(filter.into_sig(self.0))
+    }
+
     pub fn debug<F: FnMut(&S::Item)>(
         self,
         mut f: F,
@@ -330,6 +314,7 @@ impl<S> Sig<S>
 where
     S: SigT<Item = f32>,
 {
+    /// clamp `x` between +/- `max_unsigned`
     pub fn clamp_symetric<C>(
         self,
         max_unsigned: C,
@@ -342,6 +327,14 @@ where
         })
     }
 
+    /// The function f(x) =
+    ///   k > 0  => exp(k * (x - a)) - b
+    ///   k == 0 => x
+    ///   k < 0  => -(ln(x + b) / k) + a
+    /// ...where a and b are chosen so that f(0) = 0 and f(1) = 1.
+    /// The k parameter controls how sharp the curve is.
+    /// The functions when k != 0 are inverses of each other and zip approach linearity as k
+    /// approaches 0.
     pub fn exp_01<K>(self, k: K) -> Sig<impl SigT<Item = f32>>
     where
         K: SigT<Item = f32>,
@@ -349,14 +342,13 @@ where
         self.zip(k).map(|(x, k)| crate::arith::exp_01(x, k))
     }
 
-    /*
     pub fn inv_01(self) -> Sig<impl SigT<Item = f32>> {
-        self.map(|x| 1.0 - x)
+        1.0 - self
     }
 
     pub fn signed_to_01(self) -> Sig<impl SigT<Item = f32>> {
         (self + 1.0) / 2.0
-    }*/
+    }
 }
 
 pub struct MapMut<S, T, F>
@@ -581,5 +573,15 @@ where
         let buf = shared_cached_sig.sample(ctx);
         buf.clone_to_vec(&mut self.buf);
         &self.buf
+    }
+}
+
+pub fn sig_shared<S>(sig: S) -> SigShared<S>
+where
+    S: SigT,
+{
+    SigShared {
+        shared_cached_sig: Rc::new(RefCell::new(SigCached::new(sig))),
+        buf: Vec::new(),
     }
 }

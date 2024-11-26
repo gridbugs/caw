@@ -1,5 +1,5 @@
-use crate::{Buf, ConstBuf, Sig, SigCtx, SigT};
-use std::{cell::RefCell, rc::Rc};
+use crate::{Buf, ConstBuf, Filter, Sig, SigCtx, SigT};
+use std::{cell::RefCell, fmt::Debug, rc::Rc};
 
 /// A signal with values produced each audio frame. This is distinct from the `SigT` trait whose
 /// values are produced for each audio sample. Each audio frame corresponds to the sound driver
@@ -9,50 +9,6 @@ pub trait FrameSigT {
     type Item: Clone;
 
     fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item;
-
-    /// Convert `self` into a signal producing values at the audio sample rate, where values are
-    /// duplicated within a given frame.
-    fn into_sig(self) -> Sig<FrameSig<Self>>
-    where
-        Self: Sized,
-    {
-        Sig(FrameSig(self))
-    }
-
-    fn map<T, F>(self, f: F) -> FrameSig<Map<Self, T, F>>
-    where
-        T: Clone,
-        Self: Sized,
-        F: FnMut(Self::Item) -> T,
-    {
-        FrameSig(Map { sig: self, f })
-    }
-
-    fn map_ctx<T, F>(self, f: F) -> FrameSig<MapCtx<Self, T, F>>
-    where
-        T: Clone,
-        Self: Sized,
-        F: FnMut(Self::Item, &SigCtx) -> T,
-    {
-        FrameSig(MapCtx { sig: self, f })
-    }
-
-    fn zip<O>(self, other: O) -> FrameSig<Zip<Self, O>>
-    where
-        Self: Sized,
-        O: FrameSigT,
-    {
-        FrameSig(Zip { a: self, b: other })
-    }
-
-    fn shared(self) -> FrameSig<FrameSigShared<Self>>
-    where
-        Self: Sized,
-    {
-        FrameSig(FrameSigShared {
-            shared_cached_sig: Rc::new(RefCell::new(FrameSigCached::new(self))),
-        })
-    }
 }
 
 pub struct FrameSigFn<F, T>(F)
@@ -77,6 +33,108 @@ where
 pub struct FrameSig<S>(pub S)
 where
     S: FrameSigT;
+
+impl<S> FrameSig<S>
+where
+    S: FrameSigT,
+{
+    /// Convert `self` into a signal producing values at the audio sample rate, where values are
+    /// duplicated within a given frame.
+    pub fn into_sig(self) -> Sig<Self> {
+        Sig(self)
+    }
+
+    pub fn map<T, F>(self, f: F) -> FrameSig<Map<S, T, F>>
+    where
+        T: Clone,
+        F: FnMut(S::Item) -> T,
+    {
+        FrameSig(Map { sig: self.0, f })
+    }
+
+    pub fn map_ctx<T, F>(self, f: F) -> FrameSig<MapCtx<S, T, F>>
+    where
+        T: Clone,
+        F: FnMut(S::Item, &SigCtx) -> T,
+    {
+        FrameSig(MapCtx { sig: self.0, f })
+    }
+
+    pub fn zip<O>(self, other: O) -> FrameSig<Zip<Self, O>>
+    where
+        Self: Sized,
+        O: FrameSigT,
+    {
+        FrameSig(Zip { a: self, b: other })
+    }
+
+    pub fn filter<F>(self, filter: F) -> Sig<F::Out<Self>>
+    where
+        F: Filter<ItemIn = S::Item>,
+    {
+        self.into_sig().filter(filter)
+    }
+
+    pub fn debug<F: FnMut(&S::Item)>(
+        self,
+        mut f: F,
+    ) -> FrameSig<impl FrameSigT<Item = S::Item>> {
+        self.map(move |x| {
+            f(&x);
+            x
+        })
+    }
+}
+
+impl<S> FrameSig<S>
+where
+    S: FrameSigT<Item: Debug>,
+{
+    pub fn debug_print(self) -> FrameSig<impl FrameSigT<Item = S::Item>> {
+        self.debug(|x| println!("{:?}", x))
+    }
+}
+
+impl<S> FrameSig<S>
+where
+    S: FrameSigT<Item = f32>,
+{
+    /// clamp `x` between +/- `max_unsigned`
+    pub fn clamp_symetric<C>(
+        self,
+        max_unsigned: C,
+    ) -> FrameSig<impl FrameSigT<Item = f32>>
+    where
+        C: FrameSigT<Item = f32>,
+    {
+        self.zip(max_unsigned).map(|(s, max_unsigned)| {
+            crate::arith::clamp_symetric(s, max_unsigned)
+        })
+    }
+
+    /// The function f(x) =
+    ///   k > 0  => exp(k * (x - a)) - b
+    ///   k == 0 => x
+    ///   k < 0  => -(ln(x + b) / k) + a
+    /// ...where a and b are chosen so that f(0) = 0 and f(1) = 1.
+    /// The k parameter controls how sharp the curve is.
+    /// The functions when k != 0 are inverses of each other and zip approach linearity as k
+    /// approaches 0.
+    pub fn exp_01<K>(self, k: K) -> FrameSig<impl FrameSigT<Item = f32>>
+    where
+        K: FrameSigT<Item = f32>,
+    {
+        self.zip(k).map(|(x, k)| crate::arith::exp_01(x, k))
+    }
+
+    pub fn inv_01(self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        1.0 - self
+    }
+
+    pub fn signed_to_01(self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        (self + 1.0) / 2.0
+    }
+}
 
 impl<F, T> FrameSig<FrameSigFn<F, T>>
 where
@@ -273,5 +331,14 @@ where
 
     fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
         self.shared_cached_sig.borrow_mut().frame_sample(ctx)
+    }
+}
+
+pub fn frame_sig_shared<S>(sig: S) -> FrameSigShared<S>
+where
+    S: FrameSigT,
+{
+    FrameSigShared {
+        shared_cached_sig: Rc::new(RefCell::new(FrameSigCached::new(sig))),
     }
 }
