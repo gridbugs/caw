@@ -42,7 +42,7 @@ where
         // scales the sum of num_oscillators values in the range 0..1 to a value in the range -1..1
         let scale_factor = 2.0 / (self.num_oscillators as f32);
         self.buf.resize(ctx.num_samples, 0.0);
-        for (sample, &freq_hz, &detune_ratio) in izip! {
+        for (sample, freq_hz, detune_ratio) in izip! {
             self.buf.iter_mut(),
             self.freq_hz.sample(ctx).iter(),
             self.detune_ratio.sample(ctx).iter(),

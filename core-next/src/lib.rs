@@ -1,3 +1,4 @@
+mod arith;
 mod frame_sig;
 mod frame_sig_ops;
 mod sig;

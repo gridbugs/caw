@@ -117,14 +117,14 @@ where
         let buf_reset_trigger = self.reset_trigger.sample(ctx);
         let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
         self.buf.clear();
-        for ((freq_hz, &reset_trigger), reset_offset_01) in buf_freq_hz
+        for ((freq_hz, reset_trigger), reset_offset_01) in buf_freq_hz
             .iter()
             .zip(buf_reset_trigger.iter())
             .zip(buf_reset_offset_01.iter())
         {
             if reset_trigger || self.first_frame {
                 self.first_frame = false;
-                self.state_01 = *reset_offset_01;
+                self.state_01 = reset_offset_01;
             } else {
                 let state_delta = freq_hz / ctx.sample_rate_hz;
                 self.state_01 = self.state_01 + state_delta;
@@ -143,7 +143,7 @@ where
         let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
         let buf_pulse_width_01 = self.pulse_width_01.sample(ctx);
         self.buf.clear();
-        for (((freq_hz, &reset_trigger), reset_offset_01), &pulse_width_01) in
+        for (((freq_hz, reset_trigger), reset_offset_01), pulse_width_01) in
             buf_freq_hz
                 .iter()
                 .zip(buf_reset_trigger.iter())
@@ -152,7 +152,7 @@ where
         {
             if reset_trigger || self.first_frame {
                 self.first_frame = false;
-                self.state_01 = *reset_offset_01;
+                self.state_01 = reset_offset_01;
             } else {
                 let state_delta = freq_hz / ctx.sample_rate_hz;
                 self.state_01 = (self.state_01 + state_delta).rem_euclid(1.0);

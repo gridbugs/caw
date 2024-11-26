@@ -36,8 +36,8 @@ where
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.clear();
         for (
-            &key_down_gate,
-            &key_press_trig,
+            key_down_gate,
+            key_press_trig,
             attack_s,
             decay_s,
             sustain_01,
@@ -57,12 +57,12 @@ where
                 if self.crossed_threshold {
                     // decay and sustain
                     self.current = (self.current
-                        - (1.0 / (*decay_s * ctx.sample_rate_hz)))
-                        .max(*sustain_01);
+                        - (1.0 / (decay_s * ctx.sample_rate_hz)))
+                        .max(sustain_01);
                 } else {
                     // attack
                     self.current = (self.current
-                        + (1.0 / (*attack_s * ctx.sample_rate_hz)))
+                        + (1.0 / (attack_s * ctx.sample_rate_hz)))
                         .min(1.0);
                     if self.current == 1.0 {
                         self.crossed_threshold = true;
@@ -72,7 +72,7 @@ where
                 // release
                 self.crossed_threshold = false;
                 self.current = (self.current
-                    - (1.0 / (*release_s * ctx.sample_rate_hz)))
+                    - (1.0 / (release_s * ctx.sample_rate_hz)))
                     .max(0.0);
             }
             self.buf.push(self.current)

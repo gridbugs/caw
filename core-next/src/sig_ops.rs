@@ -1,109 +1,297 @@
-use crate::{Buf, Sig, SigCtx, SigT};
+use crate::{Buf, FrameSig, FrameSigT, Sig, SigCtx, SigT};
 use std::{
     iter::Sum,
     ops::{Add, BitAnd, BitOr, Div, Mul, Sub},
 };
 
-macro_rules! impl_arith_op {
-    ($sig_struct:ident, $trait:ident, $fn:ident) => {
-        /// Signal for applying the operation pairwise to each element of a pair of signals
-        pub struct $sig_struct<L, R>
-        where
-            L: SigT,
-            R: SigT,
-            L::Item: $trait<R::Item>,
-        {
-            lhs: L,
-            rhs: R,
-            buf: Vec<<L::Item as $trait<R::Item>>::Output>,
-        }
+macro_rules! impl_op {
+    ($sig_mod:ident, $trait:ident, $fn:ident) => {
+        pub mod $sig_mod {
+            use crate::{sig::MapBuf, Buf, FrameSigT, Sig, SigCtx, SigT};
+            use std::ops::$trait;
 
-        impl<L, R> $sig_struct<L, R>
-        where
-            L: SigT,
-            R: SigT,
-            L::Item: $trait<R::Item>,
-        {
-            pub fn new(lhs: L, rhs: R) -> Self {
-                Self {
-                    lhs,
-                    rhs,
-                    buf: Vec::new(),
+            /// Signal for applying the operation pairwise to each element of a pair of signals
+            pub struct OpSigSig<L, R>
+            where
+                L: SigT,
+                R: SigT,
+                L::Item: $trait<R::Item>,
+            {
+                lhs: L,
+                rhs: R,
+                buf: Vec<<L::Item as $trait<R::Item>>::Output>,
+            }
+
+            impl<L, R> OpSigSig<L, R>
+            where
+                L: SigT,
+                R: SigT,
+                L::Item: $trait<R::Item>,
+            {
+                pub fn new(lhs: L, rhs: R) -> Self {
+                    Self {
+                        lhs,
+                        rhs,
+                        buf: Vec::new(),
+                    }
                 }
             }
-        }
 
-        impl<L, R> SigT for $sig_struct<L, R>
-        where
-            L: SigT,
-            R: SigT,
-            L::Item: $trait<R::Item>,
-            <L::Item as $trait<R::Item>>::Output: Clone,
-        {
-            type Item = <L::Item as $trait<R::Item>>::Output;
+            impl<L, R> SigT for OpSigSig<L, R>
+            where
+                L: SigT,
+                R: SigT,
+                L::Item: $trait<R::Item>,
+                <L::Item as $trait<R::Item>>::Output: Clone,
+            {
+                type Item = <L::Item as $trait<R::Item>>::Output;
 
-            fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-                let buf_lhs = self.lhs.sample(ctx);
-                let buf_rhs = self.rhs.sample(ctx);
-                self.buf.clear();
-                self.buf.extend(
-                    buf_lhs
-                        .iter()
-                        .cloned()
-                        .zip(buf_rhs.iter().cloned())
-                        .map(|(lhs, rhs)| lhs.$fn(rhs)),
-                );
-                &self.buf
+                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+                    let buf_lhs = self.lhs.sample(ctx);
+                    let buf_rhs = self.rhs.sample(ctx);
+                    self.buf.clear();
+                    self.buf.extend(
+                        buf_lhs
+                            .iter()
+                            .zip(buf_rhs.iter())
+                            .map(|(lhs, rhs)| lhs.$fn(rhs)),
+                    );
+                    &self.buf
+                }
             }
-        }
 
-        /// Operate on a pair of signals where at least the LHS is wrapped in the `Sig` type.
-        impl<S, R> $trait<R> for Sig<S>
-        where
-            S: SigT,
-            R: SigT,
-            S::Item: $trait<R::Item>,
-            <S::Item as $trait<R::Item>>::Output: Clone,
-        {
-            type Output = Sig<$sig_struct<S, R>>;
+            /// Operate on a pair of `Sig`s
+            impl<S, R> $trait<Sig<R>> for Sig<S>
+            where
+                S: SigT,
+                R: SigT,
+                S::Item: $trait<R::Item>,
+                <S::Item as $trait<R::Item>>::Output: Clone,
+            {
+                type Output = Sig<OpSigSig<S, R>>;
 
-            fn $fn(self, rhs: R) -> Self::Output {
-                Sig($sig_struct::new(self.0, rhs))
+                fn $fn(self, rhs: Sig<R>) -> Self::Output {
+                    Sig(OpSigSig::new(self.0, rhs.0))
+                }
             }
-        }
 
-        /// Operate on a signal and an f32 where the RHS is wrapped in the `Sig` type.
-        impl<R> $trait<Sig<R>> for f32
-        where
-            R: SigT<Item = f32>,
-            f32: $trait<R::Item>,
-        {
-            type Output = Sig<$sig_struct<f32, R>>;
-
-            fn $fn(self, rhs: Sig<R>) -> Self::Output {
-                Sig($sig_struct::new(self, rhs.0))
+            /// Signal for applying the operation pairwise to each element of a signal and a scalar
+            /// where the scalar is on the rhs
+            pub struct OpSigScalar<L, R>
+            where
+                L: SigT,
+                L::Item: $trait<R>,
+                <L::Item as $trait<R>>::Output: Clone,
+                R: Clone,
+            {
+                pub lhs: L,
+                pub rhs: R,
             }
-        }
 
-        /// Operate on a signal and an i32 where the RHS is wrapped in the `Sig` type.
-        impl<R> $trait<Sig<R>> for i32
-        where
-            R: SigT<Item = f32>,
-            f32: $trait<R::Item>,
-        {
-            type Output = Sig<$sig_struct<i32, R>>;
+            impl<L, R> SigT for OpSigScalar<L, R>
+            where
+                L: SigT,
+                L::Item: $trait<R>,
+                <L::Item as $trait<R>>::Output: Clone,
+                R: Clone,
+            {
+                type Item = <L::Item as $trait<R>>::Output;
 
-            fn $fn(self, rhs: Sig<R>) -> Self::Output {
-                Sig($sig_struct::new(self, rhs.0))
+                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+                    MapBuf::new(self.lhs.sample(ctx), |lhs| {
+                        lhs.$fn(self.rhs.clone())
+                    })
+                }
+            }
+
+            /// Signal for applying the operation pairwise to each element of a signal and a scalar
+            /// where the scalar is on the lhs
+            pub struct OpScalarSig<L, R>
+            where
+                L: Clone,
+                R: SigT,
+                L: $trait<R::Item>,
+                <L as $trait<R::Item>>::Output: Clone,
+            {
+                pub lhs: L,
+                pub rhs: R,
+            }
+
+            impl<L, R> SigT for OpScalarSig<L, R>
+            where
+                L: Clone,
+                R: SigT,
+                L: $trait<R::Item>,
+                <L as $trait<R::Item>>::Output: Clone,
+            {
+                type Item = <L as $trait<R::Item>>::Output;
+
+                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+                    MapBuf::new(self.rhs.sample(ctx), |rhs| {
+                        self.lhs.clone().$fn(rhs)
+                    })
+                }
+            }
+
+            /// Signal for applying the operation pairwise to each element of a signal and a frame
+            /// signal where the frame signal is on the rhs
+            pub struct OpSigFrameSig<L, R>
+            where
+                L: SigT,
+                R: FrameSigT,
+                L::Item: $trait<R::Item>,
+                <L::Item as $trait<R::Item>>::Output: Clone,
+            {
+                pub lhs: L,
+                pub rhs: R,
+            }
+
+            impl<L, R> SigT for OpSigFrameSig<L, R>
+            where
+                L: SigT,
+                R: FrameSigT<Item: Clone>,
+                L::Item: $trait<R::Item>,
+                <L::Item as $trait<R::Item>>::Output: Clone,
+            {
+                type Item = <L::Item as $trait<R::Item>>::Output;
+
+                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+                    let rhs = self.rhs.frame_sample(ctx);
+                    MapBuf::new(self.lhs.sample(ctx), move |lhs| {
+                        lhs.$fn(rhs.clone())
+                    })
+                }
+            }
+
+            /// Signal for applying the operation pairwise to each element of a signal and a frame
+            /// signal where the frame signal is on the lhs
+            pub struct OpFrameSigSig<L, R>
+            where
+                L: FrameSigT,
+                R: SigT,
+                L::Item: $trait<R::Item>,
+                <L::Item as $trait<R::Item>>::Output: Clone,
+            {
+                pub lhs: L,
+                pub rhs: R,
+            }
+
+            impl<L, R> SigT for OpFrameSigSig<L, R>
+            where
+                L: FrameSigT,
+                R: SigT<Item: Clone>,
+                L::Item: $trait<R::Item>,
+                <L::Item as $trait<R::Item>>::Output: Clone,
+            {
+                type Item = <L::Item as $trait<R::Item>>::Output;
+
+                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+                    let lhs = self.lhs.frame_sample(ctx);
+                    MapBuf::new(self.rhs.sample(ctx), move |rhs| {
+                        lhs.clone().$fn(rhs)
+                    })
+                }
             }
         }
     };
 }
 
-impl_arith_op!(SigAdd, Add, add);
-impl_arith_op!(SigSub, Sub, sub);
-impl_arith_op!(SigMul, Mul, mul);
-impl_arith_op!(SigDiv, Div, div);
+macro_rules! impl_arith_op {
+    ($sig_mod:ident, $trait:ident, $fn:ident) => {
+        /// Operate on a `Sig` and an f32
+        impl<S> $trait<f32> for Sig<S>
+        where
+            S: SigT,
+            S::Item: $trait<f32>,
+            <S::Item as $trait<f32>>::Output: Clone,
+        {
+            type Output = Sig<$sig_mod::OpSigScalar<S, f32>>;
+
+            fn $fn(self, rhs: f32) -> Self::Output {
+                Sig($sig_mod::OpSigScalar { lhs: self.0, rhs })
+            }
+        }
+
+        /// Operate on an f32 and a `Sig`
+        impl<S> $trait<Sig<S>> for f32
+        where
+            S: SigT<Item = f32>,
+            f32: $trait<S::Item>,
+        {
+            type Output = Sig<$sig_mod::OpScalarSig<f32, S>>;
+
+            fn $fn(self, rhs: Sig<S>) -> Self::Output {
+                Sig($sig_mod::OpScalarSig {
+                    lhs: self,
+                    rhs: rhs.0,
+                })
+            }
+        }
+
+        /// Operate on a `Sig` and an f32
+        impl<S> $trait<i32> for Sig<S>
+        where
+            S: SigT,
+            S::Item: $trait<f32>,
+            <S::Item as $trait<f32>>::Output: Clone,
+        {
+            type Output = Sig<$sig_mod::OpSigScalar<S, f32>>;
+
+            fn $fn(self, rhs: i32) -> Self::Output {
+                Sig($sig_mod::OpSigScalar {
+                    lhs: self.0,
+                    rhs: rhs as f32,
+                })
+            }
+        }
+
+        /// Operate on an f32 and a `Sig`
+        impl<S> $trait<Sig<S>> for i32
+        where
+            S: SigT<Item = f32>,
+            f32: $trait<S::Item>,
+        {
+            type Output = Sig<$sig_mod::OpScalarSig<f32, S>>;
+
+            fn $fn(self, rhs: Sig<S>) -> Self::Output {
+                Sig($sig_mod::OpScalarSig {
+                    lhs: self as f32,
+                    rhs: rhs.0,
+                })
+            }
+        }
+
+        impl<L, R> $trait<Sig<R>> for FrameSig<L>
+        where
+            L: FrameSigT<Item = f32>,
+            R: SigT<Item = f32>,
+        {
+            type Output = Sig<$sig_mod::OpFrameSigSig<L, R>>;
+
+            fn $fn(self, rhs: Sig<R>) -> Self::Output {
+                Sig($sig_mod::OpFrameSigSig {
+                    lhs: self.0,
+                    rhs: rhs.0,
+                })
+            }
+        }
+
+        impl<L, R> $trait<FrameSig<R>> for Sig<L>
+        where
+            L: SigT<Item = f32>,
+            R: FrameSigT<Item = f32>,
+        {
+            type Output = Sig<$sig_mod::OpSigFrameSig<L, R>>;
+
+            fn $fn(self, rhs: FrameSig<R>) -> Self::Output {
+                Sig($sig_mod::OpSigFrameSig {
+                    lhs: self.0,
+                    rhs: rhs.0,
+                })
+            }
+        }
+    };
+}
 
 pub struct SigSum<S>
 where
@@ -145,87 +333,51 @@ where
 }
 
 macro_rules! impl_bool_op {
-    ($sig_struct:ident, $trait:ident, $fn:ident) => {
-        /// Signal for applying the operation pairwise to each element of a pair of signals
-        pub struct $sig_struct<L, R>
-        where
-            L: SigT,
-            R: SigT,
-            L::Item: $trait<R::Item>,
-        {
-            lhs: L,
-            rhs: R,
-            buf: Vec<<L::Item as $trait<R::Item>>::Output>,
-        }
-
-        impl<L, R> $sig_struct<L, R>
-        where
-            L: SigT,
-            R: SigT,
-            L::Item: $trait<R::Item>,
-        {
-            pub fn new(lhs: L, rhs: R) -> Self {
-                Self {
-                    lhs,
-                    rhs,
-                    buf: Vec::new(),
-                }
-            }
-        }
-
-        impl<L, R> SigT for $sig_struct<L, R>
-        where
-            L: SigT,
-            R: SigT,
-            L::Item: $trait<R::Item>,
-            <L::Item as $trait<R::Item>>::Output: Clone,
-        {
-            type Item = <L::Item as $trait<R::Item>>::Output;
-
-            fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-                let buf_lhs = self.lhs.sample(ctx);
-                let buf_rhs = self.rhs.sample(ctx);
-                self.buf.clear();
-                self.buf.extend(
-                    buf_lhs
-                        .iter()
-                        .cloned()
-                        .zip(buf_rhs.iter().cloned())
-                        .map(|(lhs, rhs)| lhs.$fn(rhs)),
-                );
-                &self.buf
-            }
-        }
-
-        /// Operate on a pair of signals where at least the LHS is wrapped in the `Sig` type.
-        impl<S, R> $trait<R> for Sig<S>
+    ($sig_mod:ident, $trait:ident, $fn:ident) => {
+        /// Operate on a `Sig` and an bool
+        impl<S> $trait<bool> for Sig<S>
         where
             S: SigT,
-            R: SigT,
-            S::Item: $trait<R::Item>,
-            <S::Item as $trait<R::Item>>::Output: Clone,
+            S::Item: $trait<bool>,
+            <S::Item as $trait<bool>>::Output: Clone,
         {
-            type Output = Sig<$sig_struct<S, R>>;
+            type Output = Sig<$sig_mod::OpSigScalar<S, bool>>;
 
-            fn $fn(self, rhs: R) -> Self::Output {
-                Sig($sig_struct::new(self.0, rhs))
+            fn $fn(self, rhs: bool) -> Self::Output {
+                Sig($sig_mod::OpSigScalar { lhs: self.0, rhs })
             }
         }
 
-        /// Operate on a signal and an bool where the RHS is wrapped in the `Sig` type.
-        impl<R> $trait<Sig<R>> for bool
+        /// Operate on an bool and a `Sig`
+        impl<S> $trait<Sig<S>> for bool
         where
-            R: SigT<Item = bool>,
-            bool: $trait<R::Item>,
+            S: SigT<Item = bool>,
+            bool: $trait<S::Item>,
         {
-            type Output = Sig<$sig_struct<bool, R>>;
+            type Output = Sig<$sig_mod::OpScalarSig<bool, S>>;
 
-            fn $fn(self, rhs: Sig<R>) -> Self::Output {
-                Sig($sig_struct::new(self, rhs.0))
+            fn $fn(self, rhs: Sig<S>) -> Self::Output {
+                Sig($sig_mod::OpScalarSig {
+                    lhs: self,
+                    rhs: rhs.0,
+                })
             }
         }
     };
 }
 
-impl_bool_op!(SigBitAnd, BitAnd, bitand);
-impl_bool_op!(SigBitOr, BitOr, bitor);
+impl_op!(sig_add, Add, add);
+impl_op!(sig_sub, Sub, sub);
+impl_op!(sig_mul, Mul, mul);
+impl_op!(sig_div, Div, div);
+
+impl_arith_op!(sig_add, Add, add);
+impl_arith_op!(sig_sub, Sub, sub);
+impl_arith_op!(sig_mul, Mul, mul);
+impl_arith_op!(sig_div, Div, div);
+
+impl_op!(sig_bit_and, BitAnd, bitand);
+impl_op!(sig_bit_or, BitOr, bitor);
+
+impl_bool_op!(sig_bit_and, BitAnd, bitand);
+impl_bool_op!(sig_bit_or, BitOr, bitor);

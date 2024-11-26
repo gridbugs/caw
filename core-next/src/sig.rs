@@ -1,4 +1,4 @@
-use std::{cell::RefCell, fmt::Debug, iter, rc::Rc};
+use std::{cell::RefCell, fmt::Debug, iter, marker::PhantomData, rc::Rc};
 
 #[derive(Clone, Copy)]
 pub struct SigCtx {
@@ -11,9 +11,7 @@ pub trait Buf<T>
 where
     T: Clone,
 {
-    fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
-    where
-        T: 'a;
+    fn iter(&self) -> impl Iterator<Item = T>;
 
     fn clone_to_vec(&self, out: &mut Vec<T>) {
         out.clear();
@@ -27,11 +25,8 @@ impl<T> Buf<T> for &Vec<T>
 where
     T: Clone,
 {
-    fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
-    where
-        T: 'a,
-    {
-        (self as &[T]).iter()
+    fn iter(&self) -> impl Iterator<Item = T> {
+        (self as &[T]).iter().cloned()
     }
 
     fn clone_to_vec(&self, out: &mut Vec<T>) {
@@ -54,16 +49,55 @@ impl<T> Buf<T> for ConstBuf<T>
 where
     T: Clone,
 {
-    fn iter<'a>(&'a self) -> impl Iterator<Item = &'a T>
-    where
-        T: 'a,
-    {
-        iter::repeat_n(&self.value, self.count)
+    fn iter(&self) -> impl Iterator<Item = T> {
+        iter::repeat_n(&self.value, self.count).cloned()
     }
 
     fn clone_to_vec(&self, out: &mut Vec<T>) {
         out.resize_with(self.count, || self.value.clone());
         out.fill(self.value.clone());
+    }
+}
+
+/// Used to implement `map` methods (but not `map_mut`) by deferring the mapped function until the
+/// iteration of the following operation, preventing the need to buffer the result of the map.
+pub struct MapBuf<B, F, I, O>
+where
+    I: Clone,
+    O: Clone,
+    B: Buf<I>,
+    F: Fn(I) -> O,
+{
+    buf: B,
+    f: F,
+    phantom: PhantomData<(I, O)>,
+}
+
+impl<B, F, I, O> MapBuf<B, F, I, O>
+where
+    I: Clone,
+    O: Clone,
+    B: Buf<I>,
+    F: Fn(I) -> O,
+{
+    pub fn new(buf: B, f: F) -> Self {
+        Self {
+            buf,
+            f,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<B, F, I, O> Buf<O> for MapBuf<B, F, I, O>
+where
+    I: Clone,
+    O: Clone,
+    B: Buf<I>,
+    F: Fn(I) -> O,
+{
+    fn iter(&self) -> impl Iterator<Item = O> {
+        self.buf.iter().map(&self.f)
     }
 }
 
@@ -78,30 +112,48 @@ pub trait SigT {
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item>;
 
-    fn map<T, F>(self, f: F) -> Sig<Map<Self, T, F>>
+    fn map_mut<T, F>(self, f: F) -> Sig<MapMut<Self, T, F>>
     where
         T: Clone,
         Self: Sized,
         F: FnMut(Self::Item) -> T,
     {
-        Sig(Map {
+        Sig(MapMut {
             sig: self,
             f,
             buf: Vec::new(),
         })
     }
 
-    fn map_ctx<T, F>(self, f: F) -> Sig<MapCtx<Self, T, F>>
+    fn map_mut_ctx<T, F>(self, f: F) -> Sig<MapMutCtx<Self, T, F>>
     where
         T: Clone,
         Self: Sized,
         F: FnMut(Self::Item, &SigCtx) -> T,
     {
-        Sig(MapCtx {
+        Sig(MapMutCtx {
             sig: self,
             f,
             buf: Vec::new(),
         })
+    }
+
+    fn map<T, F>(self, f: F) -> Sig<Map<Self, T, F>>
+    where
+        T: Clone,
+        Self: Sized,
+        F: Fn(Self::Item) -> T,
+    {
+        Sig(Map { sig: self, f })
+    }
+
+    fn map_ctx<T, F>(self, f: F) -> Sig<MapCtx<Self, T, F>>
+    where
+        T: Clone,
+        Self: Sized,
+        F: Fn(Self::Item, &SigCtx) -> T,
+    {
+        Sig(MapCtx { sig: self, f })
     }
 
     fn zip<O>(self, other: O) -> Sig<Zip<Self, O>>
@@ -205,7 +257,7 @@ where
         self,
         mut f: F,
     ) -> Sig<impl SigT<Item = S::Item>> {
-        self.map(move |x| {
+        self.map_mut(move |x| {
             f(&x);
             x
         })
@@ -232,63 +284,121 @@ where
     where
         C: SigT<Item = f32>,
     {
-        self.zip(max_unsigned).map(|(s, c)| {
-            let c = c.abs();
-            s.clamp(-c, c)
+        self.zip(max_unsigned).map(|(s, max_unsigned)| {
+            crate::arith::clamp_symetric(s, max_unsigned)
         })
+    }
+
+    pub fn exp_01<K>(self, k: K) -> Sig<impl SigT<Item = f32>>
+    where
+        K: SigT<Item = f32>,
+    {
+        self.zip(k).map(|(x, k)| crate::arith::exp_01(x, k))
+    }
+
+    /*
+    pub fn inv_01(self) -> Sig<impl SigT<Item = f32>> {
+        self.map(|x| 1.0 - x)
+    }
+
+    pub fn signed_to_01(self) -> Sig<impl SigT<Item = f32>> {
+        (self + 1.0) / 2.0
+    }*/
+}
+
+pub struct MapMut<S, T, F>
+where
+    S: SigT,
+    F: FnMut(S::Item) -> T,
+{
+    sig: S,
+    f: F,
+    buf: Vec<T>,
+}
+
+impl<S, T, F> SigT for MapMut<S, T, F>
+where
+    T: Clone,
+    S: SigT,
+    F: FnMut(S::Item) -> T,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let buf = self.sig.sample(ctx);
+        self.buf.clear();
+        self.buf.extend(buf.iter().map(&mut self.f));
+        &self.buf
+    }
+}
+
+pub struct MapMutCtx<S, T, F>
+where
+    S: SigT,
+    F: FnMut(S::Item, &SigCtx) -> T,
+{
+    sig: S,
+    f: F,
+    buf: Vec<T>,
+}
+
+impl<S, T, F> SigT for MapMutCtx<S, T, F>
+where
+    T: Clone,
+    S: SigT,
+    F: FnMut(S::Item, &SigCtx) -> T,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let buf = self.sig.sample(ctx);
+        self.buf.clear();
+        self.buf.extend(buf.iter().map(|x| (self.f)(x, ctx)));
+        &self.buf
     }
 }
 
 pub struct Map<S, T, F>
 where
     S: SigT,
-    F: FnMut(S::Item) -> T,
+    F: Fn(S::Item) -> T,
 {
     sig: S,
     f: F,
-    buf: Vec<T>,
 }
 
 impl<S, T, F> SigT for Map<S, T, F>
 where
     T: Clone,
     S: SigT,
-    F: FnMut(S::Item) -> T,
+    F: Fn(S::Item) -> T,
 {
     type Item = T;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        let buf = self.sig.sample(ctx);
-        self.buf.clear();
-        self.buf.extend(buf.iter().cloned().map(&mut self.f));
-        &self.buf
+        MapBuf::new(self.sig.sample(ctx), &self.f)
     }
 }
 
 pub struct MapCtx<S, T, F>
 where
     S: SigT,
-    F: FnMut(S::Item, &SigCtx) -> T,
+    F: Fn(S::Item, &SigCtx) -> T,
 {
     sig: S,
     f: F,
-    buf: Vec<T>,
 }
 
 impl<S, T, F> SigT for MapCtx<S, T, F>
 where
     T: Clone,
     S: SigT,
-    F: FnMut(S::Item, &SigCtx) -> T,
+    F: Fn(S::Item, &SigCtx) -> T,
 {
     type Item = T;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        let buf = self.sig.sample(ctx);
-        self.buf.clear();
-        self.buf
-            .extend(buf.iter().cloned().map(|x| (self.f)(x, ctx)));
-        &self.buf
+        MapBuf::new(self.sig.sample(ctx), |x| (self.f)(x, ctx))
     }
 }
 
@@ -313,8 +423,7 @@ where
         let buf_a = self.a.sample(ctx);
         let buf_b = self.b.sample(ctx);
         self.buf.clear();
-        self.buf
-            .extend(buf_a.iter().cloned().zip(buf_b.iter().cloned()));
+        self.buf.extend(buf_a.iter().zip(buf_b.iter()));
         &self.buf
     }
 }

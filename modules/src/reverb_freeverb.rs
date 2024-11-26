@@ -108,7 +108,7 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
-        for (out, &sample, &room_size, &damping, &mix) in izip! {
+        for (out, sample, room_size, damping, mix) in izip! {
             self.buf.iter_mut(),
             self.sig.sample(ctx).iter(),
             self.props.room_size.sample(ctx).iter(),

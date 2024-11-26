@@ -89,7 +89,7 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
-        for (out, &sample, &cutoff_hz, &resonance) in izip! {
+        for (out, sample, cutoff_hz, resonance) in izip! {
             self.buf.iter_mut(),
             self.sig.sample(ctx).iter(),
             self.props.cutoff_hz.sample(ctx).iter(),
