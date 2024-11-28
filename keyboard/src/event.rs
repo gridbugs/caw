@@ -1,5 +1,5 @@
-use crate::{MonoVoice, Note};
-use caw_core_next::{FrameSig, FrameSigShared, FrameSigT};
+use crate::{polyphony, MonoVoice, Note};
+use caw_core_next::{FrameSig, FrameSigT};
 use smallvec::{smallvec, SmallVec};
 
 /// A key being pressed or released
@@ -38,18 +38,36 @@ impl KeyEvents {
     }
 }
 
-pub trait IntoVoice<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    fn mono_voice(self) -> MonoVoice<FrameSigShared<K>>;
+impl IntoIterator for KeyEvents {
+    type Item = KeyEvent;
+
+    type IntoIter = smallvec::IntoIter<[KeyEvent; 1]>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
 }
 
-impl<K> IntoVoice<K> for FrameSig<K>
+pub trait IntoVoice {
+    fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>>;
+    fn poly_voices(
+        self,
+        n: usize,
+    ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>>;
+}
+
+impl<K> IntoVoice for FrameSig<K>
 where
     K: FrameSigT<Item = KeyEvents>,
 {
-    fn mono_voice(self) -> MonoVoice<FrameSigShared<K>> {
+    fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>> {
         MonoVoice::from_key_events(self.0)
+    }
+
+    fn poly_voices(
+        self,
+        n: usize,
+    ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>> {
+        polyphony::voices_from_key_events(self.0, n)
     }
 }

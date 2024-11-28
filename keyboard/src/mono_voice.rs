@@ -25,7 +25,7 @@ where
     K: FrameSigT<Item = KeyEvents>,
 {
     pub fn from_key_events(key_events: K) -> Self {
-        let key_events_shared = frame_sig_shared(key_events);
+        let key_events_shared = frame_sig_shared(key_events).0;
         Self {
             note: FrameSig(Note::new(key_events_shared.clone())),
             velocity_01: FrameSig(Velocity01::new(key_events_shared.clone())),

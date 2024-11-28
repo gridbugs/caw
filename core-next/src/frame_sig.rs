@@ -334,11 +334,11 @@ where
     }
 }
 
-pub fn frame_sig_shared<S>(sig: S) -> FrameSigShared<S>
+pub fn frame_sig_shared<S>(sig: S) -> FrameSig<FrameSigShared<S>>
 where
     S: FrameSigT,
 {
-    FrameSigShared {
+    FrameSig(FrameSigShared {
         shared_cached_sig: Rc::new(RefCell::new(FrameSigCached::new(sig))),
-    }
+    })
 }
