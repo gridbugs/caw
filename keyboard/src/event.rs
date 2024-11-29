@@ -14,9 +14,9 @@ pub struct KeyEvent {
 }
 
 /// A collection of simultaneous key events. When dealing with streams of key events it's necessary
-/// to group them into a collection because multiple key events may occur during the same audio
-/// sample. This collection only uses the heap when more than one event occurred on the same sample
-/// which is very unlikely.
+/// to group them into a collection because multiple key events may occur during the same frame.
+/// This collection only uses the heap when more than one event occurred on the same sample which
+/// is very unlikely.
 #[derive(Clone, Debug)]
 pub struct KeyEvents(SmallVec<[KeyEvent; 1]>);
 
@@ -45,6 +45,19 @@ impl IntoIterator for KeyEvents {
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
+    }
+}
+
+impl FromIterator<KeyEvent> for KeyEvents {
+    fn from_iter<T>(iter: T) -> Self
+    where
+        T: IntoIterator<Item = KeyEvent>,
+    {
+        let mut events = Self::empty();
+        for event in iter {
+            events.push(event);
+        }
+        events
     }
 }
 

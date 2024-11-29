@@ -12,5 +12,7 @@ members = [
     "interactive",
     "interactive-next",
     "keyboard",
+    "midi-live",
+    "midi",
     "modules",
 ]
