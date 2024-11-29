@@ -141,6 +141,8 @@ impl InputState {
                 equals: mk_key(),
                 slash: mk_key(),
                 space: mk_key(),
+                backspace: mk_key(),
+                backslash: mk_key(),
             },
             mouse: MouseGeneric {
                 x_01: mk_position(),
@@ -200,6 +202,8 @@ impl InputState {
             Scancode::Equals => &self.keyboard.equals,
             Scancode::Slash => &self.keyboard.slash,
             Scancode::Space => &self.keyboard.space,
+            Scancode::Backspace => &self.keyboard.backspace,
+            Scancode::Backslash => &self.keyboard.backslash,
             _ => return,
         };
         *key_state.write().unwrap() = pressed;

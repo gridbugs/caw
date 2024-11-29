@@ -49,6 +49,8 @@ pub enum Key {
     Equals,
     Slash,
     Space,
+    Backspace,
+    Backslash,
 }
 
 #[derive(Clone)]
@@ -99,6 +101,8 @@ pub struct Keyboard<K> {
     pub equals: K,
     pub slash: K,
     pub space: K,
+    pub backspace: K,
+    pub backslash: K,
 }
 
 impl<K> Keyboard<K>
@@ -154,6 +158,8 @@ where
             Equals => self.equals.clone(),
             Slash => self.slash.clone(),
             Space => self.space.clone(),
+            Backspace => self.backspace.clone(),
+            Backslash => self.backslash.clone(),
         }
     }
 }
@@ -207,6 +213,8 @@ impl<K> Keyboard<K> {
             equals: f(&self.equals),
             slash: f(&self.slash),
             space: f(&self.space),
+            backspace: f(&self.backspace),
+            backslash: f(&self.backslash),
         }
     }
 }
@@ -236,6 +244,8 @@ fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
         Minus,
         LeftBracket,
         RightBracket,
+        Backspace,
+        Backslash,
     ];
     let bottom_row = vec![Z, X, D, C, F, V, B, H, N, J, M, K, Comma, Period];
     top_row

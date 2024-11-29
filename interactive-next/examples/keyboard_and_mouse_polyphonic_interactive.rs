@@ -22,7 +22,7 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
                     .key_press_trig(key_press_trigger)
                     .attack_s(0.01)
                     .decay_s(0.2)
-                    .sustain_01(0.8)
+                    .sustain_01(0.5)
                     .release_s(0.1)
                     .build()
                     .exp_01(1);
