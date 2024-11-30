@@ -14,10 +14,13 @@ sdl2 = "0.37"
 
 [dev-dependencies]
 caw_keyboard = { version = "0.1", path = "../keyboard" }
+caw_midi = { version = "0.1", path = "../midi" }
+caw_midi_live = { version = "0.1", path = "../midi-live" }
 caw_modules = { version = "0.1", path = "../modules" }
 env_logger = "0.11"
 rand = "0.8"
 wide = "0.7"
+clap = { version = "4", features = ["derive"] }
 
 [[example]]
 name = "saw_interactive"
@@ -39,3 +42,6 @@ name = "keyboard_and_mouse_interactive"
 
 [[example]]
 name = "keyboard_and_mouse_polyphonic_interactive"
+
+[[example]]
+name = "midi_live_interactive"

@@ -333,6 +333,10 @@ where
         Sig(filter.into_sig(self.0))
     }
 
+    pub fn shared(self) -> Sig<SigShared<S>> {
+        sig_shared(self.0)
+    }
+
     pub fn debug<F: FnMut(&S::Item)>(
         self,
         mut f: F,
@@ -614,12 +618,12 @@ where
     }
 }
 
-pub fn sig_shared<S>(sig: S) -> SigShared<S>
+pub fn sig_shared<S>(sig: S) -> Sig<SigShared<S>>
 where
     S: SigT,
 {
-    SigShared {
+    Sig(SigShared {
         shared_cached_sig: Rc::new(RefCell::new(SigCached::new(sig))),
         buf: Vec::new(),
-    }
+    })
 }

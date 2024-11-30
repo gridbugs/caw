@@ -31,7 +31,7 @@ fn midi_message_to_key_event(midi_message: MidiMessage) -> Option<KeyEvent> {
 /// necessary to group them into a collection because multiple midi events may occur during the
 /// same frame. This collection only uses the heap when more than one event occurred on the same
 /// sample which is very unlikely.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct MidiMessages(SmallVec<[MidiMessage; 1]>);
 
 impl MidiMessages {

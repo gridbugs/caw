@@ -100,7 +100,7 @@ fn run_thread(
     buf: Arc<RwLock<Vec<f32>>>,
 ) {
     thread::spawn(move || {
-        let mut sig = signal_wide(25000, index, num_threads);
+        let mut sig = signal_wide(16000, index, num_threads);
         loop {
             let Query { ctx } = recv_query.recv().unwrap();
             {
@@ -170,5 +170,5 @@ fn main() -> anyhow::Result<()> {
         .background(Rgb24::new(0, 31, 0))
         .foreground(Rgb24::new(0, 255, 0))
         .build();
-    window.play_mono(MultithreadedSignal::new(12), Default::default())
+    window.play_mono(MultithreadedSignal::new(4), Default::default())
 }

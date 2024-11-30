@@ -75,6 +75,10 @@ where
         self.into_sig().filter(filter)
     }
 
+    pub fn shared(self) -> FrameSig<FrameSigShared<S>> {
+        frame_sig_shared(self.0)
+    }
+
     pub fn debug<F: FnMut(&S::Item)>(
         self,
         mut f: F,

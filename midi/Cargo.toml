@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 midly = "0.5"
 smallvec = "1.13"
-caw_core_next = { verssion = "0.1", path = "../core-next" }
+caw_core_next = { version = "0.1", path = "../core-next" }
 caw_keyboard = { version = "0.1", path = "../keyboard" }

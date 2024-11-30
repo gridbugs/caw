@@ -1,10 +1,9 @@
+use caw_core_next::{FrameSig, FrameSigT};
+use caw_midi::MidiMessages;
 use midir::{MidiInput, MidiInputConnection, MidiInputPort};
-use midly::{live::LiveEvent, Format, Smf};
-use midly::{
-    num::{u14, u4, u7},
-    MidiMessage,
-};
-use std::sync::mpsc;
+use midly::live::LiveEvent;
+use midly::{num::u4, MidiMessage};
+use std::{cell::RefCell, mem, rc::Rc, sync::mpsc};
 
 struct MidiEvent {
     pub channel: u4,
@@ -40,12 +39,46 @@ impl MidiLive {
                 }
             })
     }
+
+    pub fn connect(
+        self,
+        port_index: usize,
+    ) -> anyhow::Result<MidiLiveConnection> {
+        let port = &self.midi_input_ports[port_index];
+        MidiLiveConnection::new(self.midi_input, port)
+    }
 }
 
-struct MidiLiveConnection {
+const NUM_CHANNELS: usize = 16;
+
+#[derive(Default)]
+struct MessageBuffer {
+    messages: MidiMessages,
+    subscribed: bool,
+}
+
+struct MessageBuffers {
+    buffers: [MessageBuffer; NUM_CHANNELS],
+    midi_event_receiver: mpsc::Receiver<MidiEvent>,
+}
+
+impl MessageBuffers {
+    pub fn update(&mut self) {
+        for MidiEvent { channel, message } in
+            self.midi_event_receiver.try_iter()
+        {
+            let buffer = &mut self.buffers[channel.as_int() as usize];
+            if buffer.subscribed {
+                buffer.messages.push(message);
+            }
+        }
+    }
+}
+
+pub struct MidiLiveConnection {
     #[allow(unused)]
     midi_input_connection: MidiInputConnection<()>,
-    midi_event_receiver: mpsc::Receiver<MidiEvent>,
+    message_buffers: Rc<RefCell<MessageBuffers>>,
 }
 
 impl MidiLiveConnection {
@@ -61,12 +94,14 @@ impl MidiLiveConnection {
                 port,
                 port_name.as_str(),
                 move |_timestamp_us, message, &mut ()| {
-                    if let Ok(event) = LiveEvent::parse(message) {
-                        if let LiveEvent::Midi { channel, message } = event {
-                            let midi_event = MidiEvent { channel, message };
-                            if midi_event_sender.send(midi_event).is_err() {
-                                log::error!("failed to send message from live midi thread");
-                            }
+                    if let Ok(LiveEvent::Midi { channel, message }) =
+                        LiveEvent::parse(message)
+                    {
+                        let midi_event = MidiEvent { channel, message };
+                        if midi_event_sender.send(midi_event).is_err() {
+                            log::error!(
+                                "failed to send message from live midi thread"
+                            );
                         }
                     }
                 },
@@ -75,7 +110,30 @@ impl MidiLiveConnection {
             .map_err(|_| anyhow::anyhow!("Failed to connect to midi port"))?;
         Ok(Self {
             midi_input_connection,
-            midi_event_receiver,
+            message_buffers: Rc::new(RefCell::new(MessageBuffers {
+                buffers: Default::default(),
+                midi_event_receiver,
+            })),
+        })
+    }
+
+    pub fn channel(
+        &self,
+        channel: u8,
+    ) -> FrameSig<impl FrameSigT<Item = MidiMessages>> {
+        {
+            let mut message_buffers = self.message_buffers.borrow_mut();
+            let buffer = &mut message_buffers.buffers[channel as usize];
+            if buffer.subscribed {
+                panic!("Midi channel {} subscribed to multiple times. Each midi channel may be subscribed to only once.", channel);
+            }
+            buffer.subscribed = true;
+        }
+        let message_buffers = Rc::clone(&self.message_buffers);
+        FrameSig::from_fn(move |_ctx| {
+            let mut message_buffers = message_buffers.borrow_mut();
+            message_buffers.update();
+            mem::take(&mut message_buffers.buffers[channel as usize].messages)
         })
     }
 }

@@ -1,6 +1,6 @@
 use caw_core_next::*;
 use caw_interactive_next::{Input, MouseButton, Visualization, Window};
-use caw_keyboard::{IntoNoteFreqHz, IntoVoice, MonoVoice, Note};
+use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
 use caw_modules::*;
 
 fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {

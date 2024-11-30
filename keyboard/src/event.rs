@@ -36,6 +36,10 @@ impl KeyEvents {
     pub fn iter(&self) -> impl Iterator<Item = &KeyEvent> {
         self.0.iter()
     }
+
+    pub fn extend(&mut self, i: impl IntoIterator<Item = KeyEvent>) {
+        self.0.extend(i);
+    }
 }
 
 impl IntoIterator for KeyEvents {
@@ -61,7 +65,10 @@ impl FromIterator<KeyEvent> for KeyEvents {
     }
 }
 
-pub trait IntoVoice {
+pub trait KeyEventsT {
+    fn merge<S>(self, other: S) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    where
+        S: FrameSigT<Item = KeyEvents>;
     fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>>;
     fn poly_voices(
         self,
@@ -69,10 +76,25 @@ pub trait IntoVoice {
     ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>>;
 }
 
-impl<K> IntoVoice for FrameSig<K>
+impl<K> KeyEventsT for FrameSig<K>
 where
     K: FrameSigT<Item = KeyEvents>,
 {
+    fn merge<S>(
+        mut self,
+        mut other: S,
+    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    where
+        S: FrameSigT<Item = KeyEvents>,
+    {
+        FrameSig::from_fn(move |ctx| {
+            let mut s = self.frame_sample(ctx);
+            let o = other.frame_sample(ctx);
+            s.extend(o);
+            s
+        })
+    }
+
     fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>> {
         MonoVoice::from_key_events(self.0)
     }
