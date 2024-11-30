@@ -74,14 +74,14 @@ where
     FrameSig(midi_messages).map(|midi_messages| midi_messages.key_events())
 }
 
-pub trait IntoKeyEvents<M>
+pub trait MidiMessagesT<M>
 where
     M: FrameSigT<Item = MidiMessages>,
 {
     fn key_events(self) -> FrameSig<impl FrameSigT<Item = KeyEvents>>;
 }
 
-impl<M> IntoKeyEvents<M> for FrameSig<M>
+impl<M> MidiMessagesT<M> for FrameSig<M>
 where
     M: FrameSigT<Item = MidiMessages>,
 {

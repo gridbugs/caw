@@ -1,9 +1,10 @@
 [package]
-name = "caw_keyboard"
+name = "caw_midi_file"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+midly = "0.5"
+anyhow = "1"
 caw_core_next = { version = "0.1", path = "../core-next" }
-smallvec = "1"
-log = "0.4"
+caw_midi = { version = "0.1", path = "../midi" }

@@ -117,6 +117,8 @@ where
                         key_event,
                         voice_index,
                     });
+                } else {
+                    log::warn!("Unable to allocate voice for note!");
                 }
             } else {
                 voice_allocator.free(
