@@ -8,7 +8,8 @@ use clap::{Parser, Subcommand};
 
 fn sig(
     input: Input,
-    key_events: impl FrameSigT<Item = KeyEvents>,
+    key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
+    pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
@@ -33,7 +34,10 @@ fn sig(
                     .release_s(0.1)
                     .build()
                     .exp_01(1);
-                let osc = super_saw(note.freq_hz()).num_oscillators(32).build();
+                let osc =
+                    super_saw(note.freq_hz() * pitch_bend_freq_mult.clone())
+                        .num_oscillators(32)
+                        .build();
                 osc.filter(
                     low_pass::default(env * input.mouse.y_01() * 10000)
                         .resonance(input.mouse.x_01()),
@@ -65,17 +69,30 @@ enum Commands {
     },
 }
 
-fn run(key_events: impl FrameSigT<Item = KeyEvents>) -> anyhow::Result<()> {
+fn run(
+    midi_events: FrameSig<impl FrameSigT<Item = MidiMessages>>,
+) -> anyhow::Result<()> {
     let window = Window::builder()
         .sane_default()
         .visualization(Visualization::StereoOscillographics)
         .line_width(2)
         .build();
     let input = window.input();
-    let key_events = frame_sig_shared(key_events);
+    let midi_events = midi_events.shared();
+    let key_events = midi_events.clone().key_events().shared();
+    let pitch_bend_freq_mult =
+        midi_events.clone().pitch_bend_freq_mult().shared();
     window.play_stereo(
-        sig(input.clone(), key_events.clone()),
-        sig(input.clone(), key_events.clone()),
+        sig(
+            input.clone(),
+            key_events.clone(),
+            pitch_bend_freq_mult.clone(),
+        ),
+        sig(
+            input.clone(),
+            key_events.clone(),
+            pitch_bend_freq_mult.clone(),
+        ),
         Default::default(),
     )
 }
@@ -92,7 +109,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Play { midi_port } => {
             let connection = midi_live.connect(midi_port)?;
-            run(connection.channel(0).key_events())?;
+            run(connection.channel(0))?;
         }
     }
     Ok(())

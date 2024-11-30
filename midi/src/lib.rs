@@ -1,5 +1,5 @@
 use caw_core_next::{FrameSig, FrameSigT};
-use caw_keyboard::{KeyEvent, KeyEvents, Note};
+use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
 use midly::{num::u7, MidiMessage};
 use smallvec::{smallvec, SmallVec};
 
@@ -65,20 +65,18 @@ impl IntoIterator for MidiMessages {
     }
 }
 
-fn midi_messages_to_key_events<M>(
-    midi_messages: M,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-where
-    M: FrameSigT<Item = MidiMessages>,
-{
-    FrameSig(midi_messages).map(|midi_messages| midi_messages.key_events())
-}
-
 pub trait MidiMessagesT<M>
 where
     M: FrameSigT<Item = MidiMessages>,
 {
     fn key_events(self) -> FrameSig<impl FrameSigT<Item = KeyEvents>>;
+
+    /// The pitch bend value interpolated between -1 and 1
+    fn pitch_bend_raw(self) -> FrameSig<impl FrameSigT<Item = f32>>;
+
+    /// The pitch bend value as a value that can be multiplied by a frequence to scale it up or
+    /// down by at most one tone.
+    fn pitch_bend_freq_mult(self) -> FrameSig<impl FrameSigT<Item = f32>>;
 }
 
 impl<M> MidiMessagesT<M> for FrameSig<M>
@@ -86,6 +84,22 @@ where
     M: FrameSigT<Item = MidiMessages>,
 {
     fn key_events(self) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
-        midi_messages_to_key_events(self)
+        self.map(|midi_messages| midi_messages.key_events())
+    }
+
+    fn pitch_bend_raw(self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        let mut state = 0.0;
+        self.map(move |midi_messages| {
+            for midi_message in midi_messages {
+                if let MidiMessage::PitchBend { bend } = midi_message {
+                    state = bend.as_f32();
+                }
+            }
+            state
+        })
+    }
+
+    fn pitch_bend_freq_mult(self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        self.pitch_bend_raw().map(|bend| TONE_RATIO.powf(bend))
     }
 }
