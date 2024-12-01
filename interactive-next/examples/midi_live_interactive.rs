@@ -10,6 +10,7 @@ fn sig(
     input: Input,
     key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
     pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
+    controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
@@ -22,32 +23,43 @@ fn sig(
                  note,
                  key_down_gate,
                  key_press_trigger,
-                 ..
+                 velocity_01,
              }| {
                 let key_down_gate =
                     key_down_gate | input.mouse.button(MouseButton::Left);
+                let env_scale = 10;
                 let env = adsr_linear_01(key_down_gate)
                     .key_press_trig(key_press_trigger)
-                    .attack_s(0.01)
-                    .decay_s(0.2)
-                    .sustain_01(0.5)
-                    .release_s(0.1)
+                    .attack_s(controllers.get_01(25) * env_scale)
+                    .decay_s(controllers.get_01(26) * env_scale)
+                    .sustain_01(controllers.get_01(27))
+                    .release_s(controllers.get_01(28) * env_scale)
                     .build()
                     .exp_01(1);
                 let osc =
                     super_saw(note.freq_hz() * pitch_bend_freq_mult.clone())
                         .num_oscillators(32)
+                        .detune_ratio(controllers.modulation() * 0.05)
                         .build();
                 osc.filter(
-                    low_pass::default(env * input.mouse.y_01() * 10000)
-                        .resonance(input.mouse.x_01()),
+                    low_pass::default(
+                        env * controllers.get_01(21).exp_01(1)
+                            * velocity_01
+                            * 20000,
+                    )
+                    .resonance(input.mouse.x_01()),
                 )
             },
         )
         .sum::<Sig<_>>()
-        .filter(reverb::default().room_size(0.9).damping(0.9))
-        .filter(high_pass::default(1))
-        * 0.25
+        .filter(
+            reverb::default()
+                .room_size(controllers.get_01(22))
+                .damping(controllers.get_01(23))
+                .mix(controllers.get_01(24)),
+        )
+        .filter(high_pass::default(20))
+        * controllers.volume()
 }
 
 #[derive(Parser, Debug)]
@@ -82,16 +94,19 @@ fn run(
     let key_events = midi_events.clone().key_events().shared();
     let pitch_bend_freq_mult =
         midi_events.clone().pitch_bend_freq_mult().shared();
+    let controllers = midi_events.clone().controllers();
     window.play_stereo(
         sig(
             input.clone(),
             key_events.clone(),
             pitch_bend_freq_mult.clone(),
+            controllers.clone(),
         ),
         sig(
             input.clone(),
             key_events.clone(),
             pitch_bend_freq_mult.clone(),
+            controllers.clone(),
         ),
         Default::default(),
     )

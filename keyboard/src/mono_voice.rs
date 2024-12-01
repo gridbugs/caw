@@ -134,8 +134,8 @@ where
             if event.pressed {
                 self.held_velocity_by_note
                     .push((event.note, event.velocity_01));
+                self.last_velocity = event.velocity_01;
             }
-            self.last_velocity = event.velocity_01;
         }
         // Yield the most-recently pressed note of all held notes, or the last touched note
         // if no notes are currently held.

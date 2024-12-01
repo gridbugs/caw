@@ -1,4 +1,4 @@
-use caw_core_next::{FrameSig, FrameSigT};
+use caw_core_next::{frame_sig_shared, FrameSig, FrameSigShared, FrameSigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
 use midly::{num::u7, MidiMessage};
 use smallvec::{smallvec, SmallVec};
@@ -65,6 +65,44 @@ impl IntoIterator for MidiMessages {
     }
 }
 
+#[derive(Clone)]
+pub struct MidiControllers<M>
+where
+    M: FrameSigT<Item = MidiMessages>,
+{
+    messages: FrameSig<FrameSigShared<M>>,
+}
+
+impl<M> MidiControllers<M>
+where
+    M: FrameSigT<Item = MidiMessages>,
+{
+    pub fn get_01(&self, index: u8) -> FrameSig<impl FrameSigT<Item = f32>> {
+        let index: u7 = index.into();
+        let mut state = 0.0;
+        self.messages.clone().map(move |midi_messages| {
+            for midi_message in midi_messages {
+                if let MidiMessage::Controller { controller, value } =
+                    midi_message
+                {
+                    if controller == index {
+                        state = value.as_int() as f32 / 127.0;
+                    }
+                }
+            }
+            state
+        })
+    }
+
+    pub fn volume(&self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        self.get_01(7)
+    }
+
+    pub fn modulation(&self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        self.get_01(1)
+    }
+}
+
 pub trait MidiMessagesT<M>
 where
     M: FrameSigT<Item = MidiMessages>,
@@ -77,6 +115,8 @@ where
     /// The pitch bend value as a value that can be multiplied by a frequence to scale it up or
     /// down by at most one tone.
     fn pitch_bend_freq_mult(self) -> FrameSig<impl FrameSigT<Item = f32>>;
+
+    fn controllers(self) -> MidiControllers<M>;
 }
 
 impl<M> MidiMessagesT<M> for FrameSig<M>
@@ -101,5 +141,11 @@ where
 
     fn pitch_bend_freq_mult(self) -> FrameSig<impl FrameSigT<Item = f32>> {
         self.pitch_bend_raw().map(|bend| TONE_RATIO.powf(bend))
+    }
+
+    fn controllers(self) -> MidiControllers<M> {
+        MidiControllers {
+            messages: frame_sig_shared(self.0),
+        }
     }
 }
