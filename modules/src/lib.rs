@@ -4,8 +4,11 @@ pub use oscillator::{
     waveform::{self, *},
 };
 
-pub mod envelope;
-pub use envelope::adsr_linear_01;
+pub mod envelope_generator;
+pub use envelope_generator::adsr_linear_01;
+
+pub mod envelope_follower;
+pub use envelope_follower::envelope_follower;
 
 pub mod super_saw;
 pub use super_saw::super_saw;

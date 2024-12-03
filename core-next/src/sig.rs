@@ -396,6 +396,10 @@ where
     pub fn signed_to_01(self) -> Sig<impl SigT<Item = f32>> {
         (self + 1.0) / 2.0
     }
+
+    pub fn abs(self) -> Sig<SigAbs<S>> {
+        Sig(SigAbs(self.0))
+    }
 }
 
 pub struct MapMut<S, T, F>
@@ -512,6 +516,21 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         ZipBuf::new(self.a.sample(ctx), self.b.sample(ctx))
+    }
+}
+
+pub struct SigAbs<S>(S)
+where
+    S: SigT<Item = f32>;
+
+impl<S> SigT for SigAbs<S>
+where
+    S: SigT<Item = f32>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        MapBuf::new(self.0.sample(ctx), |x| x.abs())
     }
 }
 

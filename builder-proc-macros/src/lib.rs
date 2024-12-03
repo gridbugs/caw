@@ -8,8 +8,8 @@ use syn::{
     punctuated::Punctuated,
     token::{Comma, Plus},
     AngleBracketedGenericArguments, Attribute, Expr, ExprLit, GenericArgument,
-    GenericParam, Generics, Ident, ItemStruct, Lit, LitStr, Meta, Path,
-    PathArguments, PathSegment, Token, Type, TypeParam, TypeParamBound,
+    GenericParam, Generics, Ident, ItemStruct, Lit, LitStr, Meta, Pat, PatRest,
+    Path, PathArguments, PathSegment, Token, Type, TypeParam, TypeParamBound,
     TypePath, WhereClause, WherePredicate,
 };
 
@@ -383,6 +383,26 @@ pub fn builder(input: TokenStream) -> TokenStream {
             .iter()
             .map(all_fields_except_current)
             .collect::<Vec<_>>();
+    let generic_field_with_default_setter_destructure_self =
+        generic_field_with_default_idents
+            .iter()
+            .map(|current| {
+                let fields = all_fields_except_current(current);
+                let pat: Pat = parse_quote! {
+                    Self { #fields }
+                };
+                let mut pat_struct = if let Pat::Struct(pat_struct) = pat {
+                    pat_struct
+                } else {
+                    panic!("unexpected result of parsing fields");
+                };
+                pat_struct.rest = Some(PatRest {
+                    attrs: Vec::new(),
+                    dot2_token: Token![..](Span::call_site()),
+                });
+                pat_struct
+            })
+            .collect::<Vec<_>>();
     let (impl_generics, ty_generics, where_clause) =
         input.generics.split_for_impl();
     let expanded = quote! {
@@ -397,7 +417,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
             // concrete (whatever the type of the default value for
             // the field is) raher than abstract.
             pub fn new(
-                #(#field_without_default_idents: #field_without_default_types),*
+                #(#field_without_default_idents: #field_without_default_types,)*
             ) -> #new_fn_return_type {
                 #builder_ident {
                     #(#field_without_default_idents,)*
@@ -433,13 +453,10 @@ pub fn builder(input: TokenStream) -> TokenStream {
                 #generic_setter_type_name: #generic_field_with_default_constraints,
                 #generic_field_with_default_extra_where_predicates
             {
-                let Self {
-                    #generic_field_with_default_setter_all_fields_except_current,
-                    ..
-                } = self;
+                let #generic_field_with_default_setter_destructure_self = self;
                 #builder_ident {
-                    #generic_field_with_default_setter_all_fields_except_current,
                     #generic_field_with_default_idents,
+                    #generic_field_with_default_setter_all_fields_except_current
                 }
             })*
 
@@ -456,11 +473,11 @@ pub fn builder(input: TokenStream) -> TokenStream {
 
         #constructor_doc
         pub fn #constructor #constructor_generics (
-            #(#field_without_default_idents: #field_without_default_types),*
+            #(#field_without_default_idents: #field_without_default_types,)*
         ) -> #new_fn_return_type
             #constructor_where_clause
         {
-            #builder_ident::#new_fn_return_type_generics::new(#(#field_without_default_idents),*)
+            #builder_ident::#new_fn_return_type_generics::new(#(#field_without_default_idents,)*)
         }
     };
     TokenStream::from(expanded)
