@@ -1,6 +1,6 @@
 use crate::input::{Input, InputState};
 use anyhow::anyhow;
-use caw_core_next::SigT;
+use caw_core_next::{SigT, Stereo};
 use caw_next::player::{Config, Player, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
@@ -342,8 +342,7 @@ impl Window {
 
     pub fn play_stereo<TL, TR, SL, SR>(
         &self,
-        sig_left: SL,
-        sig_right: SR,
+        sig: Stereo<SL, SR>,
         config: Config,
     ) -> anyhow::Result<()>
     where
@@ -361,19 +360,18 @@ impl Window {
             thread::sleep(FRAME_DURATION);
         }
         player.play_signal_sync_stereo_callback(
-            sig_left,
-            sig_right,
-            |buf_left, buf_right| {
+            sig,
+            |buf| {
                 // Interleave rendering with sending samples to the sound card. Rendering needs to
                 // happen on the main thread as this is a requirement of SDL, and sending samples to
                 // the sound card needs to happen on the main thread as signals are not `Send`.
 
                 match self.visualization {
                     Visualization::Oscilloscope => window_running
-                        .add_samples_to_oscilloscope_state(buf_left),
+                        .add_samples_to_oscilloscope_state(buf.left),
                     Visualization::StereoOscillographics => window_running
                         .add_samples_to_stereo_oscillographics_state(
-                            buf_left, buf_right,
+                            buf.left, buf.right,
                         ),
                 }
                 window_running

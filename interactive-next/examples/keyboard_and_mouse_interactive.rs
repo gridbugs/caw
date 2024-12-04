@@ -36,9 +36,6 @@ fn main() -> anyhow::Result<()> {
         .line_width(2)
         .build();
     let input = window.input();
-    window.play_stereo(
-        sig(input.clone()),
-        sig(input.clone()),
-        Default::default(),
-    )
+    window
+        .play_stereo(Stereo::new_fn(|| sig(input.clone())), Default::default())
 }

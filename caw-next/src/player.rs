@@ -1,4 +1,4 @@
-use caw_core_next::{Buf, SigCtx, SigT};
+use caw_core_next::{Buf, SigCtx, SigT, Stereo};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Device, OutputCallbackInfo, StreamConfig, SupportedBufferSize,
@@ -225,8 +225,7 @@ impl Player {
 
     fn make_stream_sync_stereo<TL, TR>(
         &self,
-        buf_left: Arc<RwLock<Vec<TL>>>,
-        buf_right: Arc<RwLock<Vec<TR>>>,
+        buf: Stereo<Arc<RwLock<Vec<TL>>>, Arc<RwLock<Vec<TR>>>>,
         send_sync_command_request_num_samples: mpsc::Sender<
             SyncCommandRequestNumSamples,
         >,
@@ -254,17 +253,16 @@ impl Player {
                 let SyncCommandDone = recv_sync_command_done
                     .recv()
                     .expect("main thread stopped listening on channel");
-                let buf_left =
-                    buf_left.read().expect("main thread has stopped");
-                let buf_right =
-                    buf_right.read().expect("main thread has stopped");
-                let mut buf_left_iter = buf_left.iter();
-                let mut buf_right_iter = buf_right.iter();
+                let buf = buf.map_ref(
+                    |l| l.read().expect("main thread has stopped"),
+                    |r| r.read().expect("main thread has stopped"),
+                );
+                let mut buf_iter = buf.map_ref(|l| l.iter(), |r| r.iter());
                 for output_by_channel in data.chunks_mut(channels as usize) {
                     output_by_channel[0] =
-                        buf_left_iter.next().unwrap().to_f32();
+                        buf_iter.left.next().unwrap().to_f32();
                     output_by_channel[1] =
-                        buf_right_iter.next().unwrap().to_f32();
+                        buf_iter.right.next().unwrap().to_f32();
                 }
             },
             |err| eprintln!("stream error: {}", err),
@@ -275,8 +273,7 @@ impl Player {
 
     fn play_signal_sync_stereo_callback_raw<TL, TR, SL, SR, F>(
         &self,
-        mut sig_left: SL,
-        mut sig_right: SR,
+        mut sig: Stereo<SL, SR>,
         mut f: F,
         config: Config,
     ) -> anyhow::Result<()>
@@ -285,7 +282,7 @@ impl Player {
         TR: ToF32 + Send + Sync + Copy + 'static,
         SL: SigT<Item = TL>,
         SR: SigT<Item = TR>,
-        F: FnMut(&Arc<RwLock<Vec<TL>>>, &Arc<RwLock<Vec<TR>>>),
+        F: FnMut(&Stereo<Arc<RwLock<Vec<TL>>>, Arc<RwLock<Vec<TR>>>>),
     {
         // channel for cpal thread to send messages to main thread
         let (
@@ -295,11 +292,12 @@ impl Player {
         let (send_sync_command_done, recv_sync_command_done) =
             mpsc::channel::<SyncCommandDone>();
         // buffer for sending samples from main thread to cpal thread
-        let buffer_left = Arc::new(RwLock::new(Vec::new()));
-        let buffer_right = Arc::new(RwLock::new(Vec::new()));
+        let buffer = Stereo {
+            left: Arc::new(RwLock::new(Vec::new())),
+            right: Arc::new(RwLock::new(Vec::new())),
+        };
         let stream = self.make_stream_sync_stereo(
-            Arc::clone(&buffer_left),
-            Arc::clone(&buffer_right),
+            buffer.map_ref(|l| Arc::clone(l), |r| Arc::clone(r)),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
             config,
@@ -319,17 +317,18 @@ impl Player {
             {
                 ctx.num_samples = num_samples;
                 // sample the signal directly into the buffer shared with the cpal thread
-                let mut buffer_left = buffer_left.write().unwrap();
-                let mut buffer_right = buffer_right.write().unwrap();
+                let mut buffer = buffer
+                    .map_ref(|l| l.write().unwrap(), |r| r.write().unwrap());
                 send_sync_command_done
                     .send(SyncCommandDone)
                     .expect("cpal thread stopped unexpectedly");
-                let buf = sig_left.sample(&ctx);
-                buf.clone_to_vec(&mut *buffer_left);
-                let buf = sig_right.sample(&ctx);
-                buf.clone_to_vec(&mut *buffer_right);
+                let buf = sig.sample(&ctx);
+                buf.map_ref(
+                    |l| l.clone_to_vec(&mut *buffer.left),
+                    |r| r.clone_to_vec(&mut *buffer.right),
+                );
             }
-            f(&buffer_left, &buffer_right);
+            f(&buffer);
             ctx.batch_index += 1;
         }
     }
@@ -351,9 +350,11 @@ impl Player {
         SR: SigT<Item = TR>,
     {
         self.play_signal_sync_stereo_callback_raw(
-            sig_left,
-            sig_right,
-            |_, _| (),
+            Stereo {
+                left: sig_left,
+                right: sig_right,
+            },
+            |_| (),
             config,
         )
     }
@@ -361,8 +362,7 @@ impl Player {
     /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
     pub fn play_signal_sync_stereo_callback<TL, TR, SL, SR, F>(
         &self,
-        sig_left: SL,
-        sig_right: SR,
+        sig: Stereo<SL, SR>,
         mut f: F,
         config: Config,
     ) -> anyhow::Result<()>
@@ -371,15 +371,15 @@ impl Player {
         TR: ToF32 + Send + Sync + Copy + 'static,
         SL: SigT<Item = TL>,
         SR: SigT<Item = TR>,
-        F: FnMut(&[TL], &[TR]),
+        F: FnMut(Stereo<&[TL], &[TR]>),
     {
         self.play_signal_sync_stereo_callback_raw(
-            sig_left,
-            sig_right,
-            |buf_left, buf_right| {
-                let buf_left = buf_left.read().unwrap();
-                let buf_right = buf_right.read().unwrap();
-                f(&buf_left, &buf_right);
+            sig,
+            |buf| {
+                let left: &[TL] = &buf.left.read().unwrap();
+                let right: &[TR] = &buf.right.read().unwrap();
+                let s = Stereo { left, right };
+                f(s)
             },
             config,
         )

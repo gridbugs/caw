@@ -35,8 +35,7 @@ fn run() -> anyhow::Result<()> {
         .build();
     let input = window.input();
     window.play_stereo(
-        signal_left(input.clone()),
-        signal_right(input.clone()),
+        Stereo::new(signal_left(input.clone()), signal_right(input.clone())),
         Default::default(),
     )
 }

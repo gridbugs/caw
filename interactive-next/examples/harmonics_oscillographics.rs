@@ -109,7 +109,8 @@ fn main() -> anyhow::Result<()> {
         .visualization(Visualization::StereoOscillographics)
         .build();
     let thresh = 10.0;
-    let left = MultithreadedSignal::new(6).map(|x| x.clamp(-thresh, thresh));
-    let right = MultithreadedSignal::new(6).map(|x| x.clamp(-thresh, thresh));
-    window.play_stereo(left, right, Default::default())
+    let sig = Stereo::new_fn(|| {
+        MultithreadedSignal::new(6).map(|x| x.clamp(-thresh, thresh))
+    });
+    window.play_stereo(sig, Default::default())
 }

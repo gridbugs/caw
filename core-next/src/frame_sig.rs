@@ -68,7 +68,7 @@ where
         FrameSig(Zip { a: self, b: other })
     }
 
-    pub fn filter<F>(self, filter: F) -> Sig<F::Out<Self>>
+    pub fn filter<F>(self, filter: F) -> Sig<F::Out<Sig<Self>>>
     where
         F: Filter<ItemIn = S::Item>,
     {

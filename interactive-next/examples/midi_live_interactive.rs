@@ -96,18 +96,14 @@ fn run(
         midi_events.clone().pitch_bend_freq_mult().shared();
     let controllers = midi_events.clone().controllers();
     window.play_stereo(
-        sig(
-            input.clone(),
-            key_events.clone(),
-            pitch_bend_freq_mult.clone(),
-            controllers.clone(),
-        ),
-        sig(
-            input.clone(),
-            key_events.clone(),
-            pitch_bend_freq_mult.clone(),
-            controllers.clone(),
-        ),
+        Stereo::new_fn(|| {
+            sig(
+                input.clone(),
+                key_events.clone(),
+                pitch_bend_freq_mult.clone(),
+                controllers.clone(),
+            )
+        }),
         Default::default(),
     )
 }

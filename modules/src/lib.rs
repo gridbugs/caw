@@ -74,4 +74,7 @@ pub mod reverb {
     pub use freeverb as default;
 }
 
+pub mod sample_playback;
+pub use sample_playback::sample_playback;
+
 mod low_level;

@@ -3,6 +3,7 @@
 resolver = "2"
 
 members = [
+    "audio-file",
     "builder-proc-macros",
     "caw",
     "caw-next",

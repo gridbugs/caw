@@ -5,11 +5,6 @@ use caw_midi_file::*;
 use caw_modules::*;
 use clap::Parser;
 
-enum Channel {
-    Left,
-    Right,
-}
-
 fn sig(
     input: Input,
     midi_messages: FrameSig<impl FrameSigT<Item = MidiMessages>>,
@@ -70,8 +65,9 @@ fn main() -> anyhow::Result<()> {
         .build();
     let input = window.input();
     window.play_stereo(
-        sig(input.clone(), midi_messages.clone(), Channel::Left),
-        sig(input.clone(), midi_messages.clone(), Channel::Right),
+        Stereo::new_fn_channel(|channel| {
+            sig(input.clone(), midi_messages.clone(), channel)
+        }),
         Default::default(),
     )
 }

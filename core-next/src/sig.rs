@@ -208,6 +208,14 @@ pub trait SigT {
     type Item: Clone;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item>;
+
+    fn filter<F>(self, filter: F) -> Sig<F::Out<Self>>
+    where
+        F: Filter<ItemIn = Self::Item>,
+        Self: Sized,
+    {
+        Sig(filter.into_sig(self))
+    }
 }
 
 impl SigT for f32 {
@@ -324,13 +332,6 @@ where
             a: self.0,
             b: other,
         })
-    }
-
-    pub fn filter<F>(self, filter: F) -> Sig<F::Out<S>>
-    where
-        F: Filter<ItemIn = S::Item>,
-    {
-        Sig(filter.into_sig(self.0))
     }
 
     pub fn shared(self) -> Sig<SigShared<S>> {
