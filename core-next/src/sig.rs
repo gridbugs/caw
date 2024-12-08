@@ -403,6 +403,20 @@ where
     }
 }
 
+impl<S> Sig<S>
+where
+    S: SigT<Item = bool>,
+{
+    pub fn gate_to_trig_rising_edge(self) -> Sig<impl SigT<Item = bool>> {
+        let mut previous = false;
+        self.map_mut(move |x| {
+            let out = x && !previous;
+            previous = x;
+            out
+        })
+    }
+}
+
 pub struct MapMut<S, T, F>
 where
     S: SigT,

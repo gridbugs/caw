@@ -53,3 +53,6 @@ name = "midi_file_interactive"
 
 [[example]]
 name = "vocoder_interactive"
+
+[[example]]
+name = "periodic_gate_interactive"

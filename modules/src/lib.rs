@@ -1,3 +1,5 @@
+mod low_level;
+
 pub mod oscillator;
 pub use oscillator::{
     oscillator,
@@ -77,4 +79,5 @@ pub mod reverb {
 pub mod sample_playback;
 pub use sample_playback::sample_playback;
 
-mod low_level;
+pub mod periodic_trig;
+pub use periodic_trig::{periodic_trig_hz, periodic_trig_s};
