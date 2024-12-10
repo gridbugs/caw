@@ -415,6 +415,20 @@ where
             out
         })
     }
+
+    pub fn trig_to_gate<P>(self, period_s: P) -> Sig<impl SigT<Item = bool>>
+    where
+        P: SigT<Item = f32>,
+    {
+        let mut remaining_s = 0.0;
+        self.zip(period_s).map_mut_ctx(move |(x, period_s), ctx| {
+            if x {
+                remaining_s = period_s;
+            }
+            remaining_s -= 1.0 / ctx.sample_rate_hz;
+            remaining_s > 0.0
+        })
+    }
 }
 
 pub struct MapMut<S, T, F>

@@ -56,3 +56,6 @@ name = "vocoder_interactive"
 
 [[example]]
 name = "periodic_gate_interactive"
+
+[[example]]
+name = "periodic_trig_interactive"
