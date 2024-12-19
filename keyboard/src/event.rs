@@ -1,6 +1,10 @@
-use crate::{polyphony, MonoVoice, Note};
-use caw_core_next::{FrameSig, FrameSigT};
+use crate::{
+    chord::{Chord, Inversion},
+    polyphony, MonoVoice, Note,
+};
+use caw_core_next::{FrameSig, FrameSigT, SigCtx};
 use smallvec::{smallvec, SmallVec};
+use std::collections::HashSet;
 
 /// A key being pressed or released
 #[derive(Clone, Copy, Debug)]
@@ -104,5 +108,137 @@ where
         n: usize,
     ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>> {
         polyphony::voices_from_key_events(self.0, n)
+    }
+}
+
+impl FrameSigT for Inversion {
+    type Item = Inversion;
+
+    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
+        *self
+    }
+}
+
+pub struct ChordVoiceConfig<V, I>
+where
+    V: FrameSigT<Item = f32>,
+    I: FrameSigT<Item = Inversion>,
+{
+    pub velocity_01: V,
+    pub inversion: I,
+}
+
+impl<V, I> ChordVoiceConfig<V, I>
+where
+    V: FrameSigT<Item = f32>,
+    I: FrameSigT<Item = Inversion>,
+{
+    pub fn with_velocity_01<V_>(
+        self,
+        velocity_01: V_,
+    ) -> ChordVoiceConfig<V_, I>
+    where
+        V_: FrameSigT<Item = f32>,
+    {
+        let Self { inversion, .. } = self;
+        ChordVoiceConfig {
+            velocity_01,
+            inversion,
+        }
+    }
+
+    pub fn with_inversion<I_>(self, inversion: I_) -> ChordVoiceConfig<V, I_>
+    where
+        I_: FrameSigT<Item = Inversion>,
+    {
+        let Self { velocity_01, .. } = self;
+        ChordVoiceConfig {
+            velocity_01,
+            inversion,
+        }
+    }
+}
+
+impl Default for ChordVoiceConfig<f32, Inversion> {
+    fn default() -> Self {
+        ChordVoiceConfig {
+            velocity_01: 1.0,
+            inversion: Inversion::default(),
+        }
+    }
+}
+
+fn key_events_from_chords<C, V, I>(
+    chords: C,
+    mut config: ChordVoiceConfig<V, I>,
+) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+where
+    C: FrameSigT<Item = Option<Chord>>,
+    V: FrameSigT<Item = f32>,
+    I: FrameSigT<Item = Inversion>,
+{
+    let mut notes_to_release = HashSet::new();
+    let mut pressed_notes = HashSet::new();
+    FrameSig(chords).map_ctx(move |chord_opt, ctx| {
+        let mut key_events = KeyEvents::empty();
+        let inversion = config.inversion.frame_sample(ctx);
+        if let Some(chord) = chord_opt {
+            notes_to_release.clear();
+            notes_to_release.clone_from(&pressed_notes);
+            chord.with_notes(inversion, |note| {
+                if pressed_notes.insert(note) {
+                    let velocity_01 = config.velocity_01.frame_sample(ctx);
+                    key_events.push(KeyEvent {
+                        note,
+                        velocity_01,
+                        pressed: true,
+                    });
+                }
+                notes_to_release.remove(&note);
+            });
+            for note in &notes_to_release {
+                pressed_notes.remove(note);
+                key_events.push(KeyEvent {
+                    note: *note,
+                    velocity_01: 0.0,
+                    pressed: false,
+                });
+            }
+        } else {
+            for note in pressed_notes.drain() {
+                key_events.push(KeyEvent {
+                    note,
+                    velocity_01: 0.0,
+                    pressed: false,
+                });
+            }
+        }
+        key_events
+    })
+}
+
+pub trait ChordsT {
+    fn key_events<V, I>(
+        self,
+        config: ChordVoiceConfig<V, I>,
+    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    where
+        V: FrameSigT<Item = f32>,
+        I: FrameSigT<Item = Inversion>;
+}
+
+impl<C> ChordsT for FrameSig<C>
+where
+    C: FrameSigT<Item = Option<Chord>>,
+{
+    fn key_events<V, I>(
+        self,
+        config: ChordVoiceConfig<V, I>,
+    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    where
+        V: FrameSigT<Item = f32>,
+        I: FrameSigT<Item = Inversion>,
+    {
+        key_events_from_chords(self, config)
     }
 }

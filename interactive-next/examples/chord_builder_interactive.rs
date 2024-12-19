@@ -1,5 +1,5 @@
 use caw_core_next::*;
-use caw_interactive_next::{Input, Key, MouseButton, Visualization, Window};
+use caw_interactive_next::{Input, Key, Visualization, Window};
 use caw_keyboard::{chord::*, *};
 use caw_modules::*;
 
@@ -8,7 +8,7 @@ fn input_to_chords(
 ) -> FrameSig<impl FrameSigT<Item = Option<Chord>>> {
     use note_name::*;
     let key = |key, note_name, chord_type: ChordType| {
-        [
+        let mut x = [
             input
                 .key(key)
                 .on(move || chord(note_name, chord_type))
@@ -40,7 +40,9 @@ fn input_to_chords(
                 & input.key(Key::Apostrophe))
             .on(move || chord(note_name, SUS_4).octave_shift(1))
             .boxed(),
-        ]
+        ];
+        x.reverse();
+        x
     };
     FrameSig::option_first_some(
         [
@@ -76,6 +78,7 @@ fn input_to_chords(
 }
 
 fn voice(
+    input: Input,
     MonoVoice {
         note,
         key_down_gate,
@@ -88,33 +91,26 @@ fn voice(
         .attack_s(0.01)
         .decay_s(0.2)
         .sustain_01(0.8)
-        .release_s(10.0)
+        .release_s(0.2)
         .build()
         .exp_01(1);
-    let osc = super_saw(note.freq_hz()).build();
-    osc.filter(low_pass::default(env * 10000).resonance(1.0))
-        .filter(reverb::default().room_size(0.9).damping(0.9))
-        .filter(high_pass::default(1))
+    let osc = super_saw(note.freq_hz()).num_oscillators(4).build();
+    osc.filter(low_pass::default(env * input.y_01() * 20000).resonance(0.0))
 }
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
-    let env = adsr_linear_01(input.mouse.button(MouseButton::Left))
-        .attack_s(0.01)
-        .decay_s(0.2)
-        .sustain_01(0.8)
-        .release_s(0.1)
-        .build();
-    let osc = super_saw(
-        input.mouse.x_01().filter(
-            sample_and_hold(input.mouse.button(MouseButton::Right))
-                .initial_value(0.05),
-        ) * 1000,
-    )
-    .build();
-    osc.filter(
-        low_pass::default(env * input.mouse.y_01() * 10000).resonance(0.5),
-    )
-    .filter(reverb::default())
+    let inversion = input.x_01().map(|x| Inversion::InOctave {
+        octave_base: Note::from_midi_index((x * 40.0 + 40.0) as u8),
+    });
+    input_to_chords(input.clone())
+        .key_events(ChordVoiceConfig::default().with_inversion(inversion))
+        .poly_voices(12)
+        .into_iter()
+        .map(|v| voice(input.clone(), v))
+        .sum::<Sig<_>>()
+        .filter(reverb::default().room_size(0.9).damping(0.9))
+        .filter(high_pass::default(1))
+        * 0.25
 }
 
 fn main() -> anyhow::Result<()> {
