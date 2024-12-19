@@ -11,6 +11,7 @@ fn sig(
     key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
     pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
     controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
+    channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
@@ -36,11 +37,13 @@ fn sig(
                     .release_s(controllers.get_01(28) * env_scale)
                     .build()
                     .exp_01(1);
-                let osc =
-                    super_saw(note.freq_hz() * pitch_bend_freq_mult.clone())
-                        .num_oscillators(32)
-                        .detune_ratio(controllers.modulation() * 0.05)
-                        .build();
+                let offset = match channel {
+                    Channel::Left => 0.0,
+                    Channel::Right => std::f32::consts::PI / 2.0,
+                };
+                let osc = oscillator(Pulse, note.freq_hz())
+                    .reset_offset_01(offset)
+                    .build();
                 osc.filter(
                     low_pass::default(
                         env * controllers.get_01(21).exp_01(1)
@@ -96,12 +99,13 @@ fn run(
         midi_events.clone().pitch_bend_freq_mult().shared();
     let controllers = midi_events.clone().controllers();
     window.play_stereo(
-        Stereo::new_fn(|| {
+        Stereo::new_fn_channel(|channel| {
             sig(
                 input.clone(),
                 key_events.clone(),
                 pitch_bend_freq_mult.clone(),
                 controllers.clone(),
+                channel,
             )
         }),
         Default::default(),

@@ -212,6 +212,21 @@ where
 
 pub mod chord {
     use super::{Note, NoteName, Octave};
+    use smallvec::{smallvec, SmallVec};
+
+    pub struct Notes(SmallVec<[Note; 4]>);
+
+    impl Notes {
+        fn new() -> Self {
+            Self(smallvec![])
+        }
+        pub fn iter(&self) -> impl Iterator<Item = &Note> {
+            self.0.iter()
+        }
+        fn push(&mut self, note: Note) {
+            self.0.push(note);
+        }
+    }
 
     #[derive(Clone, Copy, Debug)]
     pub enum Third {
@@ -471,8 +486,8 @@ pub mod chord {
             }
         }
 
-        pub fn notes(self, inversion: Inversion) -> Vec<Note> {
-            let mut ret = Vec::new();
+        pub fn notes(self, inversion: Inversion) -> Notes {
+            let mut ret = Notes::new();
             self.with_notes(inversion, |note| {
                 ret.push(note);
             });

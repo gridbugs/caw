@@ -92,6 +92,17 @@ where
 
 impl<S> FrameSig<S>
 where
+    S: FrameSigT + 'static,
+{
+    /// Erase the type information about self so multiple different frame signals can be stored in
+    /// a collection.
+    pub fn boxed(self) -> FrameSig<FrameSigBoxed<S::Item>> {
+        FrameSig(FrameSigBoxed(Box::new(self)))
+    }
+}
+
+impl<S> FrameSig<S>
+where
     S: FrameSigT<Item: Debug>,
 {
     pub fn debug_print(self) -> FrameSig<impl FrameSigT<Item = S::Item>> {
@@ -137,6 +148,66 @@ where
 
     pub fn signed_to_01(self) -> FrameSig<impl FrameSigT<Item = f32>> {
         (self + 1.0) / 2.0
+    }
+}
+
+impl<S> FrameSig<S>
+where
+    S: FrameSigT<Item = bool>,
+{
+    pub fn on<T, F>(
+        self,
+        mut f: F,
+    ) -> FrameSig<impl FrameSigT<Item = Option<T>>>
+    where
+        T: Clone,
+        F: FnMut() -> T,
+    {
+        self.map(move |x| if x { Some(f()) } else { None })
+    }
+}
+
+struct OptionFirstSome<S>(Vec<S>)
+where
+    S: FrameSigT;
+
+impl<T, S> FrameSigT for OptionFirstSome<S>
+where
+    T: Clone,
+    S: FrameSigT<Item = Option<T>>,
+{
+    type Item = Option<T>;
+
+    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
+        for s in self.0.iter_mut() {
+            let x = s.frame_sample(ctx);
+            if x.is_some() {
+                return x;
+            }
+        }
+        None
+    }
+}
+
+impl<T, S> FrameSig<S>
+where
+    T: Clone,
+    S: FrameSigT<Item = Option<T>>,
+{
+    pub fn option_or<O>(
+        self,
+        mut other: O,
+    ) -> FrameSig<impl FrameSigT<Item = Option<T>>>
+    where
+        O: FrameSigT<Item = Option<T>>,
+    {
+        self.map_ctx(move |x, ctx| x.or(other.frame_sample(ctx)))
+    }
+
+    pub fn option_first_some(
+        s: impl IntoIterator<Item = Self>,
+    ) -> FrameSig<impl FrameSigT<Item = Option<T>>> {
+        FrameSig(OptionFirstSome(s.into_iter().collect()))
     }
 }
 
@@ -345,4 +416,17 @@ where
     FrameSig(FrameSigShared {
         shared_cached_sig: Rc::new(RefCell::new(FrameSigCached::new(sig))),
     })
+}
+
+pub struct FrameSigBoxed<T>(Box<dyn FrameSigT<Item = T>>);
+
+impl<T> FrameSigT for FrameSigBoxed<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
+        self.0.frame_sample(ctx)
+    }
 }

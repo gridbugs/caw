@@ -82,6 +82,27 @@ pub struct Input {
     pub mouse: Mouse,
 }
 
+impl Input {
+    pub fn key(&self, key: Key) -> FrameSig<impl FrameSigT<Item = bool>> {
+        self.keyboard.get(key)
+    }
+
+    pub fn mouse_button(
+        &self,
+        mouse_button: MouseButton,
+    ) -> FrameSig<impl FrameSigT<Item = bool>> {
+        self.mouse.button(mouse_button)
+    }
+
+    pub fn x_01(&self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        self.mouse.x_01()
+    }
+
+    pub fn y_01(&self) -> FrameSig<impl FrameSigT<Item = f32>> {
+        self.mouse.y_01()
+    }
+}
+
 #[derive(Clone)]
 pub struct InputState {
     keyboard: KeyboardGeneric<Arc<RwLock<bool>>>,
