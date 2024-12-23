@@ -21,16 +21,17 @@ where
     fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
         let period_s = self.period_s.frame_sample(ctx);
         let duty_01 = self.duty_01.frame_sample(ctx);
-        let sample_period_s = ctx.num_samples as f32 / ctx.sample_rate_hz;
         // If the period drops below the remaining time on the current tick, set the remaining
         // time on the current tick to the new period. This way if there is a very long period,
         // and the period is decreased to a smaller value, we don't need to wait the entire
         // long period.
-        self.remaining_s = (self.remaining_s - sample_period_s).min(period_s);
+        self.remaining_s =
+            (self.remaining_s - ctx.sample_period_s()).min(period_s);
+        let ret = (self.remaining_s / period_s) < duty_01;
         if self.remaining_s < 0.0 {
             self.remaining_s = period_s;
         }
-        (self.remaining_s / period_s) < duty_01
+        ret
     }
 }
 

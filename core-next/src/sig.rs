@@ -7,6 +7,12 @@ pub struct SigCtx {
     pub num_samples: usize,
 }
 
+impl SigCtx {
+    pub fn sample_period_s(&self) -> f32 {
+        self.num_samples as f32 / self.sample_rate_hz
+    }
+}
+
 pub trait Buf<T>
 where
     T: Clone,

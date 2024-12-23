@@ -599,8 +599,36 @@ where
         for event in key_events.frame_sample(ctx) {
             if event.pressed {
                 state.insert_note(event.note);
+                for i in 0..config.extend_octaves_high.frame_sample(ctx) {
+                    if let Some(note) =
+                        event.note.add_octaves_checked(i as i8 + 1)
+                    {
+                        state.insert_note(note);
+                    }
+                }
+                for i in 0..config.extend_octaves_low.frame_sample(ctx) {
+                    if let Some(note) =
+                        event.note.add_octaves_checked(-(i as i8 + 1))
+                    {
+                        state.insert_note(note);
+                    }
+                }
             } else {
                 state.remove_note(event.note);
+                for i in 0..config.extend_octaves_high.frame_sample(ctx) {
+                    if let Some(note) =
+                        event.note.add_octaves_checked(i as i8 + 1)
+                    {
+                        state.remove_note(note);
+                    }
+                }
+                for i in 0..config.extend_octaves_low.frame_sample(ctx) {
+                    if let Some(note) =
+                        event.note.add_octaves_checked(-(i as i8 + 1))
+                    {
+                        state.remove_note(note);
+                    }
+                }
             }
         }
         if gate.is_rising() {

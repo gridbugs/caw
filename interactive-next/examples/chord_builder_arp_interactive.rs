@@ -78,7 +78,6 @@ fn input_to_chords(
 }
 
 fn voice(
-    input: Input,
     MonoVoice {
         note,
         key_down_gate,
@@ -88,30 +87,32 @@ fn voice(
 ) -> Sig<impl SigT<Item = f32>> {
     let env = adsr_linear_01(key_down_gate)
         .key_press_trig(key_press_trigger)
-        .attack_s(0.01)
+        .attack_s(0.00)
         .decay_s(0.2)
         .sustain_01(0.8)
-        .release_s(0.2)
+        .release_s(1.0)
         .build()
         .exp_01(1);
-    let osc = super_saw(note.freq_hz()).num_oscillators(4).build();
-    osc.filter(low_pass::default(env * 20000).resonance(0.5))
+    let osc = super_saw(note.freq_hz()).num_oscillators(32).build();
+    osc.filter(low_pass::default(env * 5000).resonance(0.5))
 }
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
     let inversion = input.x_01().map(|x| Inversion::InOctave {
         octave_base: Note::from_midi_index((x * 40.0 + 40.0) as u8),
     });
-    let gate = periodic_gate_s(input.y_01()).build();
-    let config = ArpConfig::default();
+    let gate = periodic_trig_s(input.y_01()).build();
+    let config = ArpConfig::default()
+        .with_shape(ArpShape::Random)
+        .with_extend_octaves_low(1u8)
+        .with_extend_octaves_high(1u8);
     let v = input_to_chords(input.clone())
         .key_events(ChordVoiceConfig::default().with_inversion(inversion))
         .arp(gate, config)
         .mono_voice();
-    voice(input.clone(), v)
+    voice(v)
         .filter(reverb::default().room_size(0.9).damping(0.9))
         .filter(high_pass::default(1))
-        * 0.25
 }
 
 fn main() -> anyhow::Result<()> {
