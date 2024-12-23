@@ -62,3 +62,6 @@ name = "periodic_trig_interactive"
 
 [[example]]
 name = "chord_builder_interactive"
+
+[[example]]
+name = "chord_builder_arp_interactive"

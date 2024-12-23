@@ -6,7 +6,7 @@ use std::{
 
 macro_rules! impl_op {
     ($frame_sig_mod:ident, $trait:ident, $fn:ident) => {
-        mod $frame_sig_mod {
+        pub mod $frame_sig_mod {
             use crate::{FrameSig, FrameSigT, SigCtx};
             use std::ops::$trait;
 

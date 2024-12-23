@@ -167,6 +167,49 @@ where
     }
 }
 
+pub struct FrameSigEdges<S>
+where
+    S: FrameSigT<Item = bool>,
+{
+    frame_sig: S,
+    curr: bool,
+    prev: bool,
+}
+
+impl<S> FrameSigT for FrameSigEdges<S>
+where
+    S: FrameSigT<Item = bool>,
+{
+    type Item = bool;
+
+    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
+        self.prev = self.curr;
+        self.curr = self.frame_sig.frame_sample(ctx);
+        self.curr
+    }
+}
+
+impl<S> FrameSigEdges<S>
+where
+    S: FrameSigT<Item = bool>,
+{
+    pub fn new(frame_sig: S) -> Self {
+        Self {
+            frame_sig,
+            curr: false,
+            prev: false,
+        }
+    }
+
+    pub fn is_rising(&self) -> bool {
+        self.curr && !self.prev
+    }
+
+    pub fn is_falling(&self) -> bool {
+        !self.curr && self.prev
+    }
+}
+
 struct OptionFirstSome<S>(Vec<S>)
 where
     S: FrameSigT;
@@ -250,6 +293,14 @@ where
 
 impl FrameSigT for f32 {
     type Item = f32;
+
+    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
+        *self
+    }
+}
+
+impl FrameSigT for u8 {
+    type Item = u8;
 
     fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
         *self

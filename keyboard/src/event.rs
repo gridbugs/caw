@@ -2,9 +2,10 @@ use crate::{
     chord::{Chord, Inversion},
     polyphony, MonoVoice, Note,
 };
-use caw_core_next::{FrameSig, FrameSigT, SigCtx};
+use caw_core_next::{FrameSig, FrameSigEdges, FrameSigT, SigCtx};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 use smallvec::{smallvec, SmallVec};
-use std::collections::HashSet;
+use std::{cmp::Ordering, collections::HashSet};
 
 /// A key being pressed or released
 #[derive(Clone, Copy, Debug)]
@@ -22,7 +23,7 @@ pub struct KeyEvent {
 /// This collection only uses the heap when more than one event occurred on the same sample which
 /// is very unlikely.
 #[derive(Clone, Debug)]
-pub struct KeyEvents(SmallVec<[KeyEvent; 1]>);
+pub struct KeyEvents(SmallVec<[KeyEvent; 4]>);
 
 impl KeyEvents {
     pub fn empty() -> Self {
@@ -49,7 +50,7 @@ impl KeyEvents {
 impl IntoIterator for KeyEvents {
     type Item = KeyEvent;
 
-    type IntoIter = smallvec::IntoIter<[KeyEvent; 1]>;
+    type IntoIter = smallvec::IntoIter<[KeyEvent; 4]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -73,11 +74,25 @@ pub trait KeyEventsT {
     fn merge<S>(self, other: S) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
     where
         S: FrameSigT<Item = KeyEvents>;
+
     fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>>;
+
     fn poly_voices(
         self,
         n: usize,
     ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>>;
+
+    fn arp<G, V, H, L, S>(
+        self,
+        gate: G,
+        config: ArpConfig<V, H, L, S>,
+    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    where
+        G: FrameSigT<Item = bool>,
+        V: FrameSigT<Item = f32>,
+        H: FrameSigT<Item = u8>,
+        L: FrameSigT<Item = u8>,
+        S: FrameSigT<Item = ArpShape>;
 }
 
 impl<K> KeyEventsT for FrameSig<K>
@@ -108,6 +123,21 @@ where
         n: usize,
     ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>> {
         polyphony::voices_from_key_events(self.0, n)
+    }
+
+    fn arp<G, V, H, L, S>(
+        self,
+        gate: G,
+        config: ArpConfig<V, H, L, S>,
+    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    where
+        G: FrameSigT<Item = bool>,
+        V: FrameSigT<Item = f32>,
+        H: FrameSigT<Item = u8>,
+        L: FrameSigT<Item = u8>,
+        S: FrameSigT<Item = ArpShape>,
+    {
+        key_events_from_chords_arp(self, gate, config)
     }
 }
 
@@ -241,4 +271,356 @@ where
     {
         key_events_from_chords(self, config)
     }
+}
+
+#[derive(Default, Debug, Clone)]
+pub enum ArpShape {
+    #[default]
+    Up,
+    Down,
+    UpDown,
+    DownUp,
+    Random,
+    Indices(Vec<Option<usize>>),
+}
+
+impl FrameSigT for ArpShape {
+    type Item = ArpShape;
+
+    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
+        self.clone()
+    }
+}
+
+#[derive(Debug)]
+struct ArpNoteStoreEntry {
+    note: Note,
+    count: usize,
+}
+
+#[derive(Default, Debug)]
+struct ArpNoteStore {
+    entries: Vec<ArpNoteStoreEntry>,
+}
+
+impl ArpNoteStore {
+    /// Insert a new note unless it's already present, preserving the sortedness of the notes
+    /// vector. Returns the index of the newly added note.
+    fn insert(&mut self, note_to_insert: Note) -> Option<usize> {
+        for (i, entry) in self.entries.iter_mut().enumerate() {
+            match entry.note.cmp(&note_to_insert) {
+                Ordering::Greater => {
+                    self.entries.insert(
+                        i,
+                        ArpNoteStoreEntry {
+                            note: note_to_insert,
+                            count: 1,
+                        },
+                    );
+                    return Some(i);
+                }
+                Ordering::Equal => {
+                    // The note is already present. Update the count.
+                    entry.count += 1;
+                    return None;
+                }
+                Ordering::Less => (),
+            }
+        }
+        self.entries.push(ArpNoteStoreEntry {
+            note: note_to_insert,
+            count: 1,
+        });
+        Some(self.entries.len() - 1)
+    }
+
+    /// Remove a note if it's present, preserving the sortedness of the notes vector. Returns the
+    /// index of the removed note.
+    fn remove(&mut self, note_to_remove: Note) -> Option<usize> {
+        for (i, entry) in self.entries.iter_mut().enumerate() {
+            match entry.note.cmp(&note_to_remove) {
+                Ordering::Greater => break,
+                Ordering::Equal => {
+                    entry.count -= 1;
+                    if entry.count == 0 {
+                        self.entries.remove(i);
+                        return Some(i);
+                    } else {
+                        return None;
+                    }
+                }
+                Ordering::Less => (),
+            }
+        }
+        None
+    }
+}
+
+#[derive(Debug)]
+struct ArpState {
+    store: ArpNoteStore,
+    index: usize,
+    current_note: Option<Note>,
+    ascending: bool,
+    rng: StdRng,
+}
+
+impl ArpState {
+    fn new() -> Self {
+        Self {
+            store: ArpNoteStore::default(),
+            index: 0,
+            current_note: None,
+            ascending: true,
+            rng: StdRng::from_entropy(),
+        }
+    }
+
+    fn insert_note(&mut self, note: Note) {
+        if let Some(index) = self.store.insert(note) {
+            if self.index > index {
+                self.index += 1;
+            }
+        }
+    }
+    fn remove_note(&mut self, note: Note) {
+        if let Some(index) = self.store.remove(note) {
+            if self.index > index {
+                self.index -= 1;
+            }
+        }
+    }
+    fn reset(&mut self, shape: ArpShape) {
+        self.index = 0;
+        use ArpShape::*;
+        match shape {
+            Up | UpDown => {
+                self.ascending = true;
+            }
+            Down | DownUp => {
+                self.ascending = false;
+            }
+            Random | Indices(_) => (),
+        }
+    }
+    fn tick_up(&mut self) -> Note {
+        if self.index >= self.store.entries.len() {
+            self.index = 0;
+        }
+        let entry = &self.store.entries[self.index];
+        self.index += 1;
+        entry.note
+    }
+    fn tick_down(&mut self) -> Note {
+        if self.index == 0 {
+            self.index = self.store.entries.len();
+        }
+        self.index -= 1;
+        self.store.entries[self.index].note
+    }
+    fn tick(&mut self, shape: ArpShape) {
+        self.current_note = if self.store.entries.is_empty() {
+            self.reset(shape);
+            None
+        } else {
+            use ArpShape::*;
+            let note = match shape {
+                Up => self.tick_up(),
+                Down => self.tick_down(),
+                UpDown | DownUp => {
+                    if self.ascending {
+                        let note = self.tick_up();
+                        if self.index >= self.store.entries.len() {
+                            self.ascending = false;
+                            self.index = self.store.entries.len() - 1;
+                        }
+                        note
+                    } else {
+                        let note = self.tick_down();
+                        if self.index == 0 {
+                            self.ascending = true;
+                            self.index = 1;
+                        }
+                        note
+                    }
+                }
+                Random => {
+                    let index = self.rng.gen_range(0..self.store.entries.len());
+                    self.store.entries[index].note
+                }
+                Indices(indices) => {
+                    if indices.is_empty() {
+                        self.current_note = None;
+                        return;
+                    }
+                    if self.index >= indices.len() {
+                        self.index = 0;
+                    }
+                    self.current_note = indices[self.index].and_then(|i| {
+                        self.store.entries.get(i).map(|e| e.note)
+                    });
+                    self.index += 1;
+                    return;
+                }
+            };
+            Some(note)
+        };
+    }
+}
+
+pub struct ArpConfig<V, H, L, S>
+where
+    V: FrameSigT<Item = f32>,
+    H: FrameSigT<Item = u8>,
+    L: FrameSigT<Item = u8>,
+    S: FrameSigT<Item = ArpShape>,
+{
+    pub velocity_01: V,
+    pub extend_octaves_high: H,
+    pub extend_octaves_low: L,
+    pub shape: S,
+}
+
+impl Default for ArpConfig<f32, u8, u8, ArpShape> {
+    fn default() -> Self {
+        ArpConfig {
+            velocity_01: 0.0,
+            extend_octaves_high: 0,
+            extend_octaves_low: 0,
+            shape: ArpShape::Up,
+        }
+    }
+}
+
+impl<V, H, L, S> ArpConfig<V, H, L, S>
+where
+    V: FrameSigT<Item = f32>,
+    H: FrameSigT<Item = u8>,
+    L: FrameSigT<Item = u8>,
+    S: FrameSigT<Item = ArpShape>,
+{
+    pub fn with_velocity_01<V_>(self, velocity_01: V_) -> ArpConfig<V_, H, L, S>
+    where
+        V_: FrameSigT<Item = f32>,
+    {
+        let Self {
+            extend_octaves_high,
+            extend_octaves_low,
+            shape,
+            ..
+        } = self;
+        ArpConfig {
+            velocity_01,
+            extend_octaves_high,
+            extend_octaves_low,
+            shape,
+        }
+    }
+
+    pub fn with_extend_octaves_high<H_>(
+        self,
+        extend_octaves_high: H_,
+    ) -> ArpConfig<V, H_, L, S>
+    where
+        H_: FrameSigT<Item = u8>,
+    {
+        let Self {
+            velocity_01,
+            extend_octaves_low,
+            shape,
+            ..
+        } = self;
+        ArpConfig {
+            velocity_01,
+            extend_octaves_high,
+            extend_octaves_low,
+            shape,
+        }
+    }
+
+    pub fn with_extend_octaves_low<L_>(
+        self,
+        extend_octaves_low: L_,
+    ) -> ArpConfig<V, H, L_, S>
+    where
+        L_: FrameSigT<Item = u8>,
+    {
+        let Self {
+            velocity_01,
+            extend_octaves_high,
+            shape,
+            ..
+        } = self;
+        ArpConfig {
+            velocity_01,
+            extend_octaves_high,
+            extend_octaves_low,
+            shape,
+        }
+    }
+
+    pub fn with_shape<S_>(self, shape: S_) -> ArpConfig<V, H, L, S_>
+    where
+        S_: FrameSigT<Item = ArpShape>,
+    {
+        let Self {
+            velocity_01,
+            extend_octaves_high,
+            extend_octaves_low,
+            ..
+        } = self;
+        ArpConfig {
+            velocity_01,
+            extend_octaves_high,
+            extend_octaves_low,
+            shape,
+        }
+    }
+}
+
+fn key_events_from_chords_arp<K, G, V, H, L, S>(
+    mut key_events: K,
+    gate: G,
+    mut config: ArpConfig<V, H, L, S>,
+) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+where
+    K: FrameSigT<Item = KeyEvents>,
+    G: FrameSigT<Item = bool>,
+    V: FrameSigT<Item = f32>,
+    H: FrameSigT<Item = u8>,
+    L: FrameSigT<Item = u8>,
+    S: FrameSigT<Item = ArpShape>,
+{
+    let mut state = ArpState::new();
+    let mut gate = FrameSigEdges::new(gate);
+    FrameSig::from_fn(move |ctx| {
+        gate.frame_sample(ctx);
+        let mut events = KeyEvents::empty();
+        for event in key_events.frame_sample(ctx) {
+            if event.pressed {
+                state.insert_note(event.note);
+            } else {
+                state.remove_note(event.note);
+            }
+        }
+        if gate.is_rising() {
+            state.tick(config.shape.frame_sample(ctx));
+            if let Some(note) = state.current_note {
+                events.push(KeyEvent {
+                    note,
+                    pressed: true,
+                    velocity_01: 1.0,
+                });
+            }
+        } else if gate.is_falling() {
+            if let Some(note) = state.current_note {
+                events.push(KeyEvent {
+                    note,
+                    pressed: false,
+                    velocity_01: 0.0,
+                });
+            }
+        }
+        events
+    })
 }

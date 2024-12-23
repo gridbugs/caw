@@ -7,3 +7,4 @@ edition = "2021"
 caw_core_next = { version = "0.1", path = "../core-next" }
 smallvec = "1"
 log = "0.4"
+rand = "0.8"
