@@ -93,9 +93,9 @@ fn voice(
         .sustain_01(0.8)
         .release_s(0.2)
         .build()
-        .exp_01(1);
+        .exp_01(1.0);
     let osc = super_saw(note.freq_hz()).num_oscillators(4).build();
-    osc.filter(low_pass::default(env * input.y_01() * 20000).resonance(0.0))
+    osc.filter(low_pass::default(env * input.y_01() * 20000.).resonance(0.0))
 }
 
 fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
@@ -109,7 +109,7 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
         .map(|v| voice(input.clone(), v))
         .sum::<Sig<_>>()
         .filter(reverb::default().room_size(0.9).damping(0.9))
-        .filter(high_pass::default(1))
+        .filter(high_pass::default(1.))
         * 0.25
 }
 

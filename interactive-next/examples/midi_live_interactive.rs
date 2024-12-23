@@ -9,7 +9,7 @@ use clap::{Parser, Subcommand};
 fn sig(
     input: Input,
     key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
-    pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
+    _pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
     controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
@@ -28,7 +28,7 @@ fn sig(
              }| {
                 let key_down_gate =
                     key_down_gate | input.mouse.button(MouseButton::Left);
-                let env_scale = 10;
+                let env_scale = 10.;
                 let env = adsr_linear_01(key_down_gate)
                     .key_press_trig(key_press_trigger)
                     .attack_s(controllers.get_01(25) * env_scale)
@@ -36,7 +36,7 @@ fn sig(
                     .sustain_01(controllers.get_01(27))
                     .release_s(controllers.get_01(28) * env_scale)
                     .build()
-                    .exp_01(1);
+                    .exp_01(1.);
                 let offset = match channel {
                     Channel::Left => 0.0,
                     Channel::Right => std::f32::consts::PI / 2.0,
@@ -46,9 +46,9 @@ fn sig(
                     .build();
                 osc.filter(
                     low_pass::default(
-                        env * controllers.get_01(21).exp_01(1)
+                        env * controllers.get_01(21).exp_01(1.)
                             * velocity_01
-                            * 20000,
+                            * 20000.,
                     )
                     .resonance(input.mouse.x_01()),
                 )
@@ -59,9 +59,9 @@ fn sig(
             reverb::default()
                 .room_size(controllers.get_01(22))
                 .damping(controllers.get_01(23))
-                .mix(controllers.get_01(24)),
+                .mix_01(controllers.get_01(24)),
         )
-        .filter(high_pass::default(20))
+        .filter(high_pass::default(20.))
         * controllers.volume()
 }
 

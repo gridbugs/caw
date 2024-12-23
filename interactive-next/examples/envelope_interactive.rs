@@ -13,11 +13,11 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
         input.mouse.x_01().filter(
             sample_and_hold(input.mouse.button(MouseButton::Right))
                 .initial_value(0.05),
-        ) * 1000,
+        ) * 1000.,
     )
     .build();
     osc.filter(
-        low_pass::default(env * input.mouse.y_01() * 10000).resonance(0.5),
+        low_pass::default(env * input.mouse.y_01() * 10000.).resonance(0.5),
     )
     .filter(reverb::default())
 }

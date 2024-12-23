@@ -14,7 +14,7 @@ where
     // removes high end of reverb to simulate a "softer room"
     damping: D,
     // 0 is dry signal, 1 is all reverb
-    mix: M,
+    mix_01: M,
 }
 
 impl<R, D, M> Props<R, D, M>
@@ -23,11 +23,11 @@ where
     D: SigT<Item = f32>,
     M: SigT<Item = f32>,
 {
-    fn new(room_size: R, damping: D, mix: M) -> Self {
+    fn new(room_size: R, damping: D, mix_01: M) -> Self {
         Self {
             room_size,
             damping,
-            mix,
+            mix_01,
         }
     }
 }
@@ -50,7 +50,7 @@ builder! {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "M"]
         #[default = 0.5]
-        mix: f32,
+        mix_01: f32,
     }
 }
 
@@ -77,7 +77,8 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = ReverbFreeverb<S, R, D, M>
+    type Out<S>
+        = ReverbFreeverb<S, R, D, M>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -108,12 +109,12 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
-        for (out, sample, room_size, damping, mix) in izip! {
+        for (out, sample, room_size, damping, mix_01) in izip! {
             self.buf.iter_mut(),
             self.sig.sample(ctx).iter(),
             self.props.room_size.sample(ctx).iter(),
             self.props.damping.sample(ctx).iter(),
-            self.props.mix.sample(ctx).iter(),
+            self.props.mix_01.sample(ctx).iter(),
         } {
             if room_size != self.room_size_prev {
                 self.room_size_prev = room_size;
@@ -124,7 +125,7 @@ where
                 self.state.set_damping(damping as f64);
             }
             let reverb = self.state.process(sample as f64) as f32;
-            *out = (reverb * mix) + (sample * (1.0 - mix));
+            *out = (reverb * mix_01) + (sample * (1.0 - mix_01));
         }
         &self.buf
     }

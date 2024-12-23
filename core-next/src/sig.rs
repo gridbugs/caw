@@ -235,18 +235,6 @@ impl SigT for f32 {
     }
 }
 
-/// For convenience, allow ints to be used as signals, but still treat them as yielding floats.
-impl SigT for i32 {
-    type Item = f32;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        ConstBuf {
-            value: *self as f32,
-            count: ctx.num_samples,
-        }
-    }
-}
-
 /// For gate and trigger signals
 impl SigT for bool {
     type Item = bool;
@@ -409,16 +397,42 @@ where
     }
 }
 
+pub struct GateToTrigRisingEdge<S>
+where
+    S: SigT<Item = bool>,
+{
+    sig: S,
+    prev: bool,
+    buf: Vec<bool>,
+}
+
+impl<S> SigT for GateToTrigRisingEdge<S>
+where
+    S: SigT<Item = bool>,
+{
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, false);
+        for (out, sample) in
+            self.buf.iter_mut().zip(self.sig.sample(ctx).iter())
+        {
+            *out = sample && !self.prev;
+            self.prev = sample;
+        }
+        &self.buf
+    }
+}
+
 impl<S> Sig<S>
 where
     S: SigT<Item = bool>,
 {
-    pub fn gate_to_trig_rising_edge(self) -> Sig<impl SigT<Item = bool>> {
-        let mut previous = false;
-        self.map_mut(move |x| {
-            let out = x && !previous;
-            previous = x;
-            out
+    pub fn gate_to_trig_rising_edge(self) -> Sig<GateToTrigRisingEdge<S>> {
+        Sig(GateToTrigRisingEdge {
+            sig: self.0,
+            prev: false,
+            buf: Vec::new(),
         })
     }
 

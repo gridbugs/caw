@@ -10,8 +10,8 @@ fn filter_chain_robot(
     band_freq_hz: impl SigT<Item = f32>,
     width_ratio: impl SigT<Item = f32>,
     _index: usize,
-    carrier_freq_hz: impl SigT<Item = f32>,
-    resonance: impl SigT<Item = f32>,
+    _carrier_freq_hz: impl SigT<Item = f32>,
+    _resonance: impl SigT<Item = f32>,
 ) -> Sig<impl SigT<Item = f32>> {
     let band_freq_hz = sig_shared(band_freq_hz);
     let env = sig
@@ -20,7 +20,7 @@ fn filter_chain_robot(
             width_ratio,
         ))
         .filter(envelope_follower());
-    let osc = super_saw(60)
+    let osc = super_saw(60.)
         .build()
         .filter(low_pass::moog_ladder(band_freq_hz).resonance(1.0));
     osc * env

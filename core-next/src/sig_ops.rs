@@ -221,39 +221,6 @@ macro_rules! impl_arith_op {
             }
         }
 
-        /// Operate on a `Sig` and an f32
-        impl<S> $trait<i32> for Sig<S>
-        where
-            S: SigT,
-            S::Item: $trait<f32>,
-            <S::Item as $trait<f32>>::Output: Clone,
-        {
-            type Output = Sig<$sig_mod::OpSigScalar<S, f32>>;
-
-            fn $fn(self, rhs: i32) -> Self::Output {
-                Sig($sig_mod::OpSigScalar {
-                    lhs: self.0,
-                    rhs: rhs as f32,
-                })
-            }
-        }
-
-        /// Operate on an f32 and a `Sig`
-        impl<S> $trait<Sig<S>> for i32
-        where
-            S: SigT<Item = f32>,
-            f32: $trait<S::Item>,
-        {
-            type Output = Sig<$sig_mod::OpScalarSig<f32, S>>;
-
-            fn $fn(self, rhs: Sig<S>) -> Self::Output {
-                Sig($sig_mod::OpScalarSig {
-                    lhs: self as f32,
-                    rhs: rhs.0,
-                })
-            }
-        }
-
         impl<L, R> $trait<Sig<R>> for FrameSig<L>
         where
             L: FrameSigT<Item = f32>,

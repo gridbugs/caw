@@ -25,17 +25,17 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
                     .sustain_01(0.5)
                     .release_s(0.1)
                     .build()
-                    .exp_01(1);
+                    .exp_01(1.);
                 let osc = super_saw(note.freq_hz()).num_oscillators(8).build();
                 osc.filter(
-                    low_pass::default(env * input.mouse.y_01() * 10000)
+                    low_pass::default(env * input.mouse.y_01() * 10000.)
                         .resonance(input.mouse.x_01()),
                 )
             },
         )
         .sum::<Sig<_>>()
         .filter(reverb::default().room_size(0.9).damping(0.9))
-        .filter(high_pass::default(1))
+        .filter(high_pass::default(1.))
         * 0.25
 }
 

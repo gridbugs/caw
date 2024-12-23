@@ -307,16 +307,6 @@ impl FrameSigT for u8 {
     }
 }
 
-/// For convenience, allow ints to be used as frame signals, but still treat them as yielding
-/// floats.
-impl FrameSigT for i32 {
-    type Item = f32;
-
-    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
-        *self as f32
-    }
-}
-
 impl FrameSigT for bool {
     type Item = bool;
 

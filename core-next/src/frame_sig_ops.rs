@@ -70,22 +70,6 @@ macro_rules! impl_arith_op {
                 })
             }
         }
-
-        /// Operate on a signal and an i32 where the RHS is wrapped in the `Sig` type.
-        impl<R> $trait<FrameSig<R>> for i32
-        where
-            R: FrameSigT<Item = f32>,
-            f32: $trait<R::Item>,
-        {
-            type Output = FrameSig<$frame_sig_mod::Op<i32, R>>;
-
-            fn $fn(self, rhs: FrameSig<R>) -> Self::Output {
-                FrameSig($frame_sig_mod::Op {
-                    lhs: self,
-                    rhs: rhs.0,
-                })
-            }
-        }
     };
 }
 

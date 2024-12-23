@@ -36,14 +36,14 @@ fn sig(
                     Channel::Right => 0.25,
                 };
                 osc.filter(
-                    low_pass::default(env * 20000)
+                    low_pass::default(env * 20000.)
                         .resonance(input.mouse.x_01()),
                 )
             },
         )
         .sum::<Sig<_>>()
         .filter(reverb::default().room_size(0.9).damping(0.9))
-        .filter(high_pass::default(1))
+        .filter(high_pass::default(1.))
         * 0.25
 }
 
