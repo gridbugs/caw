@@ -22,7 +22,7 @@ fn filter_chain_robot(
         .filter(envelope_follower());
     let osc = super_saw(60.)
         .build()
-        .filter(low_pass::moog_ladder(band_freq_hz).resonance(1.0));
+        .filter(low_pass::default(band_freq_hz).resonance(1.0));
     osc * env
 }
 
