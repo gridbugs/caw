@@ -1,4 +1,8 @@
-use crate::low_level::moog_ladder::OberheimVariationMoogState;
+use crate::low_level::{
+    moog_ladder::MoogLadderState,
+    moog_ladder_huovilainen::State as HuovilainenState,
+    moog_ladder_oberheim::State as OberheimState,
+};
 use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
@@ -26,12 +30,12 @@ where
 }
 
 builder! {
-    #[constructor = "low_pass_moog_ladder"]
-    #[constructor_doc = "A low pass filter with adjustable resonance"]
+    #[constructor = "low_pass_moog_ladder_oberheim"]
+    #[constructor_doc = "A low pass filter with adjustable resonance based on the Oberheim model of the Moog Ladder"]
     #[build_fn = "Props::new"]
     #[build_ty = "Props<C, R>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct PropsBuilderOberheim {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "C"]
         cutoff_hz: _,
@@ -42,14 +46,32 @@ builder! {
     }
 }
 
-impl<C, R> Filter for PropsBuilder<C, R>
+builder! {
+    #[constructor = "low_pass_moog_ladder_huovilainen"]
+    #[constructor_doc = "A low pass filter with adjustable resonance based on the Huovilainen model of the Moog Ladder. Compared to the Oberheim model it is more accurate but more expensive."]
+    #[build_fn = "Props::new"]
+    #[build_ty = "Props<C, R>"]
+    #[generic_setter_type_name = "X"]
+    pub struct PropsBuilderHuovilainen {
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "C"]
+        cutoff_hz: _,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "R"]
+        #[default = 0.0]
+        resonance: f32,
+    }
+}
+
+impl<C, R> Filter for PropsBuilderOberheim<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
     type ItemIn = f32;
 
-    type Out<S> = LowPassMoogLadder<S, C, R>
+    type Out<S>
+        = LowPassMoogLadder<S, C, R, OberheimState>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -61,29 +83,57 @@ where
         LowPassMoogLadder {
             props,
             sig,
-            state: OberheimVariationMoogState::new(),
+            state: OberheimState::new(),
             buf: Vec::new(),
         }
     }
 }
 
-pub struct LowPassMoogLadder<S, C, R>
+impl<C, R> Filter for PropsBuilderHuovilainen<C, R>
 where
-    S: SigT<Item = f32>,
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
-    props: Props<C, R>,
-    sig: S,
-    state: OberheimVariationMoogState,
-    buf: Vec<f32>,
+    type ItemIn = f32;
+
+    type Out<S>
+        = LowPassMoogLadder<S, C, R, HuovilainenState>
+    where
+        S: SigT<Item = Self::ItemIn>;
+
+    fn into_sig<S>(self, sig: S) -> Self::Out<S>
+    where
+        S: SigT<Item = Self::ItemIn>,
+    {
+        let props = self.build();
+        LowPassMoogLadder {
+            props,
+            sig,
+            state: HuovilainenState::new(),
+            buf: Vec::new(),
+        }
+    }
 }
 
-impl<S, C, R> SigT for LowPassMoogLadder<S, C, R>
+pub struct LowPassMoogLadder<S, C, R, M>
 where
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
+    M: MoogLadderState,
+{
+    props: Props<C, R>,
+    sig: S,
+    state: M,
+    buf: Vec<f32>,
+}
+
+impl<S, C, R, M> SigT for LowPassMoogLadder<S, C, R, M>
+where
+    S: SigT<Item = f32>,
+    C: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    M: MoogLadderState,
 {
     type Item = f32;
 
