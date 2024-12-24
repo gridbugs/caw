@@ -204,7 +204,7 @@ mod kick {
             release_s: period_s.clone(),
         });
         let sig = (pitch_sweep + (noise * Sig(props.noise_amp))).shared();
-        (sig.clone() + (sig.clone().filter(low_pass::default(500.))))
+        (sig.clone() + (sig.clone().filter(low_pass::default(500.)) * 3.))
             * amp_env
             * 0.5
     }
@@ -301,7 +301,7 @@ mod snare {
             release_s: period_s.clone(),
         });
         let sig = pitch_sweep + (noise * Sig(props.noise_amp));
-        sig.filter(high_pass::default(200.0)) * amp_env
+        sig.filter(high_pass::default(400.0)) * amp_env
     }
 }
 
@@ -366,7 +366,7 @@ mod hat_closed {
         FrameSig(trig).trig(NoiseFilterSweep {
             release_s: props.period_s,
             base_cutoff_hz: 20_000.,
-            start_cutoff_offset_hz: -10_000.,
+            start_cutoff_offset_hz: -16_000.,
         })
     }
 }
