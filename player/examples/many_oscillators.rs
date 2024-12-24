@@ -1,6 +1,6 @@
 use caw_core_next::*;
 use caw_modules::*;
-use caw_next::player::Player;
+use caw_player::Player;
 use rand::Rng;
 
 fn osc(freq: f32) -> Sig<impl SigT<Item = f32>> {

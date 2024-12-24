@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-caw_next = { version = "0.1", path = "../caw-next" }
+caw_player = { version = "0.1", path = "../player" }
 caw_core_next = { version = "0.1", path = "../core-next" }
 caw_computer_keyboard = { version = "0.1", path = "../computer-keyboard" }
 line_2d = "0.5"

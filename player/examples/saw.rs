@@ -1,6 +1,6 @@
 use caw_core_next::*;
 use caw_modules::*;
-use caw_next::player::Player;
+use caw_player::Player;
 
 fn signal() -> Sig<impl SigT<Item = f32>> {
     oscillator(waveform::Saw, 40.0)

@@ -1,7 +1,7 @@
 use crate::input::{Input, InputState};
 use anyhow::anyhow;
 use caw_core_next::{SigT, Stereo};
-use caw_next::player::{Config, Player, ToF32};
+use caw_player::{Config, Player, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
 use sdl2::{

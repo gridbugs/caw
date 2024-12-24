@@ -6,7 +6,7 @@ members = [
     "audio-file",
     "builder-proc-macros",
     "caw",
-    "caw-next",
+    "player",
     "computer-keyboard",
     "core",
     "core-next",
