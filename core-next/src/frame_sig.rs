@@ -165,6 +165,43 @@ where
     {
         self.map(move |x| if x { Some(f()) } else { None })
     }
+
+    pub fn on_unit<F>(self, mut f: F) -> FrameSig<impl FrameSigT<Item = ()>>
+    where
+        F: FnMut(),
+    {
+        self.map(move |x| {
+            if x {
+                f()
+            }
+        })
+    }
+
+    pub fn edges(self) -> FrameSigEdges<Self> {
+        FrameSigEdges::new(self)
+    }
+
+    pub fn divide<B>(self, mut by: B) -> FrameSig<impl FrameSigT<Item = bool>>
+    where
+        B: FrameSigT<Item = u32>,
+    {
+        let mut edges = self.edges();
+        let mut count = 0;
+        FrameSig::from_fn(move |ctx| {
+            let input = edges.frame_sample(ctx);
+            // Increase the count on the falling edge rather than the rising edge so that the first
+            // pulse is passed through regardless of the division.
+            if edges.is_falling() {
+                count += 1;
+            }
+            let by = by.frame_sample(ctx);
+            if by == 0 || count % by == 0 {
+                input
+            } else {
+                false
+            }
+        })
+    }
 }
 
 pub struct FrameSigEdges<S>
@@ -299,8 +336,8 @@ impl FrameSigT for f32 {
     }
 }
 
-impl FrameSigT for u8 {
-    type Item = u8;
+impl FrameSigT for u32 {
+    type Item = u32;
 
     fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
         *self

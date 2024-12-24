@@ -2,7 +2,7 @@ use crate::{
     chord::{Chord, Inversion},
     polyphony, MonoVoice, Note,
 };
-use caw_core_next::{FrameSig, FrameSigEdges, FrameSigT, SigCtx};
+use caw_core_next::{FrameSig, FrameSigT, SigCtx};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use smallvec::{smallvec, SmallVec};
 use std::{cmp::Ordering, collections::HashSet};
@@ -90,8 +90,8 @@ pub trait KeyEventsT {
     where
         G: FrameSigT<Item = bool>,
         V: FrameSigT<Item = f32>,
-        H: FrameSigT<Item = u8>,
-        L: FrameSigT<Item = u8>,
+        H: FrameSigT<Item = u32>,
+        L: FrameSigT<Item = u32>,
         S: FrameSigT<Item = ArpShape>;
 }
 
@@ -133,8 +133,8 @@ where
     where
         G: FrameSigT<Item = bool>,
         V: FrameSigT<Item = f32>,
-        H: FrameSigT<Item = u8>,
-        L: FrameSigT<Item = u8>,
+        H: FrameSigT<Item = u32>,
+        L: FrameSigT<Item = u32>,
         S: FrameSigT<Item = ArpShape>,
     {
         key_events_from_chords_arp(self, gate, config)
@@ -471,8 +471,8 @@ impl ArpState {
 pub struct ArpConfig<V, H, L, S>
 where
     V: FrameSigT<Item = f32>,
-    H: FrameSigT<Item = u8>,
-    L: FrameSigT<Item = u8>,
+    H: FrameSigT<Item = u32>,
+    L: FrameSigT<Item = u32>,
     S: FrameSigT<Item = ArpShape>,
 {
     pub velocity_01: V,
@@ -481,7 +481,7 @@ where
     pub shape: S,
 }
 
-impl Default for ArpConfig<f32, u8, u8, ArpShape> {
+impl Default for ArpConfig<f32, u32, u32, ArpShape> {
     fn default() -> Self {
         ArpConfig {
             velocity_01: 0.0,
@@ -495,8 +495,8 @@ impl Default for ArpConfig<f32, u8, u8, ArpShape> {
 impl<V, H, L, S> ArpConfig<V, H, L, S>
 where
     V: FrameSigT<Item = f32>,
-    H: FrameSigT<Item = u8>,
-    L: FrameSigT<Item = u8>,
+    H: FrameSigT<Item = u32>,
+    L: FrameSigT<Item = u32>,
     S: FrameSigT<Item = ArpShape>,
 {
     pub fn with_velocity_01<V_>(self, velocity_01: V_) -> ArpConfig<V_, H, L, S>
@@ -522,7 +522,7 @@ where
         extend_octaves_high: H_,
     ) -> ArpConfig<V, H_, L, S>
     where
-        H_: FrameSigT<Item = u8>,
+        H_: FrameSigT<Item = u32>,
     {
         let Self {
             velocity_01,
@@ -543,7 +543,7 @@ where
         extend_octaves_low: L_,
     ) -> ArpConfig<V, H, L_, S>
     where
-        L_: FrameSigT<Item = u8>,
+        L_: FrameSigT<Item = u32>,
     {
         let Self {
             velocity_01,
@@ -587,12 +587,12 @@ where
     K: FrameSigT<Item = KeyEvents>,
     G: FrameSigT<Item = bool>,
     V: FrameSigT<Item = f32>,
-    H: FrameSigT<Item = u8>,
-    L: FrameSigT<Item = u8>,
+    H: FrameSigT<Item = u32>,
+    L: FrameSigT<Item = u32>,
     S: FrameSigT<Item = ArpShape>,
 {
     let mut state = ArpState::new();
-    let mut gate = FrameSigEdges::new(gate);
+    let mut gate = FrameSig(gate).edges();
     FrameSig::from_fn(move |ctx| {
         gate.frame_sample(ctx);
         let mut events = KeyEvents::empty();
