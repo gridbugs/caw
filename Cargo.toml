@@ -17,4 +17,5 @@ members = [
     "midi-live",
     "midi",
     "modules",
+    "patches",
 ]

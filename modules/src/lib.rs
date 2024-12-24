@@ -104,3 +104,5 @@ pub mod delay {
 
 pub mod compressor;
 pub use compressor::compressor;
+
+pub mod noise;

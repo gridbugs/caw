@@ -202,6 +202,41 @@ where
             }
         })
     }
+
+    pub fn gate_to_trig_rising_edge(
+        self,
+    ) -> FrameSig<impl FrameSigT<Item = bool>> {
+        let mut prev = false;
+        self.map(move |x| {
+            let ret = x && !prev;
+            prev = x;
+            ret
+        })
+    }
+
+    pub fn trig_to_gate<P>(
+        self,
+        period_s: P,
+    ) -> FrameSig<impl FrameSigT<Item = bool>>
+    where
+        P: FrameSigT<Item = f32>,
+    {
+        let mut remaining_s = 0.0;
+        self.zip(period_s).map_ctx(move |(x, period_s), ctx| {
+            if x {
+                remaining_s = period_s;
+            }
+            remaining_s -= 1.0 / ctx.sample_rate_hz;
+            remaining_s > 0.0
+        })
+    }
+
+    pub fn trig<T>(self, triggerable: T) -> Sig<impl SigT<Item = T::Item>>
+    where
+        T: Triggerable,
+    {
+        Sig(triggerable.into_sig(self))
+    }
 }
 
 pub struct FrameSigEdges<S>
@@ -507,4 +542,12 @@ where
     fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
         self.0.frame_sample(ctx)
     }
+}
+
+pub trait Triggerable {
+    type Item: Clone;
+
+    fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
+    where
+        T: FrameSigT<Item = bool>;
 }

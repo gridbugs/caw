@@ -695,3 +695,38 @@ where
         buf: Vec::new(),
     })
 }
+
+pub struct SigFn<F, T>
+where
+    F: FnMut(&SigCtx) -> T,
+    T: Clone + Default,
+{
+    f: F,
+    buf: Vec<T>,
+}
+
+impl<F, T> SigT for SigFn<F, T>
+where
+    F: FnMut(&SigCtx) -> T,
+    T: Clone + Default,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize_with(ctx.num_samples, Default::default);
+        for out in self.buf.iter_mut() {
+            *out = (self.f)(ctx);
+        }
+        &self.buf
+    }
+}
+
+impl<F, T> Sig<SigFn<F, T>>
+where
+    F: FnMut(&SigCtx) -> T,
+    T: Clone + Default,
+{
+    pub fn from_fn(f: F) -> Self {
+        Self(SigFn { f, buf: Vec::new() })
+    }
+}
