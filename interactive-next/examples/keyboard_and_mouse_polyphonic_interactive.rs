@@ -36,7 +36,6 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
         .sum::<Sig<_>>()
         .filter(reverb::default().room_size(0.9).damping(0.9))
         .filter(high_pass::default(1.))
-        * 0.25
 }
 
 fn main() -> anyhow::Result<()> {

@@ -19,13 +19,15 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
         .release_s(10.0)
         .build()
         .exp_01(1.);
-    let osc = super_saw(note.freq_hz()).build();
+    let osc =
+        super_saw(note.freq_hz().filter(low_pass::butterworth(5.))).build();
     osc.filter(
         low_pass::default(env * input.mouse.y_01() * 10000.)
             .resonance(input.mouse.x_01()),
     )
     .filter(reverb::default().room_size(0.9).damping(0.9))
     .filter(high_pass::default(1.))
+    .filter(compressor().threshold(0.1).scale(2.0).ratio(0.1))
 }
 
 fn main() -> anyhow::Result<()> {

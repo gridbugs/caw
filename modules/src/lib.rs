@@ -101,3 +101,6 @@ pub mod delay {
     pub use super::delay_periodic::delay_periodic_s as periodic_s;
     pub use super::delay_triggered::delay_triggered as triggered;
 }
+
+pub mod compressor;
+pub use compressor::compressor;
