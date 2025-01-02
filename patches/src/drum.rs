@@ -207,7 +207,7 @@ mod kick {
             period_s: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "N"]
-            #[default = 1.0]
+            #[default = 0.25]
             noise_amp: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "BC"]
@@ -235,7 +235,7 @@ mod kick {
             noise_filter_start_offset_cutoff_hz: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "C"]
-            #[default = 1.0]
+            #[default = 4.0]
             curve: f32,
         }
     }
@@ -371,15 +371,15 @@ mod snare {
             period_s: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "N"]
-            #[default = 1.0]
+            #[default = 0.75]
             noise_amp: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "PB"]
-            #[default = 20.]
+            #[default = 60.]
             pitch_base_hz: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "PS"]
-            #[default = 10.]
+            #[default = 3.]
             pitch_start_scale_octaves: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "NFB"]
@@ -395,7 +395,7 @@ mod snare {
             high_pass_filter_cutoff_hz: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "C"]
-            #[default = 1.0]
+            #[default = 4.0]
             curve: f32,
         }
     }
@@ -511,7 +511,7 @@ mod hat_closed {
             noise_filter_start_offset_cutoff_hz: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "C"]
-            #[default = 1.0]
+            #[default = 4.0]
             curve: f32,
         }
     }
