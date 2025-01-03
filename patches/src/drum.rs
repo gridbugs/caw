@@ -5,27 +5,30 @@ use caw_modules::*;
 
 // A sweep which ends at `pitch_base` hz and starts `pitch_start_scale_octaves` number of octaves higher
 // than `pitch_base`. The sweep is linear in frequency over a pediod of `
-struct PitchSweep<H, P, B, S, C>
+struct PitchSweep<H, P, B, S, PH, C>
 where
     H: SigT<Item = f32>,
     P: SigT<Item = f32>,
     B: SigT<Item = f32>,
     S: SigT<Item = f32>,
     C: SigT<Item = f32>,
+    PH: SigT<Item = f32>,
 {
     hold_s: H,
     period_s: P,
     pitch_start_scale_octaves: B,
     pitch_base_hz: S,
+    phase_offset_01: PH,
     curve: C,
 }
 
-impl<H, P, B, S, C> Triggerable for PitchSweep<H, P, B, S, C>
+impl<H, P, B, S, PH, C> Triggerable for PitchSweep<H, P, B, S, PH, C>
 where
     H: SigT<Item = f32>,
     P: SigT<Item = f32>,
     B: SigT<Item = f32>,
     S: SigT<Item = f32>,
+    PH: SigT<Item = f32>,
     C: SigT<Item = f32>,
 {
     type Item = f32;
@@ -44,7 +47,9 @@ where
             .exp_01(self.curve);
         let freq_hz = Sig(self.pitch_base_hz)
             * (1. + (Sig(self.pitch_start_scale_octaves) * freq_hz_env));
-        oscillator(Sine, freq_hz).build()
+        oscillator(Sine, freq_hz)
+            .reset_offset_01(self.phase_offset_01)
+            .build()
     }
 }
 
@@ -133,7 +138,7 @@ mod kick {
 
     use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
 
-    struct Props<P, N, BC, BA, PB, PS, NFB, NFS, C>
+    struct Props<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>
     where
         P: SigT<Item = f32>,
         N: SigT<Item = f32>,
@@ -143,6 +148,7 @@ mod kick {
         PS: SigT<Item = f32>,
         NFB: SigT<Item = f32>,
         NFS: SigT<Item = f32>,
+        PH: SigT<Item = f32>,
         C: SigT<Item = f32>,
     {
         period_s: P,
@@ -153,10 +159,12 @@ mod kick {
         pitch_start_scale_octaves: PS,
         noise_filter_base_cutoff_hz: NFB,
         noise_filter_start_offset_cutoff_hz: NFS,
+        phase_offset_01: PH,
         curve: C,
     }
 
-    impl<P, N, BC, BA, PB, PS, NFB, NFS, C> Props<P, N, BC, BA, PB, PS, NFB, NFS, C>
+    impl<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>
+        Props<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>
     where
         P: SigT<Item = f32>,
         N: SigT<Item = f32>,
@@ -166,6 +174,7 @@ mod kick {
         PS: SigT<Item = f32>,
         NFB: SigT<Item = f32>,
         NFS: SigT<Item = f32>,
+        PH: SigT<Item = f32>,
         C: SigT<Item = f32>,
     {
         #[allow(clippy::too_many_arguments)]
@@ -178,6 +187,7 @@ mod kick {
             pitch_start_scale_octaves: PS,
             noise_filter_base_cutoff_hz: NFB,
             noise_filter_start_offset_cutoff_hz: NFS,
+            phase_offset_01: PH,
             curve: C,
         ) -> Self {
             Self {
@@ -189,6 +199,7 @@ mod kick {
                 pitch_start_scale_octaves,
                 noise_filter_base_cutoff_hz,
                 noise_filter_start_offset_cutoff_hz,
+                phase_offset_01,
                 curve,
             }
         }
@@ -198,7 +209,7 @@ mod kick {
         #[constructor = "kick"]
         #[constructor_doc = "Kick drum"]
         #[build_fn = "Props::new"]
-        #[build_ty = "Props<P, N, BC, BA, PB, PS, NFB, NFS, C>"]
+        #[build_ty = "Props<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>"]
         #[generic_setter_type_name = "X"]
         pub struct PropsBuilder {
             #[generic_with_constraint = "SigT<Item = f32>"]
@@ -234,14 +245,18 @@ mod kick {
             #[default = 15_000.]
             noise_filter_start_offset_cutoff_hz: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
+            #[generic_name = "PH"]
+            #[default = 0.]
+            phase_offset_01: f32,
+            #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "C"]
             #[default = 4.0]
             curve: f32,
         }
     }
 
-    impl<P, N, BC, BA, PB, PS, NFB, NFS, C> Triggerable
-        for PropsBuilder<P, N, BC, BA, PB, PS, NFB, NFS, C>
+    impl<P, N, BC, BA, PB, PS, NFB, NFS, PH, C> Triggerable
+        for PropsBuilder<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>
     where
         P: SigT<Item = f32>,
         N: SigT<Item = f32>,
@@ -251,6 +266,7 @@ mod kick {
         PS: SigT<Item = f32>,
         NFB: SigT<Item = f32>,
         NFS: SigT<Item = f32>,
+        PH: SigT<Item = f32>,
         C: SigT<Item = f32>,
     {
         type Item = f32;
@@ -269,6 +285,7 @@ mod kick {
                 pitch_base_hz: props.pitch_base_hz,
                 pitch_start_scale_octaves: props.pitch_start_scale_octaves,
                 curve: curve.clone(),
+                phase_offset_01: props.phase_offset_01,
             });
             let noise = trig.clone().trig(NoiseFilterSweep {
                 release_s: period_s.clone(),
@@ -302,7 +319,7 @@ mod snare {
 
     use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
 
-    struct Props<P, N, PB, PS, NFB, NFS, HC, C>
+    struct Props<P, N, PB, PS, NFB, NFS, HC, PH, C>
     where
         P: SigT<Item = f32>,
         N: SigT<Item = f32>,
@@ -311,6 +328,7 @@ mod snare {
         NFB: SigT<Item = f32>,
         NFS: SigT<Item = f32>,
         HC: SigT<Item = f32>,
+        PH: SigT<Item = f32>,
         C: SigT<Item = f32>,
     {
         period_s: P,
@@ -320,10 +338,11 @@ mod snare {
         noise_filter_base_cutoff_hz: NFB,
         noise_filter_start_offset_cutoff_hz: NFS,
         high_pass_filter_cutoff_hz: HC,
+        phase_offset_01: PH,
         curve: C,
     }
 
-    impl<P, N, PB, PS, NFB, NFS, HC, C> Props<P, N, PB, PS, NFB, NFS, HC, C>
+    impl<P, N, PB, PS, NFB, NFS, HC, PH, C> Props<P, N, PB, PS, NFB, NFS, HC, PH, C>
     where
         P: SigT<Item = f32>,
         N: SigT<Item = f32>,
@@ -332,6 +351,7 @@ mod snare {
         NFB: SigT<Item = f32>,
         NFS: SigT<Item = f32>,
         HC: SigT<Item = f32>,
+        PH: SigT<Item = f32>,
         C: SigT<Item = f32>,
     {
         #[allow(clippy::too_many_arguments)]
@@ -343,6 +363,7 @@ mod snare {
             noise_filter_base_cutoff_hz: NFB,
             noise_filter_start_offset_cutoff_hz: NFS,
             high_pass_filter_cutoff_hz: HC,
+            phase_offset_01: PH,
             curve: C,
         ) -> Self {
             Self {
@@ -353,6 +374,7 @@ mod snare {
                 noise_filter_base_cutoff_hz,
                 noise_filter_start_offset_cutoff_hz,
                 high_pass_filter_cutoff_hz,
+                phase_offset_01,
                 curve,
             }
         }
@@ -362,7 +384,7 @@ mod snare {
         #[constructor = "snare"]
         #[constructor_doc = "Snare drum"]
         #[build_fn = "Props::new"]
-        #[build_ty = "Props<P, N, PB, PS, NFB, NFS, HC, C>"]
+        #[build_ty = "Props<P, N, PB, PS, NFB, NFS, HC, PH, C>"]
         #[generic_setter_type_name = "X"]
         pub struct PropsBuilder {
             #[generic_with_constraint = "SigT<Item = f32>"]
@@ -394,14 +416,18 @@ mod snare {
             #[default = 200.0]
             high_pass_filter_cutoff_hz: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
+            #[generic_name = "PH"]
+            #[default = 0.]
+            phase_offset_01: f32,
+            #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "C"]
             #[default = 4.0]
             curve: f32,
         }
     }
 
-    impl<P, N, PB, PS, NFB, NFS, HC, C> Triggerable
-        for PropsBuilder<P, N, PB, PS, NFB, NFS, HC, C>
+    impl<P, N, PB, PS, NFB, NFS, HC, PH, C> Triggerable
+        for PropsBuilder<P, N, PB, PS, NFB, NFS, HC, PH, C>
     where
         P: SigT<Item = f32>,
         N: SigT<Item = f32>,
@@ -410,6 +436,7 @@ mod snare {
         NFB: SigT<Item = f32>,
         NFS: SigT<Item = f32>,
         HC: SigT<Item = f32>,
+        PH: SigT<Item = f32>,
         C: SigT<Item = f32>,
     {
         type Item = f32;
@@ -428,6 +455,7 @@ mod snare {
                 pitch_base_hz: props.pitch_base_hz,
                 pitch_start_scale_octaves: props.pitch_start_scale_octaves,
                 curve: curve.clone(),
+                phase_offset_01: props.phase_offset_01,
             });
             let noise = trig.clone().trig(NoiseFilterSweep {
                 release_s: period_s.clone(),

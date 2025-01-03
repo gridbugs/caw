@@ -19,6 +19,7 @@ caw_midi_live = { version = "0.1", path = "../midi-live" }
 caw_midi_file = { version = "0.1", path = "../midi-file" }
 caw_modules = { version = "0.1", path = "../modules" }
 caw_patches = { version = "0.1", path = "../patches" }
+caw_utils = { version = "0.1", path = "../utils" }
 caw_audio_file = { version = "0.1", path = "../audio-file" }
 env_logger = "0.11"
 rand = "0.8"
@@ -69,3 +70,6 @@ name = "chord_builder_arp_interactive"
 
 [[example]]
 name = "drums"
+
+[[example]]
+name = "drums_loop"
