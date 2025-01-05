@@ -102,10 +102,10 @@ pub mod delay {
     pub use super::delay_triggered::delay_triggered as triggered;
 }
 
-pub mod chorus;
-pub use chorus::{chorus, ChorusLfoOffset};
-
 pub mod compressor;
 pub use compressor::compressor;
 
 pub mod noise;
+
+pub mod chorus;
+pub use chorus::{chorus, ChorusLfoOffset};

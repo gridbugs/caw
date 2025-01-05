@@ -43,11 +43,14 @@ fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32>> {
         .sum::<Sig<_>>()
         .filter(
             chorus()
-                .num_voices(12)
-                .mix_01(input.mouse.x_01())
-                .feedback_ratio(input.mouse.y_01()),
+                .num_voices(3)
+                .lfo_rate_hz(0.5)
+                .delay_s(input.mouse.x_01() * 0.01)
+                .depth_s(input.mouse.y_01() * 0.01)
+                .mix_01(0.5)
+                .feedback_ratio(0.5),
         )
-        .filter(reverb::default().room_size(0.9).damping(0.5))
+        .filter(reverb::default().room_size(0.5).damping(0.5))
         .filter(high_pass::default(1.))
 }
 
