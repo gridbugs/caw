@@ -76,7 +76,7 @@ where
     type Out<S>
         = DelayPeriodic<S, P, M, F>
     where
-        S: SigT<Item = f32>;
+        S: SigT<Item = Self::ItemIn>;
 
     fn into_sig<S>(self, sig: S) -> Self::Out<S>
     where

@@ -1,6 +1,6 @@
 use crate::{Buf, SigCtx, SigT};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
     Left,
     Right,
@@ -14,6 +14,14 @@ impl Channel {
             Self::Left => 0.0,
             Self::Right => 0.25,
         }
+    }
+
+    pub fn is_left(&self) -> bool {
+        *self == Self::Left
+    }
+
+    pub fn is_right(&self) -> bool {
+        *self == Self::Right
     }
 }
 

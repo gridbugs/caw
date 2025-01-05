@@ -4,12 +4,13 @@ use caw_core_next::{Buf, Sig, SigCtx, SigT};
 pub mod waveform {
     use std::f32::consts::PI;
 
-    pub trait Waveform {
+    pub trait Waveform: Copy {
         fn sample(&self, state_01: f32, pulse_width_01: f32) -> f32;
 
         const PULSE: bool = false;
     }
 
+    #[derive(Clone, Copy)]
     pub struct Sine;
     impl Waveform for Sine {
         fn sample(&self, state_01: f32, _pulse_width_01: f32) -> f32 {
@@ -17,6 +18,7 @@ pub mod waveform {
         }
     }
 
+    #[derive(Clone, Copy)]
     pub struct Triangle;
     impl Waveform for Triangle {
         fn sample(&self, state_01: f32, _pulse_width_01: f32) -> f32 {
@@ -24,6 +26,7 @@ pub mod waveform {
         }
     }
 
+    #[derive(Clone, Copy)]
     pub struct Saw;
     impl Waveform for Saw {
         fn sample(&self, state_01: f32, _pulse_width_01: f32) -> f32 {
@@ -31,6 +34,7 @@ pub mod waveform {
         }
     }
 
+    #[derive(Clone, Copy)]
     pub struct Pulse;
     impl Waveform for Pulse {
         fn sample(&self, state_01: f32, pulse_width_01: f32) -> f32 {
