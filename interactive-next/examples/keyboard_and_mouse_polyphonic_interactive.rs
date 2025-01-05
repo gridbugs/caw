@@ -47,6 +47,7 @@ fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32>> {
                 .lfo_rate_hz(0.5)
                 .delay_s(input.mouse.x_01() * 0.01)
                 .depth_s(input.mouse.y_01() * 0.01)
+                .lfo_offset(ChorusLfoOffset::Interleave(ch))
                 .mix_01(0.5)
                 .feedback_ratio(0.5),
         )
