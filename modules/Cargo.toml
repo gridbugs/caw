@@ -9,3 +9,4 @@ caw_builder_proc_macros = { path = "../builder-proc-macros" }
 itertools = "0.13"
 wide = "0.7"
 rand = "0.8"
+log = "0.4"

@@ -13,8 +13,11 @@ fn chorus(
         .reset_offset_01(channel.circle_phase_offset_01())
         .build();
     let delay_s = 0.001 + ((lfo + 1.0) * 0.001);
-    sig.clone()
-        .filter(delay_periodic_s(delay_s).feedback_ratio(0.5))
+    sig.clone().filter(
+        delay_periodic_s(delay_s)
+            .feedback_ratio(0.5)
+            .mix_01(input.mouse.x_01()),
+    )
 }
 
 fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32>> {
@@ -53,16 +56,13 @@ fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32>> {
                         .detune_ratio(0.008)
                         .build();
                     osc.filter(
-                        low_pass::default(
-                            filter_env * 20000. * input.mouse.y_01(),
-                        )
-                        .resonance(0.),
+                        low_pass::default(filter_env * 15_000.).resonance(0.),
                     ) * amp_env
                 },
             )
             .sum::<Sig<_>>(),
     )
-    .filter(reverb::default().room_size(0.5).damping(0.5))
+    .filter(reverb::default().room_size(0.9).damping(0.5))
     .filter(high_pass::default(1.))
 }
 
