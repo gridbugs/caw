@@ -6,6 +6,17 @@ pub enum Channel {
     Right,
 }
 
+impl Channel {
+    // Apply a 90 degree offset to the right channel so a stereo sine wave would draw a circle with
+    // stereo oscillographics.
+    pub fn circle_phase_offset_01(&self) -> f32 {
+        match self {
+            Self::Left => 0.0,
+            Self::Right => 0.25,
+        }
+    }
+}
+
 #[derive(Debug, Clone, Copy, Default)]
 pub struct Stereo<L, R> {
     pub left: L,

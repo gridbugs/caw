@@ -7,7 +7,7 @@ use wide::f32x8;
 #[derive(Debug, Clone, Copy)]
 pub enum SuperSawInit {
     Random,
-    Zero,
+    Const(f32),
 }
 
 pub struct SuperSaw<F, D>
@@ -109,7 +109,12 @@ where
             offset_per_f32x8.push((num_oscillators % 8) as f32 / 2.0);
         }
         match init {
-            SuperSawInit::Zero => (),
+            SuperSawInit::Const(c) => {
+                for (x, mask) in state_01.iter_mut().zip(mask.iter()) {
+                    *x = f32x8::splat(c);
+                    *x *= mask;
+                }
+            }
             SuperSawInit::Random => {
                 let mut rng = StdRng::from_entropy();
                 for (x, mask) in state_01.iter_mut().zip(mask.iter()) {

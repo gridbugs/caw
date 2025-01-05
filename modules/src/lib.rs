@@ -13,7 +13,7 @@ pub mod envelope_follower;
 pub use envelope_follower::envelope_follower;
 
 pub mod super_saw;
-pub use super_saw::super_saw;
+pub use super_saw::{super_saw, SuperSawInit};
 
 pub mod sample_and_hold;
 pub use sample_and_hold::sample_and_hold;

@@ -7,7 +7,11 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
     (input.key(Key::C).trig(drum::kick())
         + input.key(Key::X).trig(drum::snare())
         + input.key(Key::Z).trig(drum::hat_closed()))
-    .filter(reverb::default().room_size(0.05).damping(0.99))
+    .filter(
+        reverb::default()
+            .room_size(input.mouse.x_01())
+            .damping(input.mouse.y_01()),
+    )
     .filter(high_pass::default(1.))
 }
 
