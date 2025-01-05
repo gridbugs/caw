@@ -118,7 +118,7 @@ builder! {
     #[build_fn = "AdsrLinear01::new"]
     #[build_ty = "Sig<AdsrLinear01<KD, KP, A, D, S, R>>"]
     #[generic_setter_type_name = "X"]
-    pub struct AdsrLinear01Builder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = bool>"]
         #[generic_name = "KD"]
         key_down_gate: _,

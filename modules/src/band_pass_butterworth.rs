@@ -3,41 +3,11 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<L, U>
-where
-    L: SigT<Item = f32>,
-    U: SigT<Item = f32>,
-{
-    lower_cutoff_hz: L,
-    upper_cutoff_hz: U,
-    filter_order_half: usize,
-}
-
-impl<L, U> Props<L, U>
-where
-    L: SigT<Item = f32>,
-    U: SigT<Item = f32>,
-{
-    fn new(
-        lower_cutoff_hz: L,
-        upper_cutoff_hz: U,
-        filter_order_half: usize,
-    ) -> Self {
-        Self {
-            lower_cutoff_hz,
-            upper_cutoff_hz,
-            filter_order_half,
-        }
-    }
-}
-
 builder! {
     #[constructor = "band_pass_butterworth"]
     #[constructor_doc = "A basic band pass filter"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<L, U>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "L"]
         lower_cutoff_hz: _,
@@ -49,14 +19,15 @@ builder! {
     }
 }
 
-impl<L, U> Filter for PropsBuilder<L, U>
+impl<L, U> Filter for Props<L, U>
 where
     L: SigT<Item = f32>,
     U: SigT<Item = f32>,
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassButterworth<S, L, U>
+    type Out<S>
+        = BandPassButterworth<S, L, U>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -64,10 +35,9 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         BandPassButterworth {
-            state: butterworth::State::new(props.filter_order_half),
-            props,
+            state: butterworth::State::new(self.filter_order_half),
+            props: self,
             sig,
             buf: Vec::new(),
         }
@@ -174,7 +144,8 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassButterworthCentered<S, C, W, M>
+    type Out<S>
+        = BandPassButterworthCentered<S, C, W, M>
     where
         S: SigT<Item = Self::ItemIn>;
 

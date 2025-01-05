@@ -3,50 +3,22 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<R, D, M>
-where
-    R: SigT<Item = f32>,
-    D: SigT<Item = f32>,
-    M: SigT<Item = f32>,
-{
-    // controls reverb delay
-    room_size: R,
-    // removes high end of reverb to simulate a "softer room"
-    damping: D,
-    // 0 is dry signal, 1 is all reverb
-    mix_01: M,
-}
-
-impl<R, D, M> Props<R, D, M>
-where
-    R: SigT<Item = f32>,
-    D: SigT<Item = f32>,
-    M: SigT<Item = f32>,
-{
-    fn new(room_size: R, damping: D, mix_01: M) -> Self {
-        Self {
-            room_size,
-            damping,
-            mix_01,
-        }
-    }
-}
-
 builder! {
     #[constructor = "reverb_freeverb"]
     #[constructor_doc = "Reverb module with adjustable room size and damping"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<R, D, M>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
+        // controls reverb delay
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "R"]
         #[default = freeverb::INITIAL_ROOM_SIZE as f32]
         room_size: f32,
+        // removes high end of reverb to simulate a "softer room"
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "D"]
         #[default = freeverb::INITIAL_DAMPING as f32]
         damping: f32,
+        // 0 is dry signal, 1 is all reverb
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "M"]
         #[default = 0.5]
@@ -69,7 +41,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<R, D, M> Filter for PropsBuilder<R, D, M>
+impl<R, D, M> Filter for Props<R, D, M>
 where
     R: SigT<Item = f32>,
     D: SigT<Item = f32>,
@@ -86,9 +58,8 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         ReverbFreeverb {
-            props,
+            props: self,
             sig,
             state: freeverb::ReverbModel::new(),
             room_size_prev: freeverb::INITIAL_ROOM_SIZE as f32,

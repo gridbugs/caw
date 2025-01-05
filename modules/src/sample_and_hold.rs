@@ -2,35 +2,11 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<T, V>
-where
-    T: SigT<Item = bool>,
-    V: Default,
-{
-    trigger: T,
-    initial_value: V,
-}
-
-impl<T, V> Props<T, V>
-where
-    T: SigT<Item = bool>,
-    V: Default,
-{
-    fn new(trigger: T, initial_value: V) -> Self {
-        Self {
-            trigger,
-            initial_value,
-        }
-    }
-}
-
 builder! {
     #[constructor = "sample_and_hold"]
     #[constructor_doc = "Always yields the value of its input signal when the trigger was last true"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<T, V>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = bool>"]
         #[generic_name = "T"]
         trigger: _,
@@ -41,14 +17,15 @@ builder! {
     }
 }
 
-impl<T, V> Filter for PropsBuilder<T, V>
+impl<T, V> Filter for Props<T, V>
 where
     T: SigT<Item = bool>,
     V: Default + Clone,
 {
     type ItemIn = V;
 
-    type Out<S> = SampleAndHold<S, T>
+    type Out<S>
+        = SampleAndHold<S, T>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -59,7 +36,7 @@ where
         let Props {
             trigger,
             initial_value,
-        } = self.build();
+        } = self;
         SampleAndHold {
             trigger,
             sig,

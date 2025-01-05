@@ -7,35 +7,11 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<C, R>
-where
-    C: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-{
-    cutoff_hz: C,
-    resonance: R,
-}
-
-impl<C, R> Props<C, R>
-where
-    C: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-{
-    fn new(cutoff_hz: C, resonance: R) -> Self {
-        Self {
-            cutoff_hz,
-            resonance,
-        }
-    }
-}
-
 builder! {
     #[constructor = "low_pass_moog_ladder_oberheim"]
     #[constructor_doc = "A low pass filter with adjustable resonance based on the Oberheim model of the Moog Ladder"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<C, R>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilderOberheim {
+    pub struct PropsOberheim {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "C"]
         cutoff_hz: _,
@@ -49,10 +25,8 @@ builder! {
 builder! {
     #[constructor = "low_pass_moog_ladder_huovilainen"]
     #[constructor_doc = "A low pass filter with adjustable resonance based on the Huovilainen model of the Moog Ladder. Compared to the Oberheim model it is more accurate but more expensive."]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<C, R>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilderHuovilainen {
+    pub struct PropsHuovilainen {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "C"]
         cutoff_hz: _,
@@ -63,7 +37,7 @@ builder! {
     }
 }
 
-impl<C, R> Filter for PropsBuilderOberheim<C, R>
+impl<C, R> Filter for PropsOberheim<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
@@ -79,9 +53,9 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         LowPassMoogLadder {
-            props,
+            cutoff_hz: self.cutoff_hz,
+            resonance: self.resonance,
             sig,
             state: OberheimState::new(),
             buf: Vec::new(),
@@ -89,7 +63,7 @@ where
     }
 }
 
-impl<C, R> Filter for PropsBuilderHuovilainen<C, R>
+impl<C, R> Filter for PropsHuovilainen<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
@@ -105,9 +79,9 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         LowPassMoogLadder {
-            props,
+            cutoff_hz: self.cutoff_hz,
+            resonance: self.resonance,
             sig,
             state: HuovilainenState::new(),
             buf: Vec::new(),
@@ -122,7 +96,8 @@ where
     R: SigT<Item = f32>,
     M: MoogLadderState,
 {
-    props: Props<C, R>,
+    cutoff_hz: C,
+    resonance: R,
     sig: S,
     state: M,
     buf: Vec<f32>,
@@ -142,8 +117,8 @@ where
         for (out, sample, cutoff_hz, resonance) in izip! {
             self.buf.iter_mut(),
             self.sig.sample(ctx).iter(),
-            self.props.cutoff_hz.sample(ctx).iter(),
-            self.props.resonance.sample(ctx).iter(),
+            self.cutoff_hz.sample(ctx).iter(),
+            self.resonance.sample(ctx).iter(),
         } {
             self.state.update_params(
                 ctx.sample_rate_hz as f64,

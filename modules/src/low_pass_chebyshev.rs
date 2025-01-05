@@ -3,37 +3,11 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<C, R>
-where
-    C: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-{
-    cutoff_hz: C,
-    resonance: R,
-    filter_order_half: usize,
-}
-
-impl<C, R> Props<C, R>
-where
-    C: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-{
-    fn new(cutoff_hz: C, resonance: R, filter_order_half: usize) -> Self {
-        Self {
-            cutoff_hz,
-            resonance,
-            filter_order_half,
-        }
-    }
-}
-
 builder! {
     #[constructor = "low_pass_chebyshev"]
     #[constructor_doc = "A low pass filter with adjustable resonance"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<C, R>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "C"]
         cutoff_hz: _,
@@ -46,14 +20,15 @@ builder! {
     }
 }
 
-impl<C, R> Filter for PropsBuilder<C, R>
+impl<C, R> Filter for Props<C, R>
 where
     C: SigT<Item = f32>,
     R: SigT<Item = f32>,
 {
     type ItemIn = f32;
 
-    type Out<S> = LowPassChebyshev<S, C, R>
+    type Out<S>
+        = LowPassChebyshev<S, C, R>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -61,10 +36,9 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         LowPassChebyshev {
-            state: chebyshev::State::new(props.filter_order_half),
-            props,
+            state: chebyshev::State::new(self.filter_order_half),
+            props: self,
             sig,
             buf: Vec::new(),
         }

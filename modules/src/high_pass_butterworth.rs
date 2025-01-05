@@ -3,33 +3,11 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<C>
-where
-    C: SigT<Item = f32>,
-{
-    cutoff_hz: C,
-    filter_order_half: usize,
-}
-
-impl<C> Props<C>
-where
-    C: SigT<Item = f32>,
-{
-    fn new(cutoff_hz: C, filter_order_half: usize) -> Self {
-        Self {
-            cutoff_hz,
-            filter_order_half,
-        }
-    }
-}
-
 builder! {
     #[constructor = "high_pass_butterworth"]
     #[constructor_doc = "A basic high pass filter"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<C>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "C"]
         cutoff_hz: _,
@@ -38,13 +16,14 @@ builder! {
     }
 }
 
-impl<C> Filter for PropsBuilder<C>
+impl<C> Filter for Props<C>
 where
     C: SigT<Item = f32>,
 {
     type ItemIn = f32;
 
-    type Out<S> = HighPassButterworth<S, C>
+    type Out<S>
+        = HighPassButterworth<S, C>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -52,10 +31,9 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         HighPassButterworth {
-            state: butterworth::State::new(props.filter_order_half),
-            props,
+            state: butterworth::State::new(self.filter_order_half),
+            props: self,
             sig,
             buf: Vec::new(),
         }

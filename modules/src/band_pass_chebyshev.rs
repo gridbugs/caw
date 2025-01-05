@@ -3,46 +3,11 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<L, U, R>
-where
-    L: SigT<Item = f32>,
-    U: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-{
-    lower_cutoff_hz: L,
-    upper_cutoff_hz: U,
-    resonance: R,
-    filter_order_half: usize,
-}
-
-impl<L, U, R> Props<L, U, R>
-where
-    L: SigT<Item = f32>,
-    U: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-{
-    fn new(
-        lower_cutoff_hz: L,
-        upper_cutoff_hz: U,
-        resonance: R,
-        filter_order_half: usize,
-    ) -> Self {
-        Self {
-            lower_cutoff_hz,
-            upper_cutoff_hz,
-            resonance,
-            filter_order_half,
-        }
-    }
-}
-
 builder! {
     #[constructor = "band_pass_chebyshev"]
     #[constructor_doc = "A band pass filter with adjustable resonance"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<L, U, R>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "L"]
         lower_cutoff_hz: _,
@@ -58,7 +23,7 @@ builder! {
     }
 }
 
-impl<L, U, R> Filter for PropsBuilder<L, U, R>
+impl<L, U, R> Filter for Props<L, U, R>
 where
     L: SigT<Item = f32>,
     U: SigT<Item = f32>,
@@ -66,7 +31,8 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassChebyshev<S, L, U, R>
+    type Out<S>
+        = BandPassChebyshev<S, L, U, R>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -74,10 +40,9 @@ where
     where
         S: SigT<Item = Self::ItemIn>,
     {
-        let props = self.build();
         BandPassChebyshev {
-            state: chebyshev::State::new(props.filter_order_half),
-            props,
+            state: chebyshev::State::new(self.filter_order_half),
+            props: self,
             sig,
             buf: Vec::new(),
         }
@@ -198,7 +163,8 @@ where
 {
     type ItemIn = f32;
 
-    type Out<S> = BandPassChebyshevCentered<S, C, W, M, R>
+    type Out<S>
+        = BandPassChebyshevCentered<S, C, W, M, R>
     where
         S: SigT<Item = Self::ItemIn>;
 

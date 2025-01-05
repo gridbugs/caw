@@ -3,48 +3,20 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<P, M, F>
-where
-    P: SigT<Item = f32>,
-    M: SigT<Item = f32>,
-    F: SigT<Item = f32>,
-{
-    period_s: P,
-    // 0 is dry signal, 1 is all delay
-    mix_01: M,
-    // ratio of output fed back into the input
-    feedback_ratio: F,
-}
-
-impl<P, M, F> Props<P, M, F>
-where
-    P: SigT<Item = f32>,
-    M: SigT<Item = f32>,
-    F: SigT<Item = f32>,
-{
-    fn new(period_s: P, mix_01: M, feedback_ratio: F) -> Self {
-        Self {
-            period_s,
-            mix_01,
-            feedback_ratio,
-        }
-    }
-}
-
 builder! {
     #[constructor = "delay_periodic_s"]
     #[constructor_doc = "Delay module where the delay is a configurable period"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<P, M, F>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "P"]
         period_s: _,
+        // 0 is dry signal, 1 is all delay
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "M"]
         #[default = 0.5]
         mix_01: f32,
+        // ratio of output fed back into the input
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "F"]
         #[default = 0.5]
@@ -65,7 +37,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<P, M, F> Filter for PropsBuilder<P, M, F>
+impl<P, M, F> Filter for Props<P, M, F>
 where
     P: SigT<Item = f32>,
     M: SigT<Item = f32>,
@@ -82,9 +54,8 @@ where
     where
         S: SigT<Item = f32>,
     {
-        let props = self.build();
         DelayPeriodic {
-            props,
+            props: self,
             sig,
             ring: LinearlyInterpolatingRingBuffer::new(44100),
             buf: Vec::new(),

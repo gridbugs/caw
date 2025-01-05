@@ -2,41 +2,12 @@ use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
-pub struct Props<T, R, S>
-where
-    T: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-    S: SigT<Item = f32>,
-{
-    // If the input signal exceeds the threshold then the excess will be multiplied by the ratio.
-    threshold: T,
-    ratio: R,
-    // Pre-amplify the input by this amount.
-    scale: S,
-}
-
-impl<T, R, S> Props<T, R, S>
-where
-    T: SigT<Item = f32>,
-    R: SigT<Item = f32>,
-    S: SigT<Item = f32>,
-{
-    fn new(threshold: T, ratio: R, scale: S) -> Self {
-        Self {
-            threshold,
-            ratio,
-            scale,
-        }
-    }
-}
-
 builder! {
     #[constructor = "compressor"]
     #[constructor_doc = "Soft clamps a signal within a configurable threshold"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<T, R, S>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
+        // If the input signal exceeds the threshold then the excess will be multiplied by the ratio.
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "T"]
         #[default = 1.0]
@@ -45,6 +16,7 @@ builder! {
         #[generic_name = "R"]
         #[default = 0.0]
         ratio: f32,
+        // Pre-amplify the input by this amount.
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "S"]
         #[default = 1.0]
@@ -52,7 +24,7 @@ builder! {
     }
 }
 
-impl<T, R, S> Filter for PropsBuilder<T, R, S>
+impl<T, R, S> Filter for Props<T, R, S>
 where
     T: SigT<Item = f32>,
     R: SigT<Item = f32>,
@@ -70,7 +42,7 @@ where
         I: SigT<Item = Self::ItemIn>,
     {
         Compressor {
-            props: self.build(),
+            props: self,
             sig,
             buf: Vec::new(),
         }

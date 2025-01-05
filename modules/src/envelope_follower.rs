@@ -2,31 +2,13 @@ use crate::low_pass_butterworth::{self, LowPassButterworth};
 use caw_builder_proc_macros::builder;
 use caw_core_next::{Buf, Filter, Sig, SigAbs, SigCtx, SigT};
 
-pub struct Props<S>
-where
-    S: SigT<Item = f32>,
-{
-    sensitivity_hz: S,
-}
-
-impl<S> Props<S>
-where
-    S: SigT<Item = f32>,
-{
-    fn new(sensitivity_hz: S) -> Self {
-        Self { sensitivity_hz }
-    }
-}
-
 pub const DEFAULT_SENSITIVITY_HZ: f32 = 60.0;
 
 builder! {
     #[constructor = "envelope_follower"]
     #[constructor_doc = "Approximates the loudness of its input signal"]
-    #[build_fn = "Props::new"]
-    #[build_ty = "Props<S>"]
     #[generic_setter_type_name = "X"]
-    pub struct PropsBuilder {
+    pub struct Props {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "S"]
         #[default = DEFAULT_SENSITIVITY_HZ]
@@ -34,7 +16,7 @@ builder! {
     }
 }
 
-impl<S> Filter for PropsBuilder<S>
+impl<S> Filter for Props<S>
 where
     S: SigT<Item = f32>,
 {
@@ -49,9 +31,8 @@ where
     where
         I: SigT<Item = Self::ItemIn>,
     {
-        let Props { sensitivity_hz } = self.build();
         let low_pass_filter =
-            low_pass_butterworth::low_pass_butterworth(sensitivity_hz)
+            low_pass_butterworth::low_pass_butterworth(self.sensitivity_hz)
                 .into_sig(Sig(sig).abs().0);
         EnvelopeFollower { low_pass_filter }
     }
