@@ -1,0 +1,11 @@
+[package]
+name = "caw_midi_serial"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+anyhow = "1.0"
+caw_core_next = { path = "../core-next" }
+caw_midi = { path = "../midi" }
+midly = "0.5"
+nix = { version = "0.29", features = ["fs", "term"] }

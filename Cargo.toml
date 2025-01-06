@@ -15,6 +15,7 @@ members = [
     "keyboard",
     "midi-file",
     "midi-live",
+    "midi-serial",
     "midi",
     "modules",
     "patches",
