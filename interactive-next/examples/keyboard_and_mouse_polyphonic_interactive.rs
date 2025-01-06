@@ -61,7 +61,7 @@ fn main() -> anyhow::Result<()> {
         .sane_default()
         .visualization(Visualization::StereoOscillographics)
         .line_width(2)
-        .scale(0.5)
+        .scale(0.7)
         .stride(2)
         .build();
     let input = window.input();

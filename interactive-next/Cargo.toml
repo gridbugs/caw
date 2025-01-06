@@ -51,6 +51,9 @@ name = "keyboard_and_mouse_polyphonic_interactive"
 name = "midi_live_interactive"
 
 [[example]]
+name = "midi_live_interactive_chorus"
+
+[[example]]
 name = "midi_file_interactive"
 
 [[example]]
