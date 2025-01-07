@@ -17,6 +17,7 @@ caw_keyboard = { version = "0.1", path = "../keyboard" }
 caw_midi = { version = "0.1", path = "../midi" }
 caw_midi_live = { version = "0.1", path = "../midi-live" }
 caw_midi_file = { version = "0.1", path = "../midi-file" }
+caw_midi_serial = { version = "0.1", path = "../midi-serial" }
 caw_modules = { version = "0.1", path = "../modules" }
 caw_patches = { version = "0.1", path = "../patches" }
 caw_utils = { version = "0.1", path = "../utils" }
@@ -52,6 +53,9 @@ name = "midi_live_interactive"
 
 [[example]]
 name = "midi_live_interactive_chorus"
+
+[[example]]
+name = "midi_live_interactive_serial"
 
 [[example]]
 name = "midi_file_interactive"
