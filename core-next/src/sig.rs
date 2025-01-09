@@ -1,5 +1,7 @@
 use std::{cell::RefCell, fmt::Debug, iter, marker::PhantomData, rc::Rc};
 
+use crate::arith::signed_to_01;
+
 #[derive(Clone, Copy)]
 pub struct SigCtx {
     pub sample_rate_hz: f32,
@@ -388,8 +390,8 @@ where
         1.0 - self
     }
 
-    pub fn signed_to_01(self) -> Sig<impl SigT<Item = f32>> {
-        self.map(crate::arith::signed_to_01)
+    pub fn signed_to_01(self) -> Sig<SignedTo01<S>> {
+        Sig(SignedTo01(self.0))
     }
 
     pub fn abs(self) -> Sig<SigAbs<S>> {
@@ -583,6 +585,21 @@ where
     }
 }
 
+pub struct SignedTo01<S>(S)
+where
+    S: SigT<Item = f32>;
+
+impl<S> SigT for SignedTo01<S>
+where
+    S: SigT<Item = f32>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        MapBuf::new(self.0.sample(ctx), signed_to_01)
+    }
+}
+
 /// For signals yielding `f32`, this trait provides a general way of defining filters.
 pub trait Filter {
     /// The type of the item of the input signal to this filter.
@@ -728,5 +745,38 @@ where
 {
     pub fn from_fn(f: F) -> Self {
         Self(SigFn { f, buf: Vec::new() })
+    }
+}
+
+pub struct SigBufFn<F, T>
+where
+    F: FnMut(&SigCtx, &mut Vec<T>),
+    T: Clone + Default,
+{
+    f: F,
+    buf: Vec<T>,
+}
+
+impl<F, T> SigT for SigBufFn<F, T>
+where
+    F: FnMut(&SigCtx, &mut Vec<T>),
+    T: Clone + Default,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize_with(ctx.num_samples, Default::default);
+        (self.f)(ctx, &mut self.buf);
+        &self.buf
+    }
+}
+
+impl<F, T> Sig<SigBufFn<F, T>>
+where
+    F: FnMut(&SigCtx, &mut Vec<T>),
+    T: Clone + Default,
+{
+    pub fn from_buf_fn(f: F) -> Self {
+        Self(SigBufFn { f, buf: Vec::new() })
     }
 }

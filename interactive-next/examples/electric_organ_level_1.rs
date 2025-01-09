@@ -1,24 +1,29 @@
+use std::cmp::Ordering;
+
 use caw_core_next::*;
 use caw_interactive_next::{Input, Visualization, Window};
 use caw_keyboard::{chord::*, *};
 use caw_modules::*;
-use caw_patches::drum;
+use caw_patches::{drum, pulse_pwm};
 use caw_utils::bitwise_pattern_triggers_8;
 
-struct Effects<DV, DLPF>
+struct Effects<T, DV, DLPF>
 where
+    T: SigT<Item = f32>,
     DV: SigT<Item = f32>,
     DLPF: SigT<Item = f32>,
 {
+    tempo: T,
     drum_volume: DV,
     drum_low_pass_filter: DLPF,
 }
 
-impl Effects<f32, f32> {
+impl Effects<f32, f32, f32> {
     fn new() -> Self {
         Self {
-            drum_volume: 0.3,
-            drum_low_pass_filter: 0.3,
+            tempo: 0.8,
+            drum_volume: 0.8,
+            drum_low_pass_filter: 0.5,
         }
     }
 }
@@ -48,23 +53,21 @@ fn voice(
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     let note = note.shared();
-    let oscillator = oscillator(Saw, note.clone().freq_hz())
-        .reset_offset_01(channel.circle_phase_offset_01())
-        .build()
-        + oscillator(Saw, note.clone().freq_hz() / 2.0)
-            .reset_offset_01(channel.circle_phase_offset_01())
-            .build();
+    let oscillator = super_saw(note.clone().freq_hz())
+        .num_oscillators(2)
+        .init(SuperSawInit::Const(channel.circle_phase_offset_01()))
+        .build();
     let env = adsr_linear_01(key_down_gate)
         .key_press_trig(key_press_trigger)
         .attack_s(0.0)
-        .decay_s(0.9)
+        .decay_s(1.0)
         .sustain_01(0.1)
         .release_s(0.0)
         .build()
         .exp_01(1.0);
     oscillator.filter(
         low_pass::default(env * note.clone().freq_hz() * 30.0 * Sig(effect_x))
-            .resonance(Sig(effect_y)),
+            .resonance(Sig(effect_y) * 4.0),
     )
 }
 
@@ -77,47 +80,16 @@ fn voice_bass(
     }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
-    let oscillator = oscillator(Saw, note.freq_hz())
-        .reset_offset_01(channel.circle_phase_offset_01())
+    let oscillator = pulse_pwm(note.freq_hz() / 1.0)
+        .lfo_reset_offset_01(channel.circle_phase_offset_01())
         .build();
     let env = adsr_linear_01(key_down_gate)
         .key_press_trig(key_press_trigger)
-        .attack_s(0.1)
-        .sustain_01(1.0)
+        .attack_s(0.0)
         .release_s(0.1)
         .build()
         .exp_01(1.0);
-    oscillator.filter(low_pass::default(env * 1000.0))
-}
-
-fn arp_shape(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = ArpShape>> {
-    use rand::{rngs::StdRng, Rng, SeedableRng};
-    struct State {
-        rng: StdRng,
-        indices: Vec<Option<usize>>,
-    }
-    let mut state = State {
-        rng: StdRng::from_entropy(),
-        indices: vec![Some(0); 8],
-    };
-    const MAX_INDEX: usize = 6;
-    let trig = FrameSig(trig);
-    trig.divide(16).map(move |trig| {
-        if trig {
-            let index_to_change =
-                state.rng.gen::<usize>() % state.indices.len();
-            let value =
-                if state.indices.len() <= 1 || state.rng.gen::<f64>() < 0.9 {
-                    Some(state.rng.gen::<usize>() % MAX_INDEX)
-                } else {
-                    None
-                };
-            state.indices[index_to_change] = value;
-        }
-        ArpShape::Indices(state.indices.clone())
-    })
+    oscillator.filter(low_pass::default(5000.0)) * env
 }
 
 fn virtual_key_events(
@@ -125,7 +97,8 @@ fn virtual_key_events(
 ) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
     let chords = [
         chord(note_name::C, MINOR),
-        chord(note_name::C, MINOR),
+        chord(note_name::B, MAJOR),
+        chord(note_name::F, MINOR),
         chord(note_name::G, MINOR),
     ];
     struct State {
@@ -134,33 +107,47 @@ fn virtual_key_events(
     let mut state = State { index: 0 };
     let trig = FrameSig(trig);
     trig.divide(32).map(move |t| {
-        let octave_base = note::A2;
+        let inversion = Inversion::InOctave {
+            octave_base: note::A2,
+        };
         let mut events = KeyEvents::empty();
         if t {
             if state.index > 0 {
                 let prev_chord = chords[(state.index - 1) % chords.len()];
-                prev_chord.with_notes(
-                    Inversion::InOctave { octave_base },
-                    |note| {
-                        events.push(KeyEvent {
-                            note,
-                            pressed: false,
-                            velocity_01: 1.0,
-                        })
-                    },
-                )
-            }
-            let current_chord = chords[state.index % chords.len()];
-            current_chord.with_notes(
-                Inversion::InOctave { octave_base },
-                |note| {
+                let mut count = 0;
+                prev_chord.with_notes(inversion, |note| {
                     events.push(KeyEvent {
                         note,
+                        pressed: false,
+                        velocity_01: 1.0,
+                    });
+                    if count < 2 {
+                        events.push(KeyEvent {
+                            note: note.add_octaves(1),
+                            pressed: false,
+                            velocity_01: 1.0,
+                        });
+                    }
+                    count += 1;
+                })
+            }
+            let mut count = 0;
+            let current_chord = chords[state.index % chords.len()];
+            current_chord.with_notes(inversion, |note| {
+                events.push(KeyEvent {
+                    note,
+                    pressed: true,
+                    velocity_01: 1.0,
+                });
+                if count < 2 {
+                    events.push(KeyEvent {
+                        note: note.add_octaves(1),
                         pressed: true,
                         velocity_01: 1.0,
-                    })
-                },
-            );
+                    });
+                }
+                count += 1;
+            });
             state.index += 1;
         }
         events
@@ -170,7 +157,7 @@ fn virtual_key_events(
 fn virtual_key_events_bass(
     trig: impl FrameSigT<Item = bool>,
 ) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
-    let notes = [note::C2, note::C2, note::G2];
+    let notes = [note::C2, note::B2, note::F2, note::G2];
     struct State {
         index: usize,
     }
@@ -201,43 +188,81 @@ fn virtual_key_events_bass(
 
 fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
     let effects = Effects::new();
-    let _hat_closed = 1 << 0;
+    let hat_closed = 1 << 0;
     let snare = 1 << 1;
     let kick = 1 << 2;
-    let trigger = periodic_trig_hz(3.0).build().shared();
-    let drums =
-        drum_loop(trigger.clone().divide(2), vec![kick, snare], channel);
+    let trigger = periodic_trig_hz(effects.tempo * 8.).build().shared();
+    let mut drums0 = drum_loop(
+        trigger.clone(),
+        vec![
+            kick, hat_closed, hat_closed, kick, snare, hat_closed, kick,
+            hat_closed, hat_closed, hat_closed, hat_closed, kick, snare,
+            hat_closed, kick, hat_closed,
+        ],
+        channel,
+    );
+    let mut drums1 = drum_loop(
+        trigger.clone(),
+        vec![
+            kick, 0, 0, kick, snare, 0, kick, 0, 0, 0, 0, kick, snare, 0, kick,
+            0,
+        ],
+        channel,
+    );
+    let mut drums2 = drum_loop(
+        trigger.clone(),
+        vec![kick, 0, 0, 0, snare, 0, 0, 0, kick, 0, 0, 0, snare, 0, 0, 0],
+        channel,
+    );
+    let drums = {
+        let mut count = -1;
+        let mut trigger = trigger.clone().divide(128);
+        Sig::from_buf_fn(move |ctx, buf| {
+            if trigger.frame_sample(ctx) {
+                count += 1;
+            }
+            match (count % 4).cmp(&2) {
+                Ordering::Less => drums2.sample(ctx).clone_to_vec(buf),
+                Ordering::Equal => drums1.sample(ctx).clone_to_vec(buf),
+                Ordering::Greater => drums0.sample(ctx).clone_to_vec(buf),
+            }
+        })
+    };
     let arp_config = ArpConfig::default()
-        .with_shape(arp_shape(trigger.clone()))
-        .with_extend_octaves_high(1);
-    let resonance = oscillator(Sine, 1.0 / 60.0)
+        .with_shape(ArpShape::Random)
+        .with_extend_octaves_high(0);
+    let distortion = oscillator(Sine, 1.0 / 89.0)
         .reset_offset_01(-0.25)
         .build()
         .signed_to_01()
         .shared();
-    let cutoff = ((oscillator(Sine, 1.0 / 45.0)
+    let resonance = (oscillator(Sine, 1.0 / 127.0)
         .reset_offset_01(-0.25)
         .build()
         .signed_to_01()
-        * 0.5)
-        + 0.3)
+        * 0.3)
         .shared();
-    let room_size = (oscillator(Sine, 1.0 / 100.0)
+    let cutoff = (oscillator(Sine, 1.0 / 53.0)
         .reset_offset_01(-0.25)
         .build()
         .signed_to_01()
-        * 0.5)
-        + 0.2;
-    let melody = virtual_key_events(trigger.clone())
+        * 0.2
+        + 0.4)
+        .shared();
+    let keys = virtual_key_events(trigger.clone())
         .arp(trigger.clone(), arp_config)
-        .poly_voices(12)
+        .poly_voices(1)
         .into_iter()
-        .map(move |mono_voice| {
+        .map(|mono_voice| {
             voice(mono_voice, cutoff.clone(), resonance.clone(), channel)
         })
         .sum::<Sig<_>>()
-        .filter(delay_periodic_s(0.2).feedback_ratio(0.5).mix_01(0.25))
-        .filter(reverb::default().room_size(room_size).damping(0.5))
+        .filter(
+            compressor()
+                .scale(1.0 + distortion.clone() * 4.0)
+                .threshold(1.0 - distortion.clone() * 0.5),
+        )
+        .filter(reverb::default().room_size(0.9).damping(0.5))
         .filter(high_pass::butterworth(1.0));
     let bass = voice_bass(
         virtual_key_events_bass(trigger.clone()).mono_voice(),
@@ -245,11 +270,12 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
     );
     (drums.filter(low_pass::default(effects.drum_low_pass_filter * 20000.0))
         * effects.drum_volume)
-        + (melody * 0.5 + bass * 0.2).filter(
+        + (keys * 0.9).filter(
             chorus()
-                .feedback_ratio(0.5)
+                .feedback_ratio(0.7)
                 .lfo_offset(ChorusLfoOffset::Interleave(channel)),
         )
+        + bass * 0.2
 }
 
 fn main() -> anyhow::Result<()> {

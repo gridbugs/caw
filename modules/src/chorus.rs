@@ -34,7 +34,7 @@ builder! {
         lfo_offset: ChorusLfoOffset,
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "DL"]
-        #[default = 0.001]
+        #[default = 0.02]
         delay_s: f32,
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "DP"]

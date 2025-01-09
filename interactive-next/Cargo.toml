@@ -26,6 +26,7 @@ env_logger = "0.11"
 rand = "0.8"
 wide = "0.7"
 clap = { version = "4", features = ["derive"] }
+itertools = "0.14"
 
 [[example]]
 name = "saw_interactive"
@@ -83,3 +84,6 @@ name = "drums_loop"
 
 [[example]]
 name = "electric_organ_menu"
+
+[[example]]
+name = "electric_organ_level_1"

@@ -130,13 +130,12 @@ where
 // - a sine wave with a frequency sweep
 // - white noise with a low-pass filter frequency sweep
 mod kick {
+    use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
     use caw_builder_proc_macros::builder;
     use caw_core_next::{
         frame_sig_shared, sig_shared, FrameSigT, Sig, SigT, Triggerable,
     };
     use caw_modules::*;
-
-    use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
 
     struct Props<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>
     where
@@ -527,7 +526,7 @@ mod hat_closed {
         pub struct PropsBuilder {
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "P"]
-            #[default = 0.05]
+            #[default = 0.01]
             period_s: f32,
             #[generic_with_constraint = "SigT<Item = f32>"]
             #[generic_name = "NFB"]
@@ -572,7 +571,6 @@ mod hat_closed {
                     .noise_filter_start_offset_cutoff_hz,
                 curve,
             }) * env
-                * 2.0 // scale it so the default loudness roughly matches the other drums
         }
     }
 }
