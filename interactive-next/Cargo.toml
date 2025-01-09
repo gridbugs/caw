@@ -80,3 +80,6 @@ name = "drums"
 
 [[example]]
 name = "drums_loop"
+
+[[example]]
+name = "electric_organ_menu"

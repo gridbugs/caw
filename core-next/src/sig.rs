@@ -389,7 +389,7 @@ where
     }
 
     pub fn signed_to_01(self) -> Sig<impl SigT<Item = f32>> {
-        (self + 1.0) / 2.0
+        self.map(crate::arith::signed_to_01)
     }
 
     pub fn abs(self) -> Sig<SigAbs<S>> {

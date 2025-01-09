@@ -632,20 +632,19 @@ where
             }
         }
         if gate.is_rising() {
+            if let Some(note) = state.current_note {
+                events.push(KeyEvent {
+                    note,
+                    pressed: false,
+                    velocity_01: 0.0,
+                });
+            }
             state.tick(config.shape.frame_sample(ctx));
             if let Some(note) = state.current_note {
                 events.push(KeyEvent {
                     note,
                     pressed: true,
                     velocity_01: 1.0,
-                });
-            }
-        } else if gate.is_falling() {
-            if let Some(note) = state.current_note {
-                events.push(KeyEvent {
-                    note,
-                    pressed: false,
-                    velocity_01: 0.0,
                 });
             }
         }

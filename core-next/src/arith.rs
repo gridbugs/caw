@@ -23,3 +23,7 @@ pub fn exp_01(x: f32, k: f32) -> f32 {
         x
     }
 }
+
+pub fn signed_to_01(x: f32) -> f32 {
+    (x + 1.0) / 2.0
+}
