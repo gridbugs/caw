@@ -114,11 +114,14 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
+        let sig = self.sig.sample(ctx);
+        let cutoff_hz = self.cutoff_hz.sample(ctx);
+        let resonance = self.resonance.sample(ctx);
         for (out, sample, cutoff_hz, resonance) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.cutoff_hz.sample(ctx).iter(),
-            self.resonance.sample(ctx).iter(),
+            sig.iter(),
+            cutoff_hz.iter(),
+            resonance.iter(),
         } {
             self.state.update_params(
                 ctx.sample_rate_hz as f64,

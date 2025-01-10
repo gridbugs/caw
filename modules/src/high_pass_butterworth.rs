@@ -60,10 +60,12 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
+        let sig = self.sig.sample(ctx);
+        let cutoff_hz = self.props.cutoff_hz.sample(ctx);
         for (out, sample, cutoff_hz) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.props.cutoff_hz.sample(ctx).iter(),
+            sig.iter(),
+            cutoff_hz.iter(),
         } {
             *out = butterworth::high_pass::run(
                 &mut self.state,

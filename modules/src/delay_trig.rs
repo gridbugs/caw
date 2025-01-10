@@ -83,12 +83,16 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize_with(ctx.num_samples, Default::default);
+        let sig = self.sig.sample(ctx);
+        let trig = self.trig.sample(ctx);
+        let mix_01 = self.mix_01.sample(ctx);
+        let feedback_ratio = self.feedback_ratio.sample(ctx);
         for (out, sample, trig, mix_01, feedback_ratio) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.trig.sample(ctx).iter(),
-            self.mix_01.sample(ctx).iter(),
-            self.feedback_ratio.sample(ctx).iter(),
+            sig.iter(),
+            trig.iter(),
+            mix_01.iter(),
+            feedback_ratio.iter(),
         } {
             if trig {
                 mem::swap(&mut self.ring_read, &mut self.ring_write);

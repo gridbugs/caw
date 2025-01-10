@@ -41,11 +41,13 @@ where
         let range_0_7: f32x8 = RANGE_0_7.into();
         // scales the sum of num_oscillators values in the range 0..1 to a value in the range -1..1
         let scale_factor = 2.0 / (self.num_oscillators as f32);
+        let freq_hz = self.freq_hz.sample(ctx);
+        let detune_ratio = self.detune_ratio.sample(ctx);
         self.buf.resize(ctx.num_samples, 0.0);
         for (sample, freq_hz, detune_ratio) in izip! {
             self.buf.iter_mut(),
-            self.freq_hz.sample(ctx).iter(),
-            self.detune_ratio.sample(ctx).iter(),
+            freq_hz.iter(),
+            detune_ratio.iter(),
         } {
             *sample = 0.0;
             let (mut freq_hz, detune_step_hz) = if self.num_oscillators == 1 {

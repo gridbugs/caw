@@ -80,12 +80,16 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
+        let sig = self.sig.sample(ctx);
+        let room_size = self.props.room_size.sample(ctx);
+        let damping = self.props.damping.sample(ctx);
+        let mix_01 = self.props.mix_01.sample(ctx);
         for (out, sample, room_size, damping, mix_01) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.props.room_size.sample(ctx).iter(),
-            self.props.damping.sample(ctx).iter(),
-            self.props.mix_01.sample(ctx).iter(),
+            sig.iter(),
+            room_size.iter(),
+            damping.iter(),
+            mix_01.iter(),
         } {
             if room_size != self.room_size_prev {
                 self.room_size_prev = room_size;

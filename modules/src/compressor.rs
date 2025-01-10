@@ -72,12 +72,16 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
+        let sig = self.sig.sample(ctx);
+        let threshold = self.props.threshold.sample(ctx);
+        let ratio = self.props.ratio.sample(ctx);
+        let scale = self.props.scale.sample(ctx);
         for (out, sample, threshold, ratio, scale) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.props.threshold.sample(ctx).iter(),
-            self.props.ratio.sample(ctx).iter(),
-            self.props.scale.sample(ctx).iter(),
+            sig.iter(),
+            threshold.iter(),
+            ratio.iter(),
+            scale.iter(),
         } {
             let sample = sample * scale;
             let sample_abs = sample.abs();

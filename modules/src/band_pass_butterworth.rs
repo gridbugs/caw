@@ -65,11 +65,14 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
+        let sig = self.sig.sample(ctx);
+        let lower_cutoff_hz = self.props.lower_cutoff_hz.sample(ctx);
+        let upper_cutoff_hz = self.props.upper_cutoff_hz.sample(ctx);
         for (out, sample, lower_cutoff_hz, upper_cutoff_hz) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.props.lower_cutoff_hz.sample(ctx).iter(),
-            self.props.upper_cutoff_hz.sample(ctx).iter(),
+            sig.iter(),
+            lower_cutoff_hz.iter(),
+            upper_cutoff_hz.iter(),
         } {
             *out = self.state.run(
                 sample as f64,
@@ -186,12 +189,16 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize(ctx.num_samples, 0.0);
+        let sig = self.sig.sample(ctx);
+        let mid_cutoff_hz = self.props.mid_cutoff_hz.sample(ctx);
+        let width_cutoff_ratio = self.props.width_cutoff_ratio.sample(ctx);
+        let min_cutoff_hz = self.props.min_cutoff_hz.sample(ctx);
         for (out, sample, mid_cutoff_hz, width_cutoff_ratio, min_cutoff_hz) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.props.mid_cutoff_hz.sample(ctx).iter(),
-            self.props.width_cutoff_ratio.sample(ctx).iter(),
-            self.props.min_cutoff_hz.sample(ctx).iter(),
+            sig.iter(),
+            mid_cutoff_hz.iter(),
+            width_cutoff_ratio.iter(),
+            min_cutoff_hz.iter(),
         } {
             let width_cutoff_hz = width_cutoff_ratio * mid_cutoff_hz;
             let lower_cutoff_hz =

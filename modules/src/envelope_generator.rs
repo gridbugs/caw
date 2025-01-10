@@ -35,6 +35,13 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.clear();
+        let key_down_gate = self.key_down_gate.sample(ctx);
+        let key_press_trig = self.key_press_trig.sample(ctx);
+        let attack_s = self.attack_s.sample(ctx);
+        let decay_s = self.decay_s.sample(ctx);
+        let sustain_01 = self.sustain_01.sample(ctx);
+        let release_s = self.release_s.sample(ctx);
+
         for (
             key_down_gate,
             key_press_trig,
@@ -43,12 +50,12 @@ where
             sustain_01,
             release_s,
         ) in izip! {
-            self.key_down_gate.sample(ctx).iter(),
-            self.key_press_trig.sample(ctx).iter(),
-            self.attack_s.sample(ctx).iter(),
-            self.decay_s.sample(ctx).iter(),
-            self.sustain_01.sample(ctx).iter(),
-            self.release_s.sample(ctx).iter(),
+            key_down_gate.iter(),
+            key_press_trig.iter(),
+            attack_s.iter(),
+            decay_s.iter(),
+            sustain_01.iter(),
+            release_s.iter(),
         } {
             if key_press_trig {
                 self.crossed_threshold = false;

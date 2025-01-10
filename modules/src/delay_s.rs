@@ -74,12 +74,16 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize_with(ctx.num_samples, Default::default);
+        let sig = self.sig.sample(ctx);
+        let period_s = self.props.period_s.sample(ctx);
+        let mix_01 = self.props.mix_01.sample(ctx);
+        let feedback_ratio = self.props.feedback_ratio.sample(ctx);
         for (out, sample, period_s, mix_01, feedback_ratio) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.props.period_s.sample(ctx).iter(),
-            self.props.mix_01.sample(ctx).iter(),
-            self.props.feedback_ratio.sample(ctx).iter(),
+            sig.iter(),
+            period_s.iter(),
+            mix_01.iter(),
+            feedback_ratio.iter(),
         } {
             let index = period_s * ctx.sample_rate_hz;
             let output = self.ring.query_resizing(index);

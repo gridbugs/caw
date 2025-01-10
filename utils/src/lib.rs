@@ -1,5 +1,7 @@
 use caw_core::{FrameSig, FrameSigT};
 
+pub mod noise;
+
 /// Returns an array of 8 trigger signals, each corresponding to one of the bits in the patterns.
 /// On each trigger pulse the current pattern is advanced and those of the returned triggers
 /// corresponding to 1s in the current pattern will receive pulses.

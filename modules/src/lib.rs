@@ -100,7 +100,5 @@ pub use delay_trig::delay_trig;
 pub mod compressor;
 pub use compressor::compressor;
 
-pub mod noise;
-
 pub mod chorus;
 pub use chorus::{chorus, ChorusLfoOffset};

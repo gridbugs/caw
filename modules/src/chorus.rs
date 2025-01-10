@@ -152,14 +152,19 @@ where
             lfo.sample(ctx).clone_to_vec(lfo_buf);
         }
         self.buf.resize_with(ctx.num_samples, Default::default);
+        let sig = self.sig.sample(ctx);
+        let delay_s = self.delay_s.sample(ctx);
+        let depth_s = self.depth_s.sample(ctx);
+        let mix_01 = self.mix_01.sample(ctx);
+        let feedback_ratio = self.feedback_ratio.sample(ctx);
         for (i, (out, sample, delay_s, depth_s, mix_01, feedback_ratio)) in
             izip! {
                 self.buf.iter_mut(),
-                self.sig.sample(ctx).iter(),
-                self.delay_s.sample(ctx).iter(),
-                self.depth_s.sample(ctx).iter(),
-                self.mix_01.sample(ctx).iter(),
-                self.feedback_ratio.sample(ctx).iter(),
+                sig.iter(),
+                delay_s.iter(),
+                depth_s.iter(),
+                mix_01.iter(),
+                feedback_ratio.iter(),
             }
             .enumerate()
         {

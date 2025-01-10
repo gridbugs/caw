@@ -68,10 +68,12 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.buf.resize_with(ctx.num_samples, Default::default);
+        let sig = self.sig.sample(ctx);
+        let trigger = self.trigger.sample(ctx);
         for (out, sample, trigger) in izip! {
             self.buf.iter_mut(),
-            self.sig.sample(ctx).iter(),
-            self.trigger.sample(ctx).iter(),
+            sig.iter(),
+            trigger.iter(),
         } {
             if trigger {
                 self.value = sample;

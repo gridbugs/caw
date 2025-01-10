@@ -1,5 +1,6 @@
 use caw_core::{frame_sig_shared, FrameSig, FrameSigT, Sig, SigT, Triggerable};
 use caw_modules::*;
+use caw_utils::noise;
 
 // A sweep which ends at `pitch_base` hz and starts `pitch_start_scale_octaves` number of octaves higher
 // than `pitch_base`. The sweep is linear in frequency over a pediod of `
