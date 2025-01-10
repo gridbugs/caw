@@ -17,7 +17,7 @@ where
     /// True the entire time at least one key is held
     pub key_down_gate: FrameSig<KeyDownGate<K>>,
     /// True on the first audio sample after any key is pressed
-    pub key_press_trigger: FrameSig<KeyPressTrigger<K>>,
+    pub key_press_trig: FrameSig<KeyPressTrig<K>>,
 }
 
 impl<K> MonoVoice<FrameSigShared<K>>
@@ -32,7 +32,7 @@ where
             key_down_gate: FrameSig(KeyDownGate::new(
                 key_events_shared.clone(),
             )),
-            key_press_trigger: FrameSig(KeyPressTrigger::new(
+            key_press_trig: FrameSig(KeyPressTrig::new(
                 key_events_shared.clone(),
             )),
         }
@@ -188,14 +188,14 @@ where
 }
 
 /// Extracts a key press trigger from a sequence of key events.
-pub struct KeyPressTrigger<K>
+pub struct KeyPressTrig<K>
 where
     K: FrameSigT<Item = KeyEvents>,
 {
     sig: K,
 }
 
-impl<K> KeyPressTrigger<K>
+impl<K> KeyPressTrig<K>
 where
     K: FrameSigT<Item = KeyEvents>,
 {
@@ -204,7 +204,7 @@ where
     }
 }
 
-impl<K> FrameSigT for KeyPressTrigger<K>
+impl<K> FrameSigT for KeyPressTrig<K>
 where
     K: FrameSigT<Item = KeyEvents>,
 {

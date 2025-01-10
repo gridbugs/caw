@@ -4,7 +4,7 @@ use caw_core_next::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
 builder! {
-    #[constructor = "delay_periodic_s"]
+    #[constructor = "delay_s"]
     #[constructor_doc = "Delay module where the delay is a configurable period"]
     #[generic_setter_type_name = "X"]
     pub struct Props {
@@ -24,7 +24,7 @@ builder! {
     }
 }
 
-pub struct DelayPeriodic<S, P, M, F>
+pub struct DelayS<S, P, M, F>
 where
     S: SigT<Item = f32>,
     P: SigT<Item = f32>,
@@ -46,7 +46,7 @@ where
     type ItemIn = f32;
 
     type Out<S>
-        = DelayPeriodic<S, P, M, F>
+        = DelayS<S, P, M, F>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -54,7 +54,7 @@ where
     where
         S: SigT<Item = f32>,
     {
-        DelayPeriodic {
+        DelayS {
             props: self,
             sig,
             ring: LinearlyInterpolatingRingBuffer::new(44100),
@@ -63,7 +63,7 @@ where
     }
 }
 
-impl<S, P, M, F> SigT for DelayPeriodic<S, P, M, F>
+impl<S, P, M, F> SigT for DelayS<S, P, M, F>
 where
     S: SigT<Item = f32>,
     P: SigT<Item = f32>,

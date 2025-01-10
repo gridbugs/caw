@@ -91,16 +91,11 @@ pub use periodic_trig::{periodic_trig_hz, periodic_trig_s};
 pub mod periodic_gate;
 pub use periodic_gate::periodic_gate_s;
 
-pub mod delay_periodic;
-pub use delay_periodic::delay_periodic_s;
+pub mod delay_s;
+pub use delay_s::delay_s;
 
-pub mod delay_triggered;
-pub use delay_triggered::delay_triggered;
-
-pub mod delay {
-    pub use super::delay_periodic::delay_periodic_s as periodic_s;
-    pub use super::delay_triggered::delay_triggered as triggered;
-}
+pub mod delay_trig;
+pub use delay_trig::delay_trig;
 
 pub mod compressor;
 pub use compressor::compressor;

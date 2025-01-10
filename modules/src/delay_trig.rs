@@ -4,7 +4,7 @@ use itertools::izip;
 use std::{collections::VecDeque, mem};
 
 builder! {
-    #[constructor = "delay_triggered"]
+    #[constructor = "delay_trig"]
     #[constructor_doc = "Delay module where the signal repeats in response to a trigger"]
     #[generic_setter_type_name = "X"]
     pub struct Props {
@@ -24,7 +24,7 @@ builder! {
     }
 }
 
-pub struct DelayTriggered<S, T, M, F>
+pub struct DelayTrig<S, T, M, F>
 where
     S: SigT<Item = f32>,
     T: SigT<Item = bool>,
@@ -51,7 +51,7 @@ where
     type ItemIn = f32;
 
     type Out<S>
-        = DelayTriggered<S, T, M, F>
+        = DelayTrig<S, T, M, F>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -60,7 +60,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let trig = Sig(self.trig).gate_to_trig_rising_edge().0;
-        DelayTriggered {
+        DelayTrig {
             trig,
             mix_01: self.mix_01,
             feedback_ratio: self.feedback_ratio,
@@ -72,7 +72,7 @@ where
     }
 }
 
-impl<S, T, M, F> SigT for DelayTriggered<S, T, M, F>
+impl<S, T, M, F> SigT for DelayTrig<S, T, M, F>
 where
     S: SigT<Item = f32>,
     T: SigT<Item = bool>,

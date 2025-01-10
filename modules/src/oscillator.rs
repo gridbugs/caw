@@ -65,7 +65,7 @@ where
     freq_hz: F,
     pulse_width_01: P,
     reset_offset_01: R,
-    reset_trigger: T,
+    reset_trig: T,
     buf: Vec<f32>,
 }
 
@@ -102,7 +102,7 @@ where
         freq_hz: F,
         pulse_width_01: P,
         reset_offset_01: R,
-        reset_trigger: T,
+        reset_trig: T,
     ) -> Sig<Self> {
         Sig(Self {
             first_frame: true,
@@ -111,22 +111,22 @@ where
             freq_hz,
             pulse_width_01,
             reset_offset_01,
-            reset_trigger,
+            reset_trig,
             buf: Vec::new(),
         })
     }
 
     fn sample_non_pulse(&mut self, ctx: &SigCtx) {
         let buf_freq_hz = self.freq_hz.sample(ctx);
-        let buf_reset_trigger = self.reset_trigger.sample(ctx);
+        let buf_reset_trig = self.reset_trig.sample(ctx);
         let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
         self.buf.clear();
-        for ((freq_hz, reset_trigger), reset_offset_01) in buf_freq_hz
+        for ((freq_hz, reset_trig), reset_offset_01) in buf_freq_hz
             .iter()
-            .zip(buf_reset_trigger.iter())
+            .zip(buf_reset_trig.iter())
             .zip(buf_reset_offset_01.iter())
         {
-            if reset_trigger || self.first_frame {
+            if reset_trig || self.first_frame {
                 self.first_frame = false;
                 self.state_01 = reset_offset_01;
             } else {
@@ -143,18 +143,18 @@ where
     // compute the values of the pulse width signal.
     fn sample_pulse(&mut self, ctx: &SigCtx) {
         let buf_freq_hz = self.freq_hz.sample(ctx);
-        let buf_reset_trigger = self.reset_trigger.sample(ctx);
+        let buf_reset_trig = self.reset_trig.sample(ctx);
         let buf_reset_offset_01 = self.reset_offset_01.sample(ctx);
         let buf_pulse_width_01 = self.pulse_width_01.sample(ctx);
         self.buf.clear();
-        for (((freq_hz, reset_trigger), reset_offset_01), pulse_width_01) in
+        for (((freq_hz, reset_trig), reset_offset_01), pulse_width_01) in
             buf_freq_hz
                 .iter()
-                .zip(buf_reset_trigger.iter())
+                .zip(buf_reset_trig.iter())
                 .zip(buf_reset_offset_01.iter())
                 .zip(buf_pulse_width_01.iter())
         {
-            if reset_trigger || self.first_frame {
+            if reset_trig || self.first_frame {
                 self.first_frame = false;
                 self.state_01 = reset_offset_01;
             } else {
@@ -191,6 +191,6 @@ builder! {
         #[generic_with_constraint = "SigT<Item = bool>"]
         #[default = false]
         #[generic_name = "T"]
-        reset_trigger: bool,
+        reset_trig: bool,
     }
 }
