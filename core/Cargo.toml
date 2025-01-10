@@ -1,6 +1,6 @@
 [package]
 name = "caw_core"
-version = "0.2.0"
+version = "0.2.1"
 description = "Core types for caw software-defined modular synthesizer"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -8,3 +8,16 @@ homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_core"
 edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+caw_modules = { version = "0.1", path = "../modules" }
+cpal = "0.15"
+rand = "0.8"
+
+[[example]]
+name = "saw_print_values"
+
+[[example]]
+name = "saw_cpal"
