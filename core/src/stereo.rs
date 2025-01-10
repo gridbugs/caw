@@ -50,6 +50,10 @@ impl<L, R> Stereo<L, R> {
             right: fr(&self.right),
         }
     }
+
+    pub fn as_mut(&mut self) -> Stereo<&mut L, &mut R> {
+        Stereo::new(&mut self.left, &mut self.right)
+    }
 }
 
 impl<L, R> Stereo<L, R>
@@ -101,6 +105,20 @@ impl<S> Stereo<S, S> {
         Self {
             left: f(Channel::Left),
             right: f(Channel::Right),
+        }
+    }
+
+    pub fn get(&self, channel: Channel) -> &S {
+        match channel {
+            Channel::Left => &self.left,
+            Channel::Right => &self.right,
+        }
+    }
+
+    pub fn get_mut(&mut self, channel: Channel) -> &mut S {
+        match channel {
+            Channel::Left => &mut self.left,
+            Channel::Right => &mut self.right,
         }
     }
 }

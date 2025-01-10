@@ -1,9 +1,13 @@
 use caw_core::{SigCtx, SigSampleIntoBufT, Stereo};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
-    BufferSize, Device, OutputCallbackInfo, StreamConfig, SupportedBufferSize,
+    BufferSize, Device, OutputCallbackInfo, Stream, StreamConfig,
+    SupportedBufferSize,
 };
-use std::sync::{mpsc, Arc, RwLock};
+use std::{
+    collections::VecDeque,
+    sync::{mpsc, Arc, Mutex, RwLock},
+};
 
 pub trait ToF32 {
     fn to_f32(self) -> f32;
@@ -22,12 +26,12 @@ impl ToF32 for f64 {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct Config {
+pub struct ConfigSync {
     /// default: 0.01
     pub target_latency_s: f32,
 }
 
-impl Default for Config {
+impl Default for ConfigSync {
     fn default() -> Self {
         Self {
             target_latency_s: 0.01,
@@ -59,7 +63,10 @@ impl Player {
         Ok(Self { device })
     }
 
-    fn choose_config(&self, config: Config) -> anyhow::Result<StreamConfig> {
+    fn choose_config(
+        &self,
+        config: ConfigSync,
+    ) -> anyhow::Result<StreamConfig> {
         let default_config = self.device.default_output_config()?;
         let sample_rate = default_config.sample_rate();
         let channels = 2;
@@ -95,7 +102,7 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<cpal::Stream>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -137,7 +144,7 @@ impl Player {
         &self,
         mut sig: S,
         mut f: F,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -192,7 +199,7 @@ impl Player {
     pub fn play_signal_sync_mono<T, S>(
         &self,
         signal: S,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -201,12 +208,12 @@ impl Player {
         self.play_signal_sync_mono_callback_raw(signal, |_| (), config)
     }
 
-    /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
+    /// Like `play_signal_sync_mono` but calls a provided function on the data produced by the signal
     pub fn play_signal_sync_mono_callback<T, S, F>(
         &self,
         signal: S,
         mut f: F,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -230,7 +237,7 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<cpal::Stream>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -275,7 +282,7 @@ impl Player {
         &self,
         mut sig: Stereo<SL, SR>,
         mut f: F,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -338,7 +345,7 @@ impl Player {
     pub fn play_signal_sync_stereo<TL, TR, SL, SR>(
         &self,
         sig: Stereo<SL, SR>,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -349,12 +356,12 @@ impl Player {
         self.play_signal_sync_stereo_callback_raw(sig, |_| (), config)
     }
 
-    /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
+    /// Like `play_signal_sync_stereo` but calls a provided function on the data produced by the signal
     pub fn play_signal_sync_stereo_callback<TL, TR, SL, SR, F>(
         &self,
         sig: Stereo<SL, SR>,
         mut f: F,
-        config: Config,
+        config: ConfigSync,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -373,5 +380,109 @@ impl Player {
             },
             config,
         )
+    }
+
+    pub fn into_async_stereo(
+        self,
+        config: ConfigAsync,
+    ) -> anyhow::Result<PlayerAsyncStereo> {
+        let queue = Stereo {
+            left: Arc::new(Mutex::new(VecDeque::new())),
+            right: Arc::new(Mutex::new(VecDeque::new())),
+        };
+        let mut stream_config = self.device.default_output_config()?.config();
+        stream_config.channels = 2;
+        log::info!("sample rate: {}", stream_config.sample_rate.0);
+        log::info!("num channels: {}", stream_config.channels);
+        log::info!("buffer size: {:?}", stream_config.buffer_size);
+        let stream = self.device.build_output_stream(
+            &stream_config,
+            {
+                let queue = queue.map_ref(Arc::clone, Arc::clone);
+                move |data: &mut [f32], _: &OutputCallbackInfo| {
+                    let mut queue = queue.map_ref(
+                        |l| l.lock().expect("main thread has stopped"),
+                        |r| r.lock().expect("main thread has stopped"),
+                    );
+                    for output_by_channel in
+                        data.chunks_mut(stream_config.channels as usize)
+                    {
+                        output_by_channel[0] =
+                            queue.left.pop_front().unwrap_or_default();
+                        output_by_channel[1] =
+                            queue.right.pop_front().unwrap_or_default()
+                    }
+                }
+            },
+            |err| eprintln!("stream error: {}", err),
+            None,
+        )?;
+        stream.play()?;
+        let max_num_samples = (config.max_latency_s
+            * stream_config.sample_rate.0 as f32)
+            as usize;
+        Ok(PlayerAsyncStereo {
+            stream,
+            queue,
+            max_num_samples,
+            scratch: Stereo::new(Vec::new(), Vec::new()),
+            batch_index: 0,
+            sample_rate_hz: stream_config.sample_rate.0 as f32,
+        })
+    }
+}
+
+type StereoSharedAsyncQueue =
+    Stereo<Arc<Mutex<VecDeque<f32>>>, Arc<Mutex<VecDeque<f32>>>>;
+
+pub struct ConfigAsync {
+    pub max_latency_s: f32,
+}
+
+impl Default for ConfigAsync {
+    fn default() -> Self {
+        Self { max_latency_s: 0.1 }
+    }
+}
+
+pub struct PlayerAsyncStereo {
+    #[allow(unused)]
+    stream: Stream,
+    queue: StereoSharedAsyncQueue,
+    max_num_samples: usize,
+    scratch: Stereo<Vec<f32>, Vec<f32>>,
+    batch_index: u64,
+    sample_rate_hz: f32,
+}
+
+impl PlayerAsyncStereo {
+    pub fn play_signal_stereo<SL, SR>(&mut self, sig: &mut Stereo<SL, SR>)
+    where
+        SL: SigSampleIntoBufT<Item = f32>,
+        SR: SigSampleIntoBufT<Item = f32>,
+    {
+        // assume that both queues are the same length
+        let num_samples = self
+            .max_num_samples
+            .saturating_sub(self.queue.left.lock().unwrap().len());
+        let ctx = SigCtx {
+            sample_rate_hz: self.sample_rate_hz,
+            batch_index: self.batch_index,
+            num_samples,
+        };
+        sig.sample_into_buf(&ctx, self.scratch.as_mut());
+        {
+            let mut left = self.queue.left.lock().unwrap();
+            for &x in &self.scratch.left {
+                left.push_back(x);
+            }
+        }
+        {
+            let mut right = self.queue.right.lock().unwrap();
+            for &x in &self.scratch.right {
+                right.push_back(x);
+            }
+        }
+        self.batch_index += 1;
     }
 }

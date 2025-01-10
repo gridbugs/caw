@@ -1,5 +1,8 @@
 use caw_core::*;
-use caw_interactive::window::{Visualization, Window};
+use caw_interactive::{
+    window::{Visualization, Window},
+    Input,
+};
 use caw_modules::*;
 use rand::Rng;
 use rgb_int::Rgb24;
@@ -12,13 +15,13 @@ use std::{
 };
 
 fn signal() -> Sig<impl SigT<Item = f32>> {
-    let base_freq_hz = 80.0;
+    let base_freq_hz = 50.0;
     let mut rng = rand::thread_rng();
     let freq_hz =
-        (rng.gen_range(1..=6) as f32 * base_freq_hz) + (rng.gen::<f32>() * 0.1);
+        (rng.gen_range(1..=3) as f32 * base_freq_hz) + (rng.gen::<f32>() * 0.1);
     let lfo =
-        oscillator(Sine, rng.gen::<f32>() * 0.1).build() * rng.gen::<f32>();
-    oscillator(Sine, freq_hz + lfo).build() * 0.2
+        oscillator(Saw, rng.gen::<f32>() * 0.1).build() * rng.gen::<f32>();
+    oscillator(Saw, freq_hz + lfo).build() * 0.2
 }
 
 struct Query {
@@ -59,7 +62,7 @@ struct MultithreadedSignal {
 }
 
 impl MultithreadedSignal {
-    fn new(num_threads: usize) -> Sig<Self> {
+    fn new(num_threads: usize, input: Input) -> Sig<impl SigT<Item = f32>> {
         let mut thread_info = Vec::new();
         for _ in 0..num_threads {
             let (send_query, recv_query) = mpsc::channel();
@@ -72,10 +75,28 @@ impl MultithreadedSignal {
                 buf,
             });
         }
+        let mix_01 = input.mouse.x_01().shared();
         Sig(Self {
             thread_info,
             buf: Vec::new(),
         })
+        .filter(low_pass::default(2500.).resonance(1.0))
+        .filter(
+            compressor()
+                .threshold(0.5)
+                .scale(2.0)
+                .ratio(input.mouse.y_01()),
+        )
+        .filter(
+            chorus()
+                .num_voices(1)
+                .delay_s(0.001)
+                .lfo_rate_hz(0.1)
+                .feedback_ratio(0.5)
+                .mix_01(mix_01.clone()),
+        )
+        .filter(reverb::default().room_size(0.9).damping(0.1).mix_01(mix_01))
+        .filter(high_pass::default(1.0))
     }
 }
 
@@ -109,8 +130,10 @@ fn main() -> anyhow::Result<()> {
         .visualization(Visualization::StereoOscillographics)
         .build();
     let thresh = 10.0;
+    let input = window.input();
     let sig = Stereo::new_fn(|| {
-        MultithreadedSignal::new(6).map(|x| x.clamp(-thresh, thresh))
+        MultithreadedSignal::new(6, input.clone())
+            .map(|x| x.clamp(-thresh, thresh))
     });
     window.play_stereo(sig, Default::default())
 }

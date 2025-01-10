@@ -12,7 +12,7 @@ fn signal_left(input: Input) -> Sig<impl SigT<Item = f32>> {
         + (oscillator(waveform::Triangle, 0.002)
             .reset_offset_01(0.25)
             .build());
-    oscillator(waveform::Sine, freq).build()
+    oscillator(waveform::Pulse, freq).build()
 }
 
 fn signal_right(input: Input) -> Sig<impl SigT<Item = f32>> {
@@ -21,7 +21,7 @@ fn signal_right(input: Input) -> Sig<impl SigT<Item = f32>> {
         + (oscillator(waveform::Triangle, -0.0013)
             .reset_offset_01(0.25)
             .build());
-    oscillator(waveform::Sine, freq).build()
+    oscillator(waveform::Pulse, freq).build()
 }
 
 fn run() -> anyhow::Result<()> {

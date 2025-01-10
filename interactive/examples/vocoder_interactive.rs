@@ -74,8 +74,8 @@ fn filter_bank(
 
 fn sig(input: Input, audio_file_buf: Vec<f32>) -> Sig<impl SigT<Item = f32>> {
     let sig = sample_playback(audio_file_buf).build();
-    let n_bands = 128;
-    let n_bands_per_octave = 12;
+    let n_bands = 64;
+    let n_bands_per_octave = 8;
     let min_band_freq_hz = 10.0;
     let band_freqs_hz = (0..n_bands)
         .map(|i| {
