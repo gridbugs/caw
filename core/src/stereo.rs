@@ -1,4 +1,4 @@
-use crate::{Buf, SigCtx, SigT};
+use crate::{Buf, SigCtx, SigSampleIntoBufT, SigT};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
@@ -68,10 +68,22 @@ where
     }
 }
 
-impl<S> Stereo<S, S>
+impl<L, R> Stereo<L, R>
 where
-    S: SigT,
+    L: SigSampleIntoBufT,
+    R: SigSampleIntoBufT,
 {
+    pub fn sample_into_buf<'a>(
+        &'a mut self,
+        ctx: &'a SigCtx,
+        buf: Stereo<&mut Vec<L::Item>, &mut Vec<R::Item>>,
+    ) {
+        self.left.sample_into_buf(ctx, buf.left);
+        self.right.sample_into_buf(ctx, buf.right);
+    }
+}
+
+impl<S> Stereo<S, S> {
     pub fn new_fn<F>(mut f: F) -> Self
     where
         F: FnMut() -> S,

@@ -1,6 +1,6 @@
 [package]
 name = "caw_core"
-version = "0.2.1"
+version = "0.2.2"
 description = "Core types for caw software-defined modular synthesizer"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"

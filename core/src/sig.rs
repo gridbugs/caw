@@ -226,6 +226,14 @@ pub trait SigT {
     }
 }
 
+/// Similar to `SigT` but less flexible as it needs to populate a `Vec`. However this trait is
+/// possible to be boxed allowing for type erasure.
+pub trait SigSampleIntoBufT {
+    type Item: Clone;
+
+    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>);
+}
+
 impl SigT for f32 {
     type Item = f32;
 
@@ -273,6 +281,30 @@ impl<S: SigT> SigT for Sig<S> {
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         self.0.sample(ctx)
+    }
+}
+
+impl<S: SigT> SigSampleIntoBufT for Sig<S> {
+    type Item = S::Item;
+
+    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
+        let buf_internal = self.0.sample(ctx);
+        buf_internal.clone_to_vec(buf);
+    }
+}
+
+pub struct SigBoxed<T>(Box<dyn SigSampleIntoBufT<Item = T>>)
+where
+    T: Clone;
+
+impl<T> SigSampleIntoBufT for SigBoxed<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
+        self.0.sample_into_buf(ctx, buf);
     }
 }
 
@@ -342,6 +374,15 @@ where
             f(&x);
             x
         })
+    }
+}
+
+impl<S> Sig<S>
+where
+    S: SigT + 'static,
+{
+    pub fn boxed(self) -> SigBoxed<S::Item> {
+        SigBoxed(Box::new(self))
     }
 }
 

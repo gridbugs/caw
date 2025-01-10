@@ -1,4 +1,4 @@
-use caw_core::{Buf, SigCtx, SigT, Stereo};
+use caw_core::{SigCtx, SigSampleIntoBufT, Stereo};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Device, OutputCallbackInfo, StreamConfig, SupportedBufferSize,
@@ -141,7 +141,7 @@ impl Player {
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SigT<Item = T>,
+        S: SigSampleIntoBufT<Item = T>,
         F: FnMut(&Arc<RwLock<Vec<T>>>),
     {
         // channel for cpal thread to send messages to main thread
@@ -178,9 +178,7 @@ impl Player {
                 send_sync_command_done
                     .send(SyncCommandDone)
                     .expect("cpal thread stopped unexpectedly");
-                let buf = sig.sample(&ctx);
-                buffer.clear();
-                buffer.extend(buf.iter());
+                sig.sample_into_buf(&ctx, &mut *buffer);
             }
             f(&buffer);
             ctx.batch_index += 1;
@@ -198,7 +196,7 @@ impl Player {
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SigT<Item = T>,
+        S: SigSampleIntoBufT<Item = T>,
     {
         self.play_signal_sync_mono_callback_raw(signal, |_| (), config)
     }
@@ -212,7 +210,7 @@ impl Player {
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SigT<Item = T>,
+        S: SigSampleIntoBufT<Item = T>,
         F: FnMut(&[T]),
     {
         self.play_signal_sync_mono_callback_raw(
@@ -282,8 +280,8 @@ impl Player {
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
-        SL: SigT<Item = TL>,
-        SR: SigT<Item = TR>,
+        SL: SigSampleIntoBufT<Item = TL>,
+        SR: SigSampleIntoBufT<Item = TR>,
         F: FnMut(&Stereo<Arc<RwLock<Vec<TL>>>, Arc<RwLock<Vec<TR>>>>),
     {
         // channel for cpal thread to send messages to main thread
@@ -324,11 +322,9 @@ impl Player {
                 send_sync_command_done
                     .send(SyncCommandDone)
                     .expect("cpal thread stopped unexpectedly");
-                let buf = sig.sample(&ctx);
-                buf.map_ref(
-                    |l| l.clone_to_vec(&mut *buffer.left),
-                    |r| r.clone_to_vec(&mut *buffer.right),
-                );
+                let stereo_buffer =
+                    Stereo::new(&mut *buffer.left, &mut *buffer.right);
+                sig.sample_into_buf(&ctx, stereo_buffer);
             }
             f(&buffer);
             ctx.batch_index += 1;
@@ -341,24 +337,16 @@ impl Player {
     /// needs to own the signal being played.
     pub fn play_signal_sync_stereo<TL, TR, SL, SR>(
         &self,
-        sig_left: SL,
-        sig_right: SR,
+        sig: Stereo<SL, SR>,
         config: Config,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
-        SL: SigT<Item = TL>,
-        SR: SigT<Item = TR>,
+        SL: SigSampleIntoBufT<Item = TL>,
+        SR: SigSampleIntoBufT<Item = TR>,
     {
-        self.play_signal_sync_stereo_callback_raw(
-            Stereo {
-                left: sig_left,
-                right: sig_right,
-            },
-            |_| (),
-            config,
-        )
+        self.play_signal_sync_stereo_callback_raw(sig, |_| (), config)
     }
 
     /// Like `play_signal_sync` but calls a provided function on the data produced by the signal
@@ -371,8 +359,8 @@ impl Player {
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
-        SL: SigT<Item = TL>,
-        SR: SigT<Item = TR>,
+        SL: SigSampleIntoBufT<Item = TL>,
+        SR: SigSampleIntoBufT<Item = TR>,
         F: FnMut(Stereo<&[TL], &[TR]>),
     {
         self.play_signal_sync_stereo_callback_raw(

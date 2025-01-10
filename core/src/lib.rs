@@ -9,7 +9,7 @@ pub use frame_sig::{
 };
 pub use sig::{
     sig_shared, Buf, ConstBuf, Filter, GateToTrigRisingEdge, Sig, SigAbs,
-    SigCtx, SigShared, SigT,
+    SigBoxed, SigCtx, SigSampleIntoBufT, SigShared, SigT,
 };
 pub mod stereo;
 pub use stereo::{Channel, Stereo};

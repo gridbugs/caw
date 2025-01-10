@@ -1,6 +1,6 @@
 use crate::input::{Input, InputState};
 use anyhow::anyhow;
-use caw_core::{SigT, Stereo};
+use caw_core::{SigSampleIntoBufT, Stereo};
 use caw_player::{Config, Player, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
@@ -315,7 +315,7 @@ impl Window {
     pub fn play_mono<T, S>(&self, sig: S, config: Config) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
-        S: SigT<Item = T>,
+        S: SigSampleIntoBufT<Item = T>,
     {
         let player = Player::new()?;
         let mut window_running = self.clone().run()?;
@@ -348,8 +348,8 @@ impl Window {
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
-        SL: SigT<Item = TL>,
-        SR: SigT<Item = TR>,
+        SL: SigSampleIntoBufT<Item = TL>,
+        SR: SigSampleIntoBufT<Item = TR>,
     {
         let player = Player::new()?;
         let mut window_running = self.clone().run()?;

@@ -194,7 +194,7 @@ fn virtual_key_events_bass(
     })
 }
 
-fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
+fn sig(_input: Input, channel: Channel) -> SigBoxed<f32> {
     let effects = Effects::new();
     let _hat_closed = 1 << 0;
     let snare = 1 << 1;
@@ -238,13 +238,14 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
         virtual_key_events_bass(trigger.clone()).mono_voice(),
         channel,
     );
-    (drums.filter(low_pass::default(effects.drum_low_pass_filter * 20000.0))
+    ((drums.filter(low_pass::default(effects.drum_low_pass_filter * 20000.0))
         * effects.drum_volume)
         + (melody * 0.5 + bass * 0.2).filter(
             chorus()
                 .feedback_ratio(0.5)
                 .lfo_offset(ChorusLfoOffset::Interleave(channel)),
-        )
+        ))
+    .boxed()
 }
 
 fn main() -> anyhow::Result<()> {
