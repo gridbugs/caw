@@ -8,16 +8,3 @@ homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_core"
 edition = "2021"
-
-[dependencies]
-
-[dev-dependencies]
-caw_modules = { version = "0.1", path = "../modules" }
-cpal = "0.15"
-rand = "0.8"
-
-[[example]]
-name = "saw_print_values"
-
-[[example]]
-name = "saw_cpal"
