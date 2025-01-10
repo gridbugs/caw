@@ -87,3 +87,6 @@ name = "electric_organ_menu"
 
 [[example]]
 name = "electric_organ_level_1"
+
+[[example]]
+name = "electric_organ_level_2"

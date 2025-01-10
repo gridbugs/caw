@@ -2,9 +2,9 @@ use caw_core_next::*;
 use caw_interactive_next::{Input, Visualization, Window};
 use caw_keyboard::{chord::*, *};
 use caw_modules::*;
-use caw_patches::{drum, pulse_pwm};
+use caw_patches::drum;
 use caw_utils::bitwise_pattern_triggers_8;
-use std::cmp::Ordering;
+use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 
 struct Effects<T, DV, DLPF>
 where
@@ -20,9 +20,9 @@ where
 impl Effects<f32, f32, f32> {
     fn new() -> Self {
         Self {
-            tempo: 0.8,
-            drum_volume: 0.8,
-            drum_low_pass_filter: 0.5,
+            tempo: 0.6,
+            drum_volume: 0.4,
+            drum_low_pass_filter: 0.3,
         }
     }
 }
@@ -49,12 +49,14 @@ fn voice(
     }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
     effect_x: impl SigT<Item = f32>,
     effect_y: impl SigT<Item = f32>,
+    effect_z: impl SigT<Item = f32>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     let note = note.shared();
-    let oscillator = super_saw(note.clone().freq_hz())
-        .num_oscillators(2)
-        .init(SuperSawInit::Const(channel.circle_phase_offset_01()))
+    let lfo = oscillator(Sine, 8.0).build().signed_to_01();
+    let oscillator = oscillator(Pulse, note.clone().freq_hz())
+        .pulse_width_01(effect_z)
+        .reset_offset_01(channel.circle_phase_offset_01())
         .build();
     let env = adsr_linear_01(key_down_gate)
         .key_press_trig(key_press_trigger)
@@ -64,10 +66,9 @@ fn voice(
         .release_s(0.0)
         .build()
         .exp_01(1.0);
-    oscillator.filter(
-        low_pass::default(env * note.clone().freq_hz() * 30.0 * Sig(effect_x))
-            .resonance(Sig(effect_y) * 4.0),
-    )
+    oscillator.filter(low_pass::default(
+        (env * Sig(effect_x) * 10000.0) + (lfo * 2000.0 * Sig(effect_y)),
+    ))
 }
 
 fn voice_bass(
@@ -79,8 +80,8 @@ fn voice_bass(
     }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
-    let oscillator = pulse_pwm(note.freq_hz() / 2.0)
-        .lfo_reset_offset_01(channel.circle_phase_offset_01())
+    let oscillator = oscillator(Triangle, note.freq_hz() / 2.0)
+        .reset_offset_01(channel.circle_phase_offset_01())
         .build();
     let env = adsr_linear_01(key_down_gate)
         .key_press_trig(key_press_trigger)
@@ -96,9 +97,9 @@ fn virtual_key_events(
 ) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
     let chords = [
         chord(note_name::C, MINOR),
-        chord(note_name::B, MAJOR),
+        chord(note_name::E, MAJOR),
+        chord(note_name::F, MAJOR),
         chord(note_name::F, MINOR),
-        chord(note_name::G, MINOR),
     ];
     struct State {
         index: usize,
@@ -156,7 +157,7 @@ fn virtual_key_events(
 fn virtual_key_events_bass(
     trig: impl FrameSigT<Item = bool>,
 ) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
-    let notes = [note::C2, note::B2, note::F2, note::G2];
+    let notes = [note::C2, note::E2, note::F2, note::F2];
     struct State {
         index: usize,
     }
@@ -185,50 +186,40 @@ fn virtual_key_events_bass(
     })
 }
 
-fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
+fn sig(
+    _input: Input,
+    channel: Channel,
+    seed: u64,
+) -> Sig<impl SigT<Item = f32>> {
     let effects = Effects::new();
-    let hat_closed = 1 << 0;
+    let _hat_closed = 1 << 0;
     let snare = 1 << 1;
     let kick = 1 << 2;
     let trigger = periodic_trig_hz(effects.tempo * 8.).build().shared();
-    let mut drums0 = drum_loop(
+    let mut rng = StdRng::seed_from_u64(seed);
+    let mut snares = (0..11).map(|_| 0).collect::<Vec<_>>();
+    for _ in 0..4 {
+        snares.push(snare);
+    }
+    snares.shuffle(&mut rng);
+    let snares = drum_loop(trigger.clone(), snares, channel);
+    #[rustfmt::skip]
+    let drums = drum_loop(
         trigger.clone(),
         vec![
-            kick, hat_closed, hat_closed, kick, snare, hat_closed, kick,
-            hat_closed, hat_closed, hat_closed, hat_closed, kick, snare,
-            hat_closed, kick, hat_closed,
-        ],
-        channel,
-    );
-    let mut drums1 = drum_loop(
-        trigger.clone(),
-        vec![
-            kick, 0, 0, kick, snare, 0, kick, 0, 0, 0, 0, kick, snare, 0, kick,
+            kick,
+            0,
+            0,
+            0,
+            kick,
+            0,
+            0,
             0,
         ],
         channel,
-    );
-    let mut drums2 = drum_loop(
-        trigger.clone(),
-        vec![kick, 0, 0, 0, snare, 0, 0, 0, kick, 0, 0, 0, snare, 0, 0, 0],
-        channel,
-    );
-    let drums = {
-        let mut count = -1;
-        let mut trigger = trigger.clone().divide(128);
-        Sig::from_buf_fn(move |ctx, buf| {
-            if trigger.frame_sample(ctx) {
-                count += 1;
-            }
-            match (count % 4).cmp(&2) {
-                Ordering::Less => drums2.sample(ctx).clone_to_vec(buf),
-                Ordering::Equal => drums1.sample(ctx).clone_to_vec(buf),
-                Ordering::Greater => drums0.sample(ctx).clone_to_vec(buf),
-            }
-        })
-    };
+    ) + snares;
     let arp_config = ArpConfig::default()
-        .with_shape(ArpShape::Random)
+        .with_shape(ArpShape::Down)
         .with_extend_octaves_high(0);
     let distortion = oscillator(Sine, 1.0 / 89.0)
         .reset_offset_01(-0.25)
@@ -248,12 +239,20 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
         * 0.3
         + 0.1)
         .shared();
+    let effect_z =
+        (oscillator(Sine, 97.0).build().signed_to_01() * 0.3 + 0.2).shared();
     let keys = virtual_key_events(trigger.clone())
         .arp(trigger.clone(), arp_config)
         .poly_voices(1)
         .into_iter()
         .map(|mono_voice| {
-            voice(mono_voice, cutoff.clone(), resonance.clone(), channel)
+            voice(
+                mono_voice,
+                cutoff.clone(),
+                resonance.clone(),
+                effect_z.clone(),
+                channel,
+            )
         })
         .sum::<Sig<_>>()
         .filter(
@@ -269,12 +268,8 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
     );
     (drums.filter(low_pass::default(effects.drum_low_pass_filter * 20000.0))
         * effects.drum_volume)
-        + (keys * (0.9 - cutoff)).filter(
-            chorus()
-                .feedback_ratio(0.7)
-                .lfo_offset(ChorusLfoOffset::Interleave(channel)),
-        )
-        + bass * 0.3
+        + (keys * (0.6 - cutoff))
+        + bass * 0.2
 }
 
 fn main() -> anyhow::Result<()> {
@@ -287,8 +282,9 @@ fn main() -> anyhow::Result<()> {
         .stride(2)
         .build();
     let input = window.input();
+    let rng_seed = StdRng::from_entropy().gen::<u64>();
     window.play_stereo(
-        Stereo::new_fn_channel(|ch| sig(input.clone(), ch)),
+        Stereo::new_fn_channel(|ch| sig(input.clone(), ch, rng_seed)),
         Default::default(),
     )
 }
