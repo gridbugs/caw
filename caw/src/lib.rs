@@ -4,8 +4,10 @@ pub use caw_core as core;
 pub use caw_keyboard as keyboard;
 pub use caw_modules as modules;
 pub use caw_patches as patches;
-pub use caw_player as player;
 pub use caw_utils as utils;
+
+#[cfg(feature = "caw_player")]
+pub use caw_player as player;
 
 #[cfg(feature = "caw_midi")]
 pub use caw_midi as midi;
@@ -32,8 +34,10 @@ pub mod prelude {
     pub use super::keyboard::*;
     pub use super::modules::*;
     pub use super::patches::*;
-    pub use super::player::*;
     pub use super::utils::*;
+
+    #[cfg(feature = "caw_player")]
+    pub use super::player::*;
 
     #[cfg(feature = "caw_midi")]
     pub use super::midi::*;

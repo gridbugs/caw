@@ -1,6 +1,12 @@
 [package]
 name = "caw_computer_keyboard"
 version = "0.1.0"
+description = "Use a computer keyboard to control caw synthesizer modules"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_computer_keyboard"
 edition = "2021"
 
 [dependencies]

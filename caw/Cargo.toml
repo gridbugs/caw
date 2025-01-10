@@ -1,9 +1,16 @@
 [package]
 name = "caw"
 version = "0.2.0"
+description = "A framework for building software-defined modular synthesizers"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw"
 edition = "2021"
 
 [features]
+player = [ "caw_player" ]
 midi_live = [ "caw_midi", "caw_midi_live" ]
 midi_file = [ "caw_midi", "caw_midi_file" ]
 midi_serial = [ "caw_midi", "caw_midi_serial" ]
@@ -11,7 +18,6 @@ interactive = [ "caw_interactive" ]
 audio_file = [ "caw_audio_file" ]
 
 [dependencies]
-caw_player = { version = "0.1", path = "../player" }
 caw_core = { version = "0.2", path = "../core" }
 caw_computer_keyboard = { version = "0.1", path = "../computer-keyboard" }
 caw_keyboard = { version = "0.1", path = "../keyboard" }
@@ -19,6 +25,7 @@ caw_modules = { version = "0.1", path = "../modules" }
 caw_patches = { version = "0.1", path = "../patches" }
 caw_utils = { version = "0.1", path = "../utils" }
 caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
+caw_player = { version = "0.1", path = "../player", optional = true }
 caw_midi = { version = "0.1", path = "../midi", optional = true }
 caw_midi_live = { version = "0.1", path = "../midi-live", optional = true }
 caw_midi_file = { version = "0.1", path = "../midi-file", optional = true }

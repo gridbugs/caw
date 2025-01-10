@@ -1,10 +1,16 @@
 [package]
 name = "caw_patches"
 version = "0.1.0"
+description = "Collection of common patches for the caw synthesizer framework"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_patches"
 edition = "2021"
 
 [dependencies]
-caw_modules = { path = "../modules" }
-caw_builder_proc_macros = { path = "../builder-proc-macros" }
-caw_core = { path = "../core" }
-caw_utils = { path = "../utils" }
+caw_modules = { version = "0.1", path = "../modules" }
+caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
+caw_core = { version = "0.2", path = "../core" }
+caw_utils = { version = "0.1", path = "../utils" }
