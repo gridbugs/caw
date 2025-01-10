@@ -1,9 +1,4 @@
-use caw_core::*;
-use caw_interactive::{Input, Visualization, Window};
-use caw_keyboard::{chord::*, *};
-use caw_modules::*;
-use caw_patches::drum;
-use caw_utils::bitwise_pattern_trigs_8;
+use caw::prelude::*;
 use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
 
 struct Effects<T, DV, DLPF>

@@ -27,6 +27,7 @@ rand = "0.8"
 wide = "0.7"
 clap = { version = "4", features = ["derive"] }
 itertools = "0.14"
+caw = { version = "0.2", path = "../caw", features = ["interactive"] }
 
 [[example]]
 name = "saw_interactive"

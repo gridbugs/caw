@@ -5,7 +5,7 @@ resolver = "2"
 members = [
     "audio-file",
     "builder-proc-macros",
-    "player",
+    "caw",
     "computer-keyboard",
     "core",
     "interactive",
@@ -16,5 +16,6 @@ members = [
     "midi",
     "modules",
     "patches",
+    "player",
     "utils",
 ]

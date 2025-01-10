@@ -1,5 +1,5 @@
 mod a440_12tet;
-pub use a440_12tet::*;
+pub use a440_12tet::{chord::*, *};
 
 mod event;
 pub use event::*;

@@ -1,0 +1,27 @@
+[package]
+name = "caw"
+version = "0.2.0"
+edition = "2021"
+
+[features]
+midi_live = [ "caw_midi", "caw_midi_live" ]
+midi_file = [ "caw_midi", "caw_midi_file" ]
+midi_serial = [ "caw_midi", "caw_midi_serial" ]
+interactive = [ "caw_interactive" ]
+audio_file = [ "caw_audio_file" ]
+
+[dependencies]
+caw_player = { version = "0.1", path = "../player" }
+caw_core = { version = "0.2", path = "../core" }
+caw_computer_keyboard = { version = "0.1", path = "../computer-keyboard" }
+caw_keyboard = { version = "0.1", path = "../keyboard" }
+caw_modules = { version = "0.1", path = "../modules" }
+caw_patches = { version = "0.1", path = "../patches" }
+caw_utils = { version = "0.1", path = "../utils" }
+caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
+caw_midi = { version = "0.1", path = "../midi", optional = true }
+caw_midi_live = { version = "0.1", path = "../midi-live", optional = true }
+caw_midi_file = { version = "0.1", path = "../midi-file", optional = true }
+caw_midi_serial = { version = "0.1", path = "../midi-serial", optional = true }
+caw_audio_file = { version = "0.1", path = "../audio-file", optional = true }
+caw_interactive = { version = "0.2", path = "../interactive", optional = true }
