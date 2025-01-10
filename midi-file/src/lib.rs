@@ -78,7 +78,7 @@ impl TrackState {
                 default_s_per_beat / (ticks_per_beat.as_int() as f32)
             }
             Timing::Timecode(frames_per_second, ticks_per_frame) => {
-                1.0 / (frames_per_second.as_f32() as f32
+                1.0 / (frames_per_second.as_f32()
                     * ticks_per_frame as f32)
             }
         };

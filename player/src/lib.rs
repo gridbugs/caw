@@ -42,6 +42,8 @@ pub struct Player {
 struct SyncCommandRequestNumSamples(usize);
 struct SyncCommandDone;
 
+type StereoSharedBuf<L, R> = Stereo<Arc<RwLock<Vec<L>>>, Arc<RwLock<Vec<R>>>>;
+
 impl Player {
     pub fn new() -> anyhow::Result<Self> {
         let host = cpal::default_host();
@@ -225,7 +227,7 @@ impl Player {
 
     fn make_stream_sync_stereo<TL, TR>(
         &self,
-        buf: Stereo<Arc<RwLock<Vec<TL>>>, Arc<RwLock<Vec<TR>>>>,
+        buf: StereoSharedBuf<TL, TR>,
         send_sync_command_request_num_samples: mpsc::Sender<
             SyncCommandRequestNumSamples,
         >,
@@ -297,7 +299,7 @@ impl Player {
             right: Arc::new(RwLock::new(Vec::new())),
         };
         let stream = self.make_stream_sync_stereo(
-            buffer.map_ref(|l| Arc::clone(l), |r| Arc::clone(r)),
+            buffer.map_ref(Arc::clone, Arc::clone),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
             config,
