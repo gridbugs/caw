@@ -1,4 +1,4 @@
-use caw_core_next::{Sig, SigT};
+use caw_core::{Sig, SigT};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub fn white() -> Sig<impl SigT<Item = f32>> {

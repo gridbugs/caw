@@ -7,7 +7,6 @@ edition = "2021"
 proc-macro = true
 
 [dependencies]
-caw_core_next = { path = "../core-next" }
 proc-macro2 = "1"
 quote = "1"
 syn = { version = "2", features = [ "full" ] }

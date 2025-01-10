@@ -1,6 +1,6 @@
 use crate::low_pass_butterworth::{self, LowPassButterworth};
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Filter, Sig, SigAbs, SigCtx, SigT};
+use caw_core::{Buf, Filter, Sig, SigAbs, SigCtx, SigT};
 
 pub const DEFAULT_SENSITIVITY_HZ: f32 = 60.0;
 

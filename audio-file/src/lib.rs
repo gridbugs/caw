@@ -1,4 +1,4 @@
-use caw_core_next::Stereo;
+use caw_core::Stereo;
 use hound::WavReader;
 use std::{fs, io::BufReader, path::Path};
 

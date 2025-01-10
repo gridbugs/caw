@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{FrameSig, FrameSigT, SigCtx};
+use caw_core::{FrameSig, FrameSigT, SigCtx};
 
 pub struct PeriodicGate<P, D>
 where

@@ -4,4 +4,4 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-caw_core_next = { path = "../core-next" }
+caw_core = { path = "../core" }

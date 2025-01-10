@@ -1,6 +1,4 @@
-use caw_core_next::{
-    frame_sig_shared, FrameSig, FrameSigT, Sig, SigT, Triggerable,
-};
+use caw_core::{frame_sig_shared, FrameSig, FrameSigT, Sig, SigT, Triggerable};
 use caw_modules::*;
 
 // A sweep which ends at `pitch_base` hz and starts `pitch_start_scale_octaves` number of octaves higher
@@ -132,7 +130,7 @@ where
 mod kick {
     use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
     use caw_builder_proc_macros::builder;
-    use caw_core_next::{
+    use caw_core::{
         frame_sig_shared, sig_shared, FrameSigT, Sig, SigT, Triggerable,
     };
     use caw_modules::*;
@@ -311,7 +309,7 @@ mod kick {
 
 mod snare {
     use caw_builder_proc_macros::builder;
-    use caw_core_next::{
+    use caw_core::{
         frame_sig_shared, sig_shared, FrameSigT, Sig, SigT, Triggerable,
     };
     use caw_modules::*;
@@ -477,7 +475,7 @@ mod snare {
 
 mod hat_closed {
     use caw_builder_proc_macros::builder;
-    use caw_core_next::{sig_shared, FrameSig, FrameSigT, SigT, Triggerable};
+    use caw_core::{sig_shared, FrameSig, FrameSigT, SigT, Triggerable};
     use caw_modules::adsr_linear_01;
 
     use super::NoiseFilterSweep;

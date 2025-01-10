@@ -1,5 +1,5 @@
 /// 12-tone equal temperament following the A440Hz convention
-use caw_core_next::{FrameSig, FrameSigT};
+use caw_core::{FrameSig, FrameSigT};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Octave(u8);

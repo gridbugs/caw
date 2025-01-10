@@ -6,5 +6,5 @@ edition = "2021"
 [dependencies]
 midly = "0.5"
 anyhow = "1"
-caw_core_next = { version = "0.1", path = "../core-next" }
+caw_core = { version = "0.2", path = "../core" }
 caw_midi = { version = "0.1", path = "../midi" }

@@ -1,6 +1,6 @@
 use crate::low_level::linearly_interpolating_ring_buffer::LinearlyInterpolatingRingBuffer;
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Filter, SigCtx, SigT};
+use caw_core::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
 builder! {

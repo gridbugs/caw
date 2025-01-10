@@ -4,7 +4,7 @@ use crate::low_level::{
     moog_ladder_oberheim::State as OberheimState,
 };
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Filter, SigCtx, SigT};
+use caw_core::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
 
 builder! {

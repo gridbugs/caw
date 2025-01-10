@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{frame_sig_ops::sig_div, FrameSig, FrameSigT, SigCtx};
+use caw_core::{frame_sig_ops::sig_div, FrameSig, FrameSigT, SigCtx};
 
 pub struct PeriodicTrig<P>
 where

@@ -2,7 +2,7 @@ use crate::{
     chord::{Chord, Inversion},
     polyphony, MonoVoice, Note,
 };
-use caw_core_next::{FrameSig, FrameSigT, SigCtx};
+use caw_core::{FrameSig, FrameSigT, SigCtx};
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use smallvec::{smallvec, SmallVec};
 use std::{cmp::Ordering, collections::HashSet};

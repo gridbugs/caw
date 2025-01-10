@@ -4,7 +4,7 @@ use crate::{
     Sine, Waveform,
 };
 use caw_builder_proc_macros::builder;
-use caw_core_next::{
+use caw_core::{
     sig_shared, Buf, Channel, Filter, Sig, SigCtx, SigShared, SigT,
 };
 use itertools::izip;

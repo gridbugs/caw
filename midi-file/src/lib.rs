@@ -1,4 +1,4 @@
-use caw_core_next::*;
+use caw_core::*;
 pub use caw_midi::{MidiMessages, MidiMessagesT};
 use midly::{
     num::u4, Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent,

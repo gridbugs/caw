@@ -1,4 +1,4 @@
-use caw_core_next::{frame_sig_shared, FrameSig, FrameSigShared, FrameSigT};
+use caw_core::{frame_sig_shared, FrameSig, FrameSigShared, FrameSigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
 use midly::{num::u7, MidiMessage};
 use smallvec::{smallvec, SmallVec};

@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{Buf, Sig, SigCtx, SigT};
+use caw_core::{Buf, Sig, SigCtx, SigT};
 use itertools::izip;
 
 pub struct AdsrLinear01<KD, KP, A, D, S, R>

@@ -1,4 +1,4 @@
-use caw_core_next::{FrameSig, FrameSigT};
+use caw_core::{FrameSig, FrameSigT};
 use caw_midi::MidiMessages;
 use midly::live::LiveEvent;
 use nix::sys::termios::BaudRate;

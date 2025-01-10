@@ -1,5 +1,5 @@
 use crate::{KeyEvent, KeyEvents, MonoVoice, Note};
-use caw_core_next::{frame_sig_shared, FrameSig, FrameSigT};
+use caw_core::{frame_sig_shared, FrameSig, FrameSigT};
 use smallvec::SmallVec;
 use std::collections::BinaryHeap;
 

@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core_next::{
+use caw_core::{
     sig_ops::{sig_add, sig_mul},
     Sig, SigT,
 };

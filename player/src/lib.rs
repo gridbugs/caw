@@ -1,4 +1,4 @@
-use caw_core_next::{Buf, SigCtx, SigT, Stereo};
+use caw_core::{Buf, SigCtx, SigT, Stereo};
 use cpal::{
     traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Device, OutputCallbackInfo, StreamConfig, SupportedBufferSize,

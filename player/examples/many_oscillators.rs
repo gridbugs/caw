@@ -1,4 +1,4 @@
-use caw_core_next::*;
+use caw_core::*;
 use caw_modules::*;
 use caw_player::Player;
 use rand::Rng;

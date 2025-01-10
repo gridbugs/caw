@@ -1,7 +1,5 @@
 use crate::KeyEvents;
-use caw_core_next::{
-    frame_sig_shared, FrameSig, FrameSigShared, FrameSigT, SigCtx,
-};
+use caw_core::{frame_sig_shared, FrameSig, FrameSigShared, FrameSigT, SigCtx};
 
 /// A collection of signals associated with a monophonic keyboard voice
 pub struct MonoVoice<K>

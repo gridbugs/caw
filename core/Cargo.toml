@@ -1,0 +1,17 @@
+[package]
+name = "caw_core"
+version = "0.2.0"
+edition = "2021"
+
+[dependencies]
+
+[dev-dependencies]
+caw_modules = { version = "0.1", path = "../modules" }
+cpal = "0.15"
+rand = "0.8"
+
+[[example]]
+name = "saw_print_values"
+
+[[example]]
+name = "saw_cpal"

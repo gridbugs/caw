@@ -6,4 +6,4 @@ edition = "2021"
 [dependencies]
 caw_modules = { path = "../modules" }
 caw_builder_proc_macros = { path = "../builder-proc-macros" }
-caw_core_next = { path = "../core-next" }
+caw_core = { path = "../core" }

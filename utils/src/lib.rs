@@ -1,9 +1,9 @@
-use caw_core_next::{FrameSig, FrameSigT};
+use caw_core::{FrameSig, FrameSigT};
 
 /// Returns an array of 8 trigger signals, each corresponding to one of the bits in the patterns.
 /// On each trigger pulse the current pattern is advanced and those of the returned triggers
 /// corresponding to 1s in the current pattern will receive pulses.
-pub fn bitwise_pattern_triggers_8(
+pub fn bitwise_pattern_trigs_8(
     trig: impl FrameSigT<Item = bool>,
     patterns: Vec<u8>,
 ) -> [FrameSig<impl FrameSigT<Item = bool>>; 8] {
