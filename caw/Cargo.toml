@@ -32,3 +32,20 @@ caw_midi_file = { version = "0.1", path = "../midi-file", optional = true }
 caw_midi_serial = { version = "0.1", path = "../midi-serial", optional = true }
 caw_audio_file = { version = "0.1", path = "../audio-file", optional = true }
 caw_interactive = { version = "0.2", path = "../interactive", optional = true }
+
+[dev-dependencies]
+anyhow = "1.0"
+rand = "0.8"
+env_logger = "0.11"
+
+[[example]]
+name = "electric_organ_menu"
+required-features = [ "interactive" ]
+
+[[example]]
+name = "electric_organ_level_1"
+required-features = [ "interactive" ]
+
+[[example]]
+name = "electric_organ_level_2"
+required-features = [ "interactive" ]

@@ -32,8 +32,6 @@ env_logger = "0.11"
 rand = "0.8"
 wide = "0.7"
 clap = { version = "4", features = ["derive"] }
-itertools = "0.14"
-caw = { version = "0.2", path = "../caw", features = ["interactive"] }
 
 [[example]]
 name = "saw_interactive"
@@ -88,12 +86,3 @@ name = "drums"
 
 [[example]]
 name = "drums_loop"
-
-[[example]]
-name = "electric_organ_menu"
-
-[[example]]
-name = "electric_organ_level_1"
-
-[[example]]
-name = "electric_organ_level_2"
