@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi"
-version = "0.1.0"
+version = "0.2.0"
 description = "Common midi logic for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -12,5 +12,5 @@ edition = "2021"
 [dependencies]
 midly = "0.5"
 smallvec = "1.13"
-caw_core = { version = "0.2", path = "../core" }
-caw_keyboard = { version = "0.1", path = "../keyboard" }
+caw_core = { version = "0.3", path = "../core" }
+caw_keyboard = { version = "0.2", path = "../keyboard" }

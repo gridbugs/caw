@@ -1,6 +1,6 @@
 [package]
 name = "caw_keyboard"
-version = "0.1.0"
+version = "0.2.0"
 description = "Abstract representation of a (musical) keyboard for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -10,7 +10,7 @@ documentation = "https://docs.rs/caw_keyboard"
 edition = "2021"
 
 [dependencies]
-caw_core = { version = "0.2", path = "../core" }
+caw_core = { version = "0.3", path = "../core" }
 smallvec = "1"
 log = "0.4"
 rand = "0.8"

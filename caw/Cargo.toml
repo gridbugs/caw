@@ -18,20 +18,20 @@ interactive = [ "caw_interactive" ]
 audio_file = [ "caw_audio_file" ]
 
 [dependencies]
-caw_core = { version = "0.2", path = "../core" }
-caw_computer_keyboard = { version = "0.1", path = "../computer-keyboard" }
-caw_keyboard = { version = "0.1", path = "../keyboard" }
-caw_modules = { version = "0.1", path = "../modules" }
-caw_patches = { version = "0.1", path = "../patches" }
-caw_utils = { version = "0.1", path = "../utils" }
+caw_core = { version = "0.3", path = "../core" }
+caw_computer_keyboard = { version = "0.2", path = "../computer-keyboard" }
+caw_keyboard = { version = "0.2", path = "../keyboard" }
+caw_modules = { version = "0.2", path = "../modules" }
+caw_patches = { version = "0.2", path = "../patches" }
+caw_utils = { version = "0.2", path = "../utils" }
 caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
-caw_player = { version = "0.1", path = "../player", optional = true }
-caw_midi = { version = "0.1", path = "../midi", optional = true }
-caw_midi_live = { version = "0.1", path = "../midi-live", optional = true }
-caw_midi_file = { version = "0.1", path = "../midi-file", optional = true }
-caw_midi_serial = { version = "0.1", path = "../midi-serial", optional = true }
-caw_audio_file = { version = "0.1", path = "../audio-file", optional = true }
-caw_interactive = { version = "0.2", path = "../interactive", optional = true }
+caw_player = { version = "0.2", path = "../player", optional = true }
+caw_midi = { version = "0.2", path = "../midi", optional = true }
+caw_midi_live = { version = "0.2", path = "../midi-live", optional = true }
+caw_midi_file = { version = "0.2", path = "../midi-file", optional = true }
+caw_midi_serial = { version = "0.2", path = "../midi-serial", optional = true }
+caw_audio_file = { version = "0.2", path = "../audio-file", optional = true }
+caw_interactive = { version = "0.3", path = "../interactive", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0"

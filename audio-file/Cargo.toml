@@ -1,6 +1,6 @@
 [package]
 name = "caw_audio_file"
-version = "0.1.0"
+version = "0.2.0"
 description = "Load audio files for sampling in the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -10,6 +10,6 @@ documentation = "https://docs.rs/caw_audio_file"
 edition = "2021"
 
 [dependencies]
-caw_core = { version = "0.2", path = "../core" }
+caw_core = { version = "0.3", path = "../core" }
 hound = "3.5"
 anyhow = "1"
