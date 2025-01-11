@@ -1,6 +1,6 @@
 [package]
 name = "caw_player"
-version = "0.2.1"
+version = "0.2.2"
 description = "Play audio from the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -8,6 +8,9 @@ homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_player"
 edition = "2021"
+
+[features]
+web = ["cpal/wasm-bindgen"]
 
 [dependencies]
 caw_core = { version = "0.3", path = "../core" }

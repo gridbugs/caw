@@ -9,6 +9,9 @@ repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_modules"
 edition = "2021"
 
+[features]
+web = ["getrandom/js"]
+
 [dependencies]
 caw_core = { version = "0.3", path = "../core" }
 caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
@@ -16,3 +19,4 @@ itertools = "0.14"
 wide = "0.7"
 rand = "0.8"
 log = "0.4"
+getrandom = "0.2"

@@ -1,6 +1,6 @@
 [package]
 name = "caw"
-version = "0.3.0"
+version = "0.3.1"
 description = "A framework for building software-defined modular synthesizers"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -10,6 +10,7 @@ documentation = "https://docs.rs/caw"
 edition = "2021"
 
 [features]
+web = [ "caw_player/web", "caw_keyboard/web", "caw_modules/web", "caw_utils/web" ]
 player = [ "caw_player" ]
 midi_live = [ "caw_midi", "caw_midi_live" ]
 midi_file = [ "caw_midi", "caw_midi_file" ]

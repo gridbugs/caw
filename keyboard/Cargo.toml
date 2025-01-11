@@ -9,8 +9,12 @@ repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_keyboard"
 edition = "2021"
 
+[features]
+web = ["getrandom/js"]
+
 [dependencies]
 caw_core = { version = "0.3", path = "../core" }
 smallvec = "1"
 log = "0.4"
 rand = "0.8"
+getrandom = "0.2"
