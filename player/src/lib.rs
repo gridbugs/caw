@@ -430,6 +430,49 @@ impl Player {
             sample_rate_hz: stream_config.sample_rate.0 as f32,
         })
     }
+
+    pub fn into_async_mono(
+        self,
+        config: ConfigAsync,
+    ) -> anyhow::Result<PlayerAsyncMono> {
+        let queue = Arc::new(Mutex::new(VecDeque::new()));
+        let stream_config = self.device.default_output_config()?.config();
+        log::info!("sample rate: {}", stream_config.sample_rate.0);
+        log::info!("num channels: {}", stream_config.channels);
+        log::info!("buffer size: {:?}", stream_config.buffer_size);
+        let stream = self.device.build_output_stream(
+            &stream_config,
+            {
+                let queue = Arc::clone(&queue);
+                move |data: &mut [f32], _: &OutputCallbackInfo| {
+                    let mut queue =
+                        queue.lock().expect("main thread has stopped");
+                    for output in
+                        data.chunks_mut(stream_config.channels as usize)
+                    {
+                        let sample: f32 = queue.pop_front().unwrap_or_default();
+                        for element in output {
+                            *element = sample;
+                        }
+                    }
+                }
+            },
+            |err| eprintln!("stream error: {}", err),
+            None,
+        )?;
+        stream.play()?;
+        let max_num_samples = (config.max_latency_s
+            * stream_config.sample_rate.0 as f32)
+            as usize;
+        Ok(PlayerAsyncMono {
+            stream,
+            queue,
+            max_num_samples,
+            scratch: Vec::new(),
+            batch_index: 0,
+            sample_rate_hz: stream_config.sample_rate.0 as f32,
+        })
+    }
 }
 
 type StereoSharedAsyncQueue =
@@ -461,10 +504,14 @@ impl PlayerAsyncStereo {
         SL: SigSampleIntoBufT<Item = f32>,
         SR: SigSampleIntoBufT<Item = f32>,
     {
-        // assume that both queues are the same length
+        // Assume that both queues are the same length.
+        // Make sure that at least 1 sample is resolved each frame. Without this, interactive
+        // triggers might be skipped if the buffer happens to be full when this method is called.
+        // This means the latency is not necessarily fixed.
         let num_samples = self
             .max_num_samples
-            .saturating_sub(self.queue.left.lock().unwrap().len());
+            .saturating_sub(self.queue.left.lock().unwrap().len())
+            .max(1);
         let ctx = SigCtx {
             sample_rate_hz: self.sample_rate_hz,
             batch_index: self.batch_index,
@@ -482,6 +529,44 @@ impl PlayerAsyncStereo {
             for &x in &self.scratch.right {
                 right.push_back(x);
             }
+        }
+        self.batch_index += 1;
+    }
+}
+
+type MonoSharedAsyncQueue = Arc<Mutex<VecDeque<f32>>>;
+
+pub struct PlayerAsyncMono {
+    #[allow(unused)]
+    stream: Stream,
+    queue: MonoSharedAsyncQueue,
+    max_num_samples: usize,
+    scratch: Vec<f32>,
+    batch_index: u64,
+    sample_rate_hz: f32,
+}
+
+impl PlayerAsyncMono {
+    pub fn play_signal_mono<S>(&mut self, sig: &mut S)
+    where
+        S: SigSampleIntoBufT<Item = f32>,
+    {
+        // Make sure that at least 1 sample is resolved each frame. Without this, interactive
+        // triggers might be skipped if the buffer happens to be full when this method is called.
+        // This means the latency is not necessarily fixed.
+        let num_samples = self
+            .max_num_samples
+            .saturating_sub(self.queue.lock().unwrap().len())
+            .max(1);
+        let ctx = SigCtx {
+            sample_rate_hz: self.sample_rate_hz,
+            batch_index: self.batch_index,
+            num_samples,
+        };
+        sig.sample_into_buf(&ctx, self.scratch.as_mut());
+        let mut queue = self.queue.lock().unwrap();
+        for &sample in &self.scratch {
+            queue.push_back(sample);
         }
         self.batch_index += 1;
     }
