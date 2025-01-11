@@ -10,13 +10,13 @@ documentation = "https://docs.rs/caw"
 edition = "2021"
 
 [features]
-web = [ "caw_player/web", "caw_keyboard/web", "caw_modules/web", "caw_utils/web" ]
-player = [ "caw_player" ]
-midi_live = [ "caw_midi", "caw_midi_live" ]
-midi_file = [ "caw_midi", "caw_midi_file" ]
-midi_serial = [ "caw_midi", "caw_midi_serial" ]
-interactive = [ "caw_interactive" ]
-audio_file = [ "caw_audio_file" ]
+web = ["caw_player/web", "caw_keyboard/web", "caw_modules/web", "caw_utils/web"]
+player = ["caw_player"]
+midi_live = ["caw_midi", "caw_midi_live"]
+midi_file = ["caw_midi", "caw_midi_file"]
+midi_serial = ["caw_midi", "caw_midi_serial"]
+interactive = ["caw_interactive"]
+audio_file = ["caw_audio_file"]
 
 [dependencies]
 caw_core = { version = "0.3", path = "../core" }
