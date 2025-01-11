@@ -226,7 +226,7 @@ where
             if x {
                 remaining_s = period_s;
             }
-            remaining_s -= 1.0 / ctx.sample_rate_hz;
+            remaining_s -= (ctx.num_samples as f32) / ctx.sample_rate_hz;
             remaining_s > 0.0
         })
     }
