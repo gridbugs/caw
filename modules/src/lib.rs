@@ -102,3 +102,9 @@ pub use compressor::compressor;
 
 pub mod chorus;
 pub use chorus::{chorus, ChorusLfoOffset};
+
+pub mod quantizer;
+pub use quantizer::quantizer;
+
+pub mod down_sample;
+pub use down_sample::down_sample;
