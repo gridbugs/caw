@@ -8,6 +8,11 @@ jobs:
         os: [ubuntu-latest, windows-latest, macOS-latest]
         rust: [stable]
     steps:
+    - if: matrix.os == 'ubuntu-latest'
+      name: 'Install dependencies (ubuntu)'
+      run: |
+        sudo apt update
+        sudo apt install libudev-dev libasound2-dev libsdl2-dev libsdl2-ttf-dev
     - uses: hecrj/setup-rust-action@v1
       with:
         rust-version: ${{ matrix.rust }}
