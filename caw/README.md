@@ -12,7 +12,7 @@ CAW is a framework for building synthesizers as Rust programs.
 Here's a simple example that plays a 60Hz saw wave:
 ```toml
 # Cargo.toml
-...
+
 [dependencies]
 caw = { version = "0.4", features = ["interactive"] }
 ```
@@ -88,5 +88,5 @@ fn main() {
 There's a bunch of effects that can be chained onto signals. Here we'll add a
 chorus and reverb effect.
 
-See the examples in the [caw](../caw) [caw_interactive](../interactive) crates for
+See the examples in the [caw](../caw) and [caw_interactive](../interactive) crates for
 more complex examples.
