@@ -2,7 +2,10 @@
 
 # Combinatorial Audia Workspace (CAW)
 
+[![Version](https://img.shields.io/crates/v/caw.svg)](https://crates.io/crates/caw)
+[![Documentation](https://docs.rs/caw/badge.svg)](https://docs.rs/caw)
 [![test](https://github.com/gridbugs/caw/actions/workflows/test.yml/badge.svg)](https://github.com/gridbugs/caw/actions/workflows/test.yml)
+[![dependency status](https://deps.rs/repo/github/gridbugs/caw/status.svg)](https://deps.rs/repo/github/gridbugs/caw)
 
 CAW is a framework for building synthesizers as Rust programs.
 
