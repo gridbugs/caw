@@ -499,7 +499,7 @@ pub struct PlayerAsyncStereo {
 }
 
 impl PlayerAsyncStereo {
-    pub fn play_signal_stereo_callback<SL, SR, F>(
+    pub fn play_signal_callback<SL, SR, F>(
         &mut self,
         sig: &mut Stereo<SL, SR>,
         mut f: F,
@@ -538,12 +538,12 @@ impl PlayerAsyncStereo {
         self.batch_index += 1;
     }
 
-    pub fn play_signal_stereo<SL, SR>(&mut self, sig: &mut Stereo<SL, SR>)
+    pub fn play_signal<SL, SR>(&mut self, sig: &mut Stereo<SL, SR>)
     where
         SL: SigSampleIntoBufT<Item = f32>,
         SR: SigSampleIntoBufT<Item = f32>,
     {
-        self.play_signal_stereo_callback(sig, |_| ());
+        self.play_signal_callback(sig, |_| ());
     }
 }
 
@@ -560,7 +560,7 @@ pub struct PlayerAsyncMono {
 }
 
 impl PlayerAsyncMono {
-    pub fn play_signal_mono_callback<S, F>(&mut self, sig: &mut S, mut f: F)
+    pub fn play_signal_callback<S, F>(&mut self, sig: &mut S, mut f: F)
     where
         S: SigSampleIntoBufT<Item = f32>,
         F: FnMut(&[f32]),
@@ -586,10 +586,10 @@ impl PlayerAsyncMono {
         self.batch_index += 1;
     }
 
-    pub fn play_signal_mono<S>(&mut self, sig: &mut S)
+    pub fn play_signal<S>(&mut self, sig: &mut S)
     where
         S: SigSampleIntoBufT<Item = f32>,
     {
-        self.play_signal_mono_callback(sig, |_| ());
+        self.play_signal_callback(sig, |_| ());
     }
 }

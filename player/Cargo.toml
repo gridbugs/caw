@@ -1,6 +1,6 @@
 [package]
 name = "caw_player"
-version = "0.2.2"
+version = "0.3.0"
 description = "Play audio from the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
