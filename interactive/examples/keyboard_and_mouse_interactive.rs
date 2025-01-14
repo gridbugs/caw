@@ -41,12 +41,7 @@ fn sig(input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let window = Window::builder()
-        .sane_default()
-        .visualization(Visualization::StereoOscillographics)
-        .line_width(2)
-        .scale(4.)
-        .build();
+    let window = Window::builder().build();
     let input = window.input();
     window.play_stereo(
         Stereo::new_fn_channel(|channel| sig(input.clone(), channel)),

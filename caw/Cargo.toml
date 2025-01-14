@@ -54,3 +54,7 @@ required-features = [ "interactive" ]
 [[example]]
 name = "electric_organ_sfx"
 required-features = [ "interactive" ]
+
+[[example]]
+name = "simple"
+required-features = [ "interactive" ]

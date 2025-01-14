@@ -1,8 +1,11 @@
-![CAW Logo](assets/logo.png)
+![CAW Logo](../assets/logo.png)
 
-# Combinatorial Audia Workspace (CAW)
+# caw
 
+[![Version](https://img.shields.io/crates/v/caw.svg)](https://crates.io/crates/caw)
+[![Documentation](https://docs.rs/caw/badge.svg)](https://docs.rs/caw)
 [![test](https://github.com/gridbugs/caw/actions/workflows/test.yml/badge.svg)](https://github.com/gridbugs/caw/actions/workflows/test.yml)
+[![dependency status](https://deps.rs/repo/github/gridbugs/caw/status.svg)](https://deps.rs/repo/github/gridbugs/caw)
 
 CAW is a framework for building synthesizers as Rust programs.
 
@@ -85,5 +88,5 @@ fn main() {
 There's a bunch of effects that can be chained onto signals. Here we'll add a
 chorus and reverb effect.
 
-See the examples in the [caw](caw) [caw_interactive](interactive) crates for
+See the examples in the [caw](../caw) [caw_interactive](../interactive) crates for
 more complex examples.
