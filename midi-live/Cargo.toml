@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_live"
-version = "0.2.0"
+version = "0.2.1"
 description = "Use a midi device to control caw synthesizers"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"

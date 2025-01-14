@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_serial"
-version = "0.2.0"
+version = "0.2.1"
 description = "Control caw synthesizers with a serial device that transmits midi data over a serial port"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
