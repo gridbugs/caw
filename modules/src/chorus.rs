@@ -32,6 +32,10 @@ builder! {
         lfo_waveform: Sine,
         #[default = ChorusLfoOffset::None]
         lfo_offset: ChorusLfoOffset,
+        #[generic_with_constraint = "SigT<Item = bool>"]
+        #[generic_name = "T"]
+        #[default = false]
+        lfo_reset_trig: bool,
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "DL"]
         #[default = 0.02]
@@ -53,13 +57,14 @@ builder! {
     }
 }
 
-type Osc<W, F> = Oscillator<W, Sig<SigShared<F>>, f32, f32, bool>;
+type Osc<W, F, T> = Oscillator<W, Sig<SigShared<F>>, f32, f32, SigShared<T>>;
 
-pub struct Chorus<S, R, W, DL, DP, F, M>
+pub struct Chorus<S, R, W, T, DL, DP, F, M>
 where
     S: SigT<Item = f32>,
     R: SigT<Item = f32>,
     W: Waveform,
+    T: SigT<Item = bool>,
     DL: SigT<Item = f32>,
     DP: SigT<Item = f32>,
     F: SigT<Item = f32>,
@@ -71,15 +76,16 @@ where
     mix_01: M,
     buf: Vec<f32>,
     ring: LinearlyInterpolatingRingBuffer,
-    lfos: Vec<Osc<W, R>>,
+    lfos: Vec<Osc<W, R, T>>,
     lfo_bufs: Vec<Vec<f32>>,
     sig: S,
 }
 
-impl<R, W, DL, DP, F, M> Filter for Props<R, W, DL, DP, F, M>
+impl<R, W, T, DL, DP, F, M> Filter for Props<R, W, T, DL, DP, F, M>
 where
     R: SigT<Item = f32>,
     W: Waveform,
+    T: SigT<Item = bool>,
     DL: SigT<Item = f32>,
     DP: SigT<Item = f32>,
     F: SigT<Item = f32>,
@@ -88,7 +94,7 @@ where
     type ItemIn = f32;
 
     type Out<S>
-        = Chorus<S, R, W, DL, DP, F, M>
+        = Chorus<S, R, W, T, DL, DP, F, M>
     where
         S: SigT<Item = Self::ItemIn>;
 
@@ -97,6 +103,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         let lfo_rate_hz = sig_shared(self.lfo_rate_hz);
+        let lfo_reset_trig = sig_shared(self.lfo_reset_trig);
         let total_offset_01 = match self.lfo_offset {
             ChorusLfoOffset::None => 0.,
             ChorusLfoOffset::Interleave(Channel::Left) => 0.,
@@ -105,12 +112,13 @@ where
                 0.5 / self.num_voices as f32
             }
         };
-        let lfos: Vec<Osc<W, R>> = (0..self.num_voices)
+        let lfos: Vec<Osc<W, R, T>> = (0..self.num_voices)
             .map(|i| {
                 let offset_01 =
                     total_offset_01 + ((i as f32) / self.num_voices as f32);
                 oscillator(self.lfo_waveform, lfo_rate_hz.clone())
                     .reset_offset_01(offset_01)
+                    .reset_trig(lfo_reset_trig.clone().0)
                     .build()
                     .0
             })
@@ -131,11 +139,12 @@ where
     }
 }
 
-impl<S, R, W, DL, DP, F, M> SigT for Chorus<S, R, W, DL, DP, F, M>
+impl<S, R, W, T, DL, DP, F, M> SigT for Chorus<S, R, W, T, DL, DP, F, M>
 where
     S: SigT<Item = f32>,
     R: SigT<Item = f32>,
     W: Waveform,
+    T: SigT<Item = bool>,
     DL: SigT<Item = f32>,
     DP: SigT<Item = f32>,
     F: SigT<Item = f32>,

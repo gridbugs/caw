@@ -3,16 +3,17 @@ use caw_interactive::{Input, MouseButton, Visualization, Window};
 use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
 use caw_modules::*;
 
-fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
+fn sig(input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
     let MonoVoice {
         note,
         key_down_gate,
         key_press_trig,
         ..
     } = input.keyboard.opinionated_key_events(Note::B0).mono_voice();
+    let key_press_trig = key_press_trig.shared();
     let key_down_gate = key_down_gate | input.mouse.button(MouseButton::Left);
     let env = adsr_linear_01(key_down_gate)
-        .key_press_trig(key_press_trig)
+        .key_press_trig(key_press_trig.clone())
         .attack_s(0.01)
         .decay_s(0.2)
         .sustain_01(0.8)
@@ -25,6 +26,14 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
         low_pass::default(env * input.mouse.y_01() * 10000.)
             .resonance(input.mouse.x_01()),
     )
+    .filter(
+        chorus()
+            .lfo_rate_hz(0.1)
+            .num_voices(1)
+            .delay_s(0.001)
+            .lfo_offset(ChorusLfoOffset::Interleave(channel))
+            .lfo_reset_trig(key_press_trig.clone()),
+    )
     .filter(reverb::default().room_size(0.9).damping(0.9))
     .filter(high_pass::default(1.))
     .filter(compressor().threshold(0.1).scale(2.0).ratio(0.1))
@@ -36,8 +45,11 @@ fn main() -> anyhow::Result<()> {
         .sane_default()
         .visualization(Visualization::StereoOscillographics)
         .line_width(2)
+        .scale(4.)
         .build();
     let input = window.input();
-    window
-        .play_stereo(Stereo::new_fn(|| sig(input.clone())), Default::default())
+    window.play_stereo(
+        Stereo::new_fn_channel(|channel| sig(input.clone(), channel)),
+        Default::default(),
+    )
 }
