@@ -499,10 +499,14 @@ pub struct PlayerAsyncStereo {
 }
 
 impl PlayerAsyncStereo {
-    pub fn play_signal_stereo<SL, SR>(&mut self, sig: &mut Stereo<SL, SR>)
-    where
+    pub fn play_signal_stereo_callback<SL, SR, F>(
+        &mut self,
+        sig: &mut Stereo<SL, SR>,
+        mut f: F,
+    ) where
         SL: SigSampleIntoBufT<Item = f32>,
         SR: SigSampleIntoBufT<Item = f32>,
+        F: FnMut(Stereo<&[f32], &[f32]>),
     {
         // Assume that both queues are the same length.
         // Make sure that at least 1 sample is resolved each frame. Without this, interactive
@@ -518,6 +522,7 @@ impl PlayerAsyncStereo {
             num_samples,
         };
         sig.sample_into_buf(&ctx, self.scratch.as_mut());
+        f(self.scratch.map_ref(|v| v.as_slice(), |v| v.as_slice()));
         {
             let mut left = self.queue.left.lock().unwrap();
             for &x in &self.scratch.left {
@@ -531,6 +536,14 @@ impl PlayerAsyncStereo {
             }
         }
         self.batch_index += 1;
+    }
+
+    pub fn play_signal_stereo<SL, SR>(&mut self, sig: &mut Stereo<SL, SR>)
+    where
+        SL: SigSampleIntoBufT<Item = f32>,
+        SR: SigSampleIntoBufT<Item = f32>,
+    {
+        self.play_signal_stereo_callback(sig, |_| ());
     }
 }
 
@@ -547,9 +560,10 @@ pub struct PlayerAsyncMono {
 }
 
 impl PlayerAsyncMono {
-    pub fn play_signal_mono<S>(&mut self, sig: &mut S)
+    pub fn play_signal_mono_callback<S, F>(&mut self, sig: &mut S, mut f: F)
     where
         S: SigSampleIntoBufT<Item = f32>,
+        F: FnMut(&[f32]),
     {
         // Make sure that at least 1 sample is resolved each frame. Without this, interactive
         // triggers might be skipped if the buffer happens to be full when this method is called.
@@ -564,10 +578,18 @@ impl PlayerAsyncMono {
             num_samples,
         };
         sig.sample_into_buf(&ctx, self.scratch.as_mut());
+        f(self.scratch.as_slice());
         let mut queue = self.queue.lock().unwrap();
         for &sample in &self.scratch {
             queue.push_back(sample);
         }
         self.batch_index += 1;
+    }
+
+    pub fn play_signal_mono<S>(&mut self, sig: &mut S)
+    where
+        S: SigSampleIntoBufT<Item = f32>,
+    {
+        self.play_signal_mono_callback(sig, |_| ());
     }
 }
