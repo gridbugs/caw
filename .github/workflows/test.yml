@@ -13,7 +13,8 @@ jobs:
       run: |
         sudo apt update
         sudo apt install libudev-dev libasound2-dev libsdl2-dev libsdl2-ttf-dev
-    - name: Setup SDL2 frameworks
+    - if: matrix.os == 'macOS-latest'
+      name: Setup SDL2 frameworks
       uses: BrettDong/setup-sdl2-frameworks@main
       with:
         sdl2: latest
