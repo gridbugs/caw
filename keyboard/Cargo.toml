@@ -1,6 +1,6 @@
 [package]
 name = "caw_keyboard"
-version = "0.2.1"
+version = "0.2.2"
 description = "Abstract representation of a (musical) keyboard for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -14,7 +14,7 @@ web = ["getrandom/js"]
 
 [dependencies]
 caw_core = { version = "0.3", path = "../core" }
-smallvec = "1"
+smallvec = ">=1.6.1,<2"
 log = "0.4"
 rand = "0.8"
 getrandom = "0.2"
