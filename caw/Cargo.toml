@@ -38,6 +38,7 @@ caw_interactive = { version = "0.3", path = "../interactive", optional = true }
 anyhow = "1.0"
 rand = "0.8"
 env_logger = "0.11"
+clap = { version = "4", features = ["derive"] }
 
 [[example]]
 name = "electric_organ_menu"
@@ -58,3 +59,7 @@ required-features = [ "interactive" ]
 [[example]]
 name = "simple"
 required-features = [ "interactive" ]
+
+[[example]]
+name = "audio_file_playback"
+required-features = [ "interactive", "audio_file" ]
