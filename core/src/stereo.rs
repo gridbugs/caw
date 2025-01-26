@@ -31,6 +31,8 @@ pub struct Stereo<L, R> {
     pub right: R,
 }
 
+pub type StereoPair<T> = Stereo<T, T>;
+
 impl<L, R> Stereo<L, R> {
     pub fn new(left: L, right: R) -> Self {
         Self { left, right }

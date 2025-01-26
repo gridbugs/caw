@@ -1,5 +1,10 @@
 use crate::{Buf, ConstBuf, Filter, Sig, SigCtx, SigT};
-use std::{cell::RefCell, fmt::Debug, rc::Rc};
+use std::{
+    cell::RefCell,
+    fmt::Debug,
+    rc::Rc,
+    sync::{Arc, RwLock},
+};
 
 /// A signal with values produced each audio frame. This is distinct from the `SigT` trait whose
 /// values are produced for each audio sample. Each audio frame corresponds to the sound driver
@@ -529,6 +534,40 @@ where
     FrameSig(FrameSigShared {
         shared_cached_sig: Rc::new(RefCell::new(FrameSigCached::new(sig))),
     })
+}
+
+#[derive(Default)]
+pub struct FrameSigVar<T>(Arc<RwLock<T>>);
+
+impl<T> FrameSigVar<T> {
+    pub fn new(value: T) -> Self {
+        Self(Arc::new(RwLock::new(value)))
+    }
+
+    pub fn set(&self, value: T) {
+        *self.0.write().unwrap() = value;
+    }
+}
+
+impl<T> Clone for FrameSigVar<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl<T> FrameSigT for FrameSigVar<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
+        self.0.read().unwrap().clone()
+    }
+}
+
+pub fn frame_sig_var<T: Clone>(value: T) -> FrameSig<FrameSigVar<T>> {
+    FrameSig(FrameSigVar::new(value))
 }
 
 pub struct FrameSigBoxed<T>(Box<dyn FrameSigT<Item = T>>);

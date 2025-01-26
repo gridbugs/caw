@@ -1,7 +1,6 @@
 pub use caw_computer_keyboard::{Key, Keyboard as KeyboardGeneric};
-use caw_core::{FrameSig, FrameSigT, SigCtx};
+use caw_core::{frame_sig_var, FrameSig, FrameSigT, FrameSigVar};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
-use std::sync::{Arc, RwLock};
 
 #[derive(Debug, Clone, Copy)]
 pub enum MouseButton {
@@ -17,22 +16,6 @@ pub struct MouseGeneric<P, B> {
     pub left: B,
     pub right: B,
     pub middle: B,
-}
-
-impl<P, B> MouseGeneric<P, B> {
-    fn map<P_, B_, FP: FnMut(&P) -> P_, FB: FnMut(&B) -> B_>(
-        &self,
-        mut f_position: FP,
-        mut f_button: FB,
-    ) -> MouseGeneric<P_, B_> {
-        MouseGeneric {
-            x_01: f_position(&self.x_01),
-            y_01: f_position(&self.y_01),
-            left: f_button(&self.left),
-            right: f_button(&self.right),
-            middle: f_button(&self.middle),
-        }
-    }
 }
 
 impl<P: Clone, B: Clone> MouseGeneric<P, B> {
@@ -54,27 +37,9 @@ impl<P: Clone, B: Clone> MouseGeneric<P, B> {
     }
 }
 
-/// A signal for keyboard and mouse inputs from sdl. Always yields the same value during any given
-/// frame.
-pub struct FrameSigInput<T: Copy>(Arc<RwLock<T>>);
-
-impl<T: Copy> FrameSigT for FrameSigInput<T> {
-    type Item = T;
-
-    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
-        *self.0.read().unwrap()
-    }
-}
-
-impl<T: Copy> Clone for FrameSigInput<T> {
-    fn clone(&self) -> Self {
-        FrameSigInput(Arc::clone(&self.0))
-    }
-}
-
-pub type Keyboard = KeyboardGeneric<FrameSig<FrameSigInput<bool>>>;
+pub type Keyboard = KeyboardGeneric<FrameSig<FrameSigVar<bool>>>;
 pub type Mouse =
-    MouseGeneric<FrameSig<FrameSigInput<f32>>, FrameSig<FrameSigInput<bool>>>;
+    MouseGeneric<FrameSig<FrameSigVar<f32>>, FrameSig<FrameSigVar<bool>>>;
 
 #[derive(Clone)]
 pub struct Input {
@@ -105,66 +70,18 @@ impl Input {
 
 #[derive(Clone)]
 pub struct InputState {
-    keyboard: KeyboardGeneric<Arc<RwLock<bool>>>,
-    mouse: MouseGeneric<Arc<RwLock<f32>>, Arc<RwLock<bool>>>,
+    keyboard: KeyboardGeneric<FrameSig<FrameSigVar<bool>>>,
+    mouse:
+        MouseGeneric<FrameSig<FrameSigVar<f32>>, FrameSig<FrameSigVar<bool>>>,
 }
 
 impl InputState {
     pub(crate) fn new() -> Self {
-        let mk_key = || Arc::new(RwLock::new(false));
-        let mk_position = || Arc::new(RwLock::new(0.0));
-        let mk_button = || Arc::new(RwLock::new(false));
+        let mk_key = |_| frame_sig_var(false);
+        let mk_position = || frame_sig_var(0.0);
+        let mk_button = || frame_sig_var(false);
         Self {
-            keyboard: KeyboardGeneric {
-                a: mk_key(),
-                b: mk_key(),
-                c: mk_key(),
-                d: mk_key(),
-                e: mk_key(),
-                f: mk_key(),
-                g: mk_key(),
-                h: mk_key(),
-                i: mk_key(),
-                j: mk_key(),
-                k: mk_key(),
-                l: mk_key(),
-                m: mk_key(),
-                n: mk_key(),
-                o: mk_key(),
-                p: mk_key(),
-                q: mk_key(),
-                r: mk_key(),
-                s: mk_key(),
-                t: mk_key(),
-                u: mk_key(),
-                v: mk_key(),
-                w: mk_key(),
-                x: mk_key(),
-                y: mk_key(),
-                z: mk_key(),
-                n0: mk_key(),
-                n1: mk_key(),
-                n2: mk_key(),
-                n3: mk_key(),
-                n4: mk_key(),
-                n5: mk_key(),
-                n6: mk_key(),
-                n7: mk_key(),
-                n8: mk_key(),
-                n9: mk_key(),
-                left_bracket: mk_key(),
-                right_bracket: mk_key(),
-                semicolon: mk_key(),
-                apostrophe: mk_key(),
-                comma: mk_key(),
-                period: mk_key(),
-                minus: mk_key(),
-                equals: mk_key(),
-                slash: mk_key(),
-                space: mk_key(),
-                backspace: mk_key(),
-                backslash: mk_key(),
-            },
+            keyboard: KeyboardGeneric::new(mk_key),
             mouse: MouseGeneric {
                 x_01: mk_position(),
                 y_01: mk_position(),
@@ -227,12 +144,12 @@ impl InputState {
             Scancode::Backslash => &self.keyboard.backslash,
             _ => return,
         };
-        *key_state.write().unwrap() = pressed;
+        key_state.0.set(pressed);
     }
 
     pub(crate) fn set_mouse_position(&self, x_01: f32, y_01: f32) {
-        *self.mouse.x_01.write().unwrap() = x_01;
-        *self.mouse.y_01.write().unwrap() = y_01;
+        self.mouse.x_01.0.set(x_01);
+        self.mouse.y_01.0.set(y_01);
     }
 
     pub(crate) fn set_mouse_button(
@@ -246,19 +163,15 @@ impl InputState {
             SdlMouseButton::Middle => &self.mouse.middle,
             _ => return,
         };
-        *button_state.write().unwrap() = pressed;
+        button_state.0.set(pressed);
     }
 
     pub fn keyboard(&self) -> Keyboard {
-        self.keyboard
-            .map(|key| FrameSig(FrameSigInput(Arc::clone(key))))
+        self.keyboard.clone()
     }
 
     pub fn mouse(&self) -> Mouse {
-        self.mouse.map(
-            |position| FrameSig(FrameSigInput(Arc::clone(position))),
-            |button| FrameSig(FrameSigInput(Arc::clone(button))),
-        )
+        self.mouse.clone()
     }
 
     pub fn input(&self) -> Input {
