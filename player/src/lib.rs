@@ -28,13 +28,13 @@ impl ToF32 for f64 {
 #[derive(Debug, Clone, Copy)]
 pub struct ConfigSync {
     /// default: 0.01
-    pub target_latency_s: f32,
+    pub system_latency_s: f32,
 }
 
 impl Default for ConfigSync {
     fn default() -> Self {
         Self {
-            target_latency_s: 0.01,
+            system_latency_s: 0.01,
         }
     }
 }
@@ -65,13 +65,13 @@ impl Player {
 
     fn choose_config(
         &self,
-        config: ConfigSync,
+        system_latency_s: f32,
     ) -> anyhow::Result<StreamConfig> {
         let default_config = self.device.default_output_config()?;
         let sample_rate = default_config.sample_rate();
         let channels = 2;
         let ideal_buffer_size =
-            (sample_rate.0 as f32 * config.target_latency_s) as u32 * channels;
+            (sample_rate.0 as f32 * system_latency_s) as u32 * channels;
         // Round down to a multiple of 4. It's not clear why this is necessary but alsa complains
         // if the buffer size is not evenly divisible by 4.
         let ideal_buffer_size = ideal_buffer_size & (!3);
@@ -103,11 +103,11 @@ impl Player {
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
         config: ConfigSync,
-    ) -> anyhow::Result<cpal::Stream>
+    ) -> anyhow::Result<(Stream, StreamConfig)>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
     {
-        let config = self.choose_config(config)?;
+        let config = self.choose_config(config.system_latency_s)?;
         log::info!("sample rate: {}", config.sample_rate.0);
         log::info!("num channels: {}", config.channels);
         log::info!("buffer size: {:?}", config.buffer_size);
@@ -137,7 +137,7 @@ impl Player {
             |err| eprintln!("stream error: {}", err),
             None,
         )?;
-        Ok(stream)
+        Ok((stream, config))
     }
 
     fn play_signal_sync_mono_callback_raw<T, S, F>(
@@ -160,13 +160,12 @@ impl Player {
             mpsc::channel::<SyncCommandDone>();
         // buffer for sending samples from main thread to cpal thread
         let buffer = Arc::new(RwLock::new(Vec::new()));
-        let stream = self.make_stream_sync_mono(
+        let (stream, config) = self.make_stream_sync_mono(
             Arc::clone(&buffer),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
             config,
         )?;
-        let config = self.choose_config(config)?;
         stream.play()?;
         let mut ctx = SigCtx {
             sample_rate_hz: config.sample_rate.0 as f32,
@@ -238,12 +237,12 @@ impl Player {
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
         config: ConfigSync,
-    ) -> anyhow::Result<cpal::Stream>
+    ) -> anyhow::Result<(Stream, StreamConfig)>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
         TR: ToF32 + Send + Sync + Copy + 'static,
     {
-        let config = self.choose_config(config)?;
+        let config = self.choose_config(config.system_latency_s)?;
         log::info!("sample rate: {}", config.sample_rate.0);
         log::info!("num channels: {}", config.channels);
         log::info!("buffer size: {:?}", config.buffer_size);
@@ -275,7 +274,7 @@ impl Player {
             |err| eprintln!("stream error: {}", err),
             None,
         )?;
-        Ok(stream)
+        Ok((stream, config))
     }
 
     fn play_signal_sync_stereo_callback_raw<TL, TR, SL, SR, F>(
@@ -303,13 +302,12 @@ impl Player {
             left: Arc::new(RwLock::new(Vec::new())),
             right: Arc::new(RwLock::new(Vec::new())),
         };
-        let stream = self.make_stream_sync_stereo(
+        let (stream, config) = self.make_stream_sync_stereo(
             buffer.map_ref(Arc::clone, Arc::clone),
             send_sync_command_request_num_samples,
             recv_sync_command_done,
             config,
         )?;
-        let config = self.choose_config(config)?;
         stream.play()?;
         let mut ctx = SigCtx {
             sample_rate_hz: config.sample_rate.0 as f32,
@@ -390,8 +388,7 @@ impl Player {
             left: Arc::new(Mutex::new(VecDeque::new())),
             right: Arc::new(Mutex::new(VecDeque::new())),
         };
-        let mut stream_config = self.device.default_output_config()?.config();
-        stream_config.channels = 2;
+        let stream_config = self.choose_config(config.system_latency_s)?;
         log::info!("sample rate: {}", stream_config.sample_rate.0);
         log::info!("num channels: {}", stream_config.channels);
         log::info!("buffer size: {:?}", stream_config.buffer_size);
@@ -404,6 +401,13 @@ impl Player {
                         |l| l.lock().expect("main thread has stopped"),
                         |r| r.lock().expect("main thread has stopped"),
                     );
+                    if data.len() / 2 > queue.left.len() {
+                        log::warn!(
+                            "Too few samples in queue. Needs {}, has {}.",
+                            data.len() / 2,
+                            queue.left.len()
+                        );
+                    }
                     for output_by_channel in
                         data.chunks_mut(stream_config.channels as usize)
                     {
@@ -418,7 +422,7 @@ impl Player {
             None,
         )?;
         stream.play()?;
-        let max_num_samples = (config.max_latency_s
+        let max_num_samples = (config.queue_latency_s
             * stream_config.sample_rate.0 as f32)
             as usize;
         Ok(PlayerAsyncStereo {
@@ -436,7 +440,7 @@ impl Player {
         config: ConfigAsync,
     ) -> anyhow::Result<PlayerAsyncMono> {
         let queue = Arc::new(Mutex::new(VecDeque::new()));
-        let stream_config = self.device.default_output_config()?.config();
+        let stream_config = self.choose_config(config.system_latency_s)?;
         log::info!("sample rate: {}", stream_config.sample_rate.0);
         log::info!("num channels: {}", stream_config.channels);
         log::info!("buffer size: {:?}", stream_config.buffer_size);
@@ -461,7 +465,7 @@ impl Player {
             None,
         )?;
         stream.play()?;
-        let max_num_samples = (config.max_latency_s
+        let max_num_samples = (config.queue_latency_s
             * stream_config.sample_rate.0 as f32)
             as usize;
         Ok(PlayerAsyncMono {
@@ -479,12 +483,18 @@ type StereoSharedAsyncQueue =
     Stereo<Arc<Mutex<VecDeque<f32>>>, Arc<Mutex<VecDeque<f32>>>>;
 
 pub struct ConfigAsync {
-    pub max_latency_s: f32,
+    /// default: 1.0 / 30.0
+    pub queue_latency_s: f32,
+    /// default: 0.01
+    pub system_latency_s: f32,
 }
 
 impl Default for ConfigAsync {
     fn default() -> Self {
-        Self { max_latency_s: 0.1 }
+        Self {
+            queue_latency_s: 1.0 / 30.0,
+            system_latency_s: 0.01,
+        }
     }
 }
 
