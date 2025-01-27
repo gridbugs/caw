@@ -3,7 +3,7 @@ use caw_interactive::{Input, Visualization, Window};
 use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
 use caw_modules::*;
 
-fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32>> {
+fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32> + Send> {
     input
         .clone()
         .keyboard

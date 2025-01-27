@@ -1,8 +1,6 @@
 use crate::{Buf, ConstBuf, Filter, Sig, SigCtx, SigT};
 use std::{
-    cell::RefCell,
     fmt::Debug,
-    rc::Rc,
     sync::{Arc, RwLock},
 };
 
@@ -502,7 +500,7 @@ pub struct FrameSigShared<S>
 where
     S: FrameSigT,
 {
-    shared_cached_sig: Rc<RefCell<FrameSigCached<S>>>,
+    shared_cached_sig: Arc<RwLock<FrameSigCached<S>>>,
 }
 
 impl<S> Clone for FrameSigShared<S>
@@ -511,7 +509,7 @@ where
 {
     fn clone(&self) -> Self {
         FrameSigShared {
-            shared_cached_sig: Rc::clone(&self.shared_cached_sig),
+            shared_cached_sig: Arc::clone(&self.shared_cached_sig),
         }
     }
 }
@@ -523,7 +521,7 @@ where
     type Item = S::Item;
 
     fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
-        self.shared_cached_sig.borrow_mut().frame_sample(ctx)
+        self.shared_cached_sig.write().unwrap().frame_sample(ctx)
     }
 }
 
@@ -532,7 +530,7 @@ where
     S: FrameSigT,
 {
     FrameSig(FrameSigShared {
-        shared_cached_sig: Rc::new(RefCell::new(FrameSigCached::new(sig))),
+        shared_cached_sig: Arc::new(RwLock::new(FrameSigCached::new(sig))),
     })
 }
 

@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_serial"
-version = "0.2.1"
+version = "0.3.0"
 description = "Control caw synthesizers with a serial device that transmits midi data over a serial port"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -11,7 +11,7 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-caw_core = { version = "0.3", path = "../core" }
-caw_midi = { version = "0.2", path = "../midi" }
+caw_core = { version = "0.4", path = "../core" }
+caw_midi = { version = "0.3", path = "../midi" }
 midly = "0.5"
 nix = { version = "0.29", features = ["fs", "term"] }

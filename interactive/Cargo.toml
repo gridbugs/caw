@@ -1,6 +1,6 @@
 [package]
 name = "caw_interactive"
-version = "0.4.0"
+version = "0.5.0"
 description = "Interactive keyboard and mouse control, and visualization for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -11,23 +11,23 @@ edition = "2021"
 
 [dependencies]
 anyhow = "1.0"
-caw_player = { version = "0.4", path = "../player" }
-caw_core = { version = "0.3", path = "../core" }
-caw_computer_keyboard = { version = "0.2", path = "../computer-keyboard" }
+caw_player = { version = "0.5", path = "../player" }
+caw_core = { version = "0.4", path = "../core" }
+caw_computer_keyboard = { version = "0.3", path = "../computer-keyboard" }
 line_2d = "0.5"
 rgb_int = "0.1"
 sdl2 = "0.37"
 
 [dev-dependencies]
-caw_keyboard = { version = "0.2", path = "../keyboard" }
-caw_midi = { version = "0.2", path = "../midi" }
-caw_midi_live = { version = "0.2", path = "../midi-live" }
-caw_midi_file = { version = "0.2", path = "../midi-file" }
-caw_midi_serial = { version = "0.2", path = "../midi-serial" }
-caw_modules = { version = "0.2", path = "../modules" }
-caw_patches = { version = "0.2", path = "../patches" }
-caw_utils = { version = "0.2", path = "../utils" }
-caw_audio_file = { version = "0.2", path = "../audio-file" }
+caw_keyboard = { version = "0.3", path = "../keyboard" }
+caw_midi = { version = "0.3", path = "../midi" }
+caw_midi_live = { version = "0.3", path = "../midi-live" }
+caw_midi_file = { version = "0.3", path = "../midi-file" }
+caw_midi_serial = { version = "0.3", path = "../midi-serial" }
+caw_modules = { version = "0.3", path = "../modules" }
+caw_patches = { version = "0.3", path = "../patches" }
+caw_utils = { version = "0.3", path = "../utils" }
+caw_audio_file = { version = "0.3", path = "../audio-file" }
 env_logger = "0.11"
 rand = "0.8"
 wide = "0.7"

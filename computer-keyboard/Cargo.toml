@@ -1,6 +1,6 @@
 [package]
 name = "caw_computer_keyboard"
-version = "0.2.2"
+version = "0.3.0"
 description = "Use a computer keyboard to control caw synthesizer modules"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -10,5 +10,5 @@ documentation = "https://docs.rs/caw_computer_keyboard"
 edition = "2021"
 
 [dependencies]
-caw_keyboard = { version = "0.2", path = "../keyboard" }
-caw_core = { version = "0.3", path = "../core" }
+caw_keyboard = { version = "0.3", path = "../keyboard" }
+caw_core = { version = "0.4", path = "../core" }

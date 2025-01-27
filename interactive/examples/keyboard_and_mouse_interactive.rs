@@ -3,7 +3,7 @@ use caw_interactive::{Input, MouseButton, Visualization, Window};
 use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
 use caw_modules::*;
 
-fn sig(input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
+fn sig(input: Input, channel: Channel) -> Sig<impl SigT<Item = f32> + Send> {
     let MonoVoice {
         note,
         key_down_gate,

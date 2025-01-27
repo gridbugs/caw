@@ -1,8 +1,13 @@
-use std::{cell::RefCell, fmt::Debug, iter, marker::PhantomData, rc::Rc};
+use std::{
+    fmt::Debug,
+    iter,
+    marker::PhantomData,
+    sync::{Arc, RwLock},
+};
 
 use crate::arith::signed_to_01;
 
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, Debug)]
 pub struct SigCtx {
     pub sample_rate_hz: f32,
     pub batch_index: u64,
@@ -25,6 +30,18 @@ where
         out.clear();
         for x in self.iter() {
             out.push(x.clone());
+        }
+    }
+
+    /// Clone each sample into a slice with a given offset and stride. This is intended to be used
+    /// to populate a single channel worth of samples into an audio buffer containing multiple
+    /// interleaved channels.
+    fn clone_to_slice(&self, stride: usize, offset: usize, out: &mut [T]) {
+        let out_offset = &mut out[offset..];
+        for (sample, out_chunk) in
+            self.iter().zip(out_offset.chunks_mut(stride))
+        {
+            out_chunk[0] = sample;
         }
     }
 }
@@ -232,6 +249,14 @@ pub trait SigSampleIntoBufT {
     type Item: Clone;
 
     fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>);
+
+    fn sample_into_slice(
+        &mut self,
+        ctx: &SigCtx,
+        stride: usize,
+        offset: usize,
+        out: &mut [Self::Item],
+    );
 }
 
 impl SigT for f32 {
@@ -291,9 +316,22 @@ impl<S: SigT> SigSampleIntoBufT for Sig<S> {
         let buf_internal = self.0.sample(ctx);
         buf_internal.clone_to_vec(buf);
     }
+
+    fn sample_into_slice(
+        &mut self,
+        ctx: &SigCtx,
+        stride: usize,
+        offset: usize,
+        out: &mut [Self::Item],
+    ) {
+        let buf_internal = self.0.sample(ctx);
+        buf_internal.clone_to_slice(stride, offset, out);
+    }
 }
 
-pub struct SigBoxed<T>(Box<dyn SigSampleIntoBufT<Item = T>>)
+pub struct SigBoxed<T>(
+    Box<dyn SigSampleIntoBufT<Item = T> + Send + Sync + 'static>,
+)
 where
     T: Clone;
 
@@ -305,6 +343,16 @@ where
 
     fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
         self.0.sample_into_buf(ctx, buf);
+    }
+
+    fn sample_into_slice(
+        &mut self,
+        ctx: &SigCtx,
+        stride: usize,
+        offset: usize,
+        out: &mut [Self::Item],
+    ) {
+        self.0.sample_into_slice(ctx, stride, offset, out);
     }
 }
 
@@ -379,7 +427,7 @@ where
 
 impl<S> Sig<S>
 where
-    S: SigT + 'static,
+    S: SigT + Send + Sync + 'static,
 {
     pub fn boxed(self) -> SigBoxed<S::Item> {
         SigBoxed(Box::new(self))
@@ -710,7 +758,7 @@ pub struct SigShared<S>
 where
     S: SigT,
 {
-    shared_cached_sig: Rc<RefCell<SigCached<S>>>,
+    shared_cached_sig: Arc<RwLock<SigCached<S>>>,
     buf: Vec<S::Item>,
 }
 
@@ -720,7 +768,7 @@ where
 {
     fn clone(&self) -> Self {
         SigShared {
-            shared_cached_sig: Rc::clone(&self.shared_cached_sig),
+            shared_cached_sig: Arc::clone(&self.shared_cached_sig),
             buf: self.buf.clone(),
         }
     }
@@ -733,7 +781,7 @@ where
     type Item = S::Item;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        let mut shared_cached_sig = self.shared_cached_sig.borrow_mut();
+        let mut shared_cached_sig = self.shared_cached_sig.write().unwrap();
         // This will only actually run the underlying signal if it hasn't been computed yet this
         // frame. If it has already been computed this frame then the already-populated buffer will
         // be returned. We still need to copy the buffer to the buffer inside `self` so that the
@@ -749,7 +797,7 @@ where
     S: SigT,
 {
     Sig(SigShared {
-        shared_cached_sig: Rc::new(RefCell::new(SigCached::new(sig))),
+        shared_cached_sig: Arc::new(RwLock::new(SigCached::new(sig))),
         buf: Vec::new(),
     })
 }

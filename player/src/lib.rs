@@ -477,6 +477,127 @@ impl Player {
             sample_rate_hz: stream_config.sample_rate.0 as f32,
         })
     }
+
+    pub fn into_owned_stereo<SL, SR>(
+        self,
+        mut sig: Stereo<SL, SR>,
+        config: ConfigSync,
+    ) -> anyhow::Result<PlayerOwned>
+    where
+        SL: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
+        SR: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
+    {
+        let stream_config = self.choose_config(config.system_latency_s)?;
+        log::info!("sample rate: {}", stream_config.sample_rate.0);
+        log::info!("num channels: {}", stream_config.channels);
+        log::info!("buffer size: {:?}", stream_config.buffer_size);
+        let mut ctx = SigCtx {
+            sample_rate_hz: stream_config.sample_rate.0 as f32,
+            batch_index: 0,
+            num_samples: 0,
+        };
+        let channels = stream_config.channels;
+        let data_copy = Arc::new(RwLock::new(Vec::new()));
+        assert!(channels >= 2);
+        let stream = {
+            let data_copy = Arc::clone(&data_copy);
+            self.device.build_output_stream(
+                &stream_config,
+                move |data: &mut [f32], _: &OutputCallbackInfo| {
+                    ctx.batch_index += 1;
+                    ctx.num_samples = data.len() / channels as usize;
+                    sig.left.sample_into_slice(
+                        &ctx,
+                        channels as usize,
+                        0,
+                        data,
+                    );
+                    sig.right.sample_into_slice(
+                        &ctx,
+                        channels as usize,
+                        1,
+                        data,
+                    );
+                    {
+                        // copy the data out so it can be visualized
+                        let mut data_copy = data_copy.write().unwrap();
+                        data_copy.resize(data.len(), 0.0);
+                        data_copy.copy_from_slice(data);
+                    }
+                },
+                |err| eprintln!("stream error: {}", err),
+                None,
+            )?
+        };
+        stream.play()?;
+        Ok(PlayerOwned {
+            stream,
+            data: data_copy,
+        })
+    }
+
+    pub fn into_owned_mono<S>(
+        self,
+        mut sig: S,
+        config: ConfigSync,
+    ) -> anyhow::Result<PlayerOwned>
+    where
+        S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
+    {
+        let stream_config = self.choose_config(config.system_latency_s)?;
+        log::info!("sample rate: {}", stream_config.sample_rate.0);
+        log::info!("num channels: {}", stream_config.channels);
+        log::info!("buffer size: {:?}", stream_config.buffer_size);
+        let mut ctx = SigCtx {
+            sample_rate_hz: stream_config.sample_rate.0 as f32,
+            batch_index: 0,
+            num_samples: 0,
+        };
+        let channels = stream_config.channels;
+        let data_copy = Arc::new(RwLock::new(Vec::new()));
+        let stream = {
+            let data_copy = Arc::clone(&data_copy);
+            self.device.build_output_stream(
+                &stream_config,
+                move |data: &mut [f32], _: &OutputCallbackInfo| {
+                    ctx.batch_index += 1;
+                    ctx.num_samples = data.len() / channels as usize;
+                    let mut data_copy = data_copy.write().unwrap();
+                    sig.sample_into_buf(&ctx, &mut data_copy);
+                    for (chunks, sample) in data
+                        .chunks_exact_mut(channels as usize)
+                        .zip(data_copy.iter())
+                    {
+                        for out in chunks {
+                            *out = *sample;
+                        }
+                    }
+                },
+                |err| eprintln!("stream error: {}", err),
+                None,
+            )?
+        };
+        stream.play()?;
+        Ok(PlayerOwned {
+            stream,
+            data: data_copy,
+        })
+    }
+}
+
+pub struct PlayerOwned {
+    #[allow(unused)]
+    stream: Stream,
+    data: Arc<RwLock<Vec<f32>>>,
+}
+
+impl PlayerOwned {
+    pub fn with_latest_data<F>(&self, mut f: F)
+    where
+        F: FnMut(&[f32]),
+    {
+        f(&self.data.read().unwrap());
+    }
 }
 
 type StereoSharedAsyncQueue =
