@@ -37,7 +37,8 @@ impl<P: Clone, B: Clone> MouseGeneric<P, B> {
     }
 }
 
-pub type Keyboard = KeyboardGeneric<FrameSig<FrameSigVar<bool>>>;
+pub type KeyFrameSig = FrameSig<FrameSigVar<bool>>;
+pub type Keyboard = KeyboardGeneric<KeyFrameSig>;
 pub type Mouse =
     MouseGeneric<FrameSig<FrameSigVar<f32>>, FrameSig<FrameSigVar<bool>>>;
 

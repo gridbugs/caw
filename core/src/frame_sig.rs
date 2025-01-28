@@ -93,6 +93,23 @@ where
     }
 }
 
+impl<S, T, U> FrameSig<S>
+where
+    T: Clone,
+    U: Clone,
+    S: FrameSigT<Item = (T, U)>,
+{
+    pub fn unzip(
+        self,
+    ) -> (
+        FrameSig<impl FrameSigT<Item = T>>,
+        FrameSig<impl FrameSigT<Item = U>>,
+    ) {
+        let shared = frame_sig_shared(self);
+        (shared.clone().map(|x| x.0), shared.map(|x| x.1))
+    }
+}
+
 impl<S> FrameSig<S>
 where
     S: FrameSigT + 'static,
@@ -326,6 +343,16 @@ where
         s: impl IntoIterator<Item = Self>,
     ) -> FrameSig<impl FrameSigT<Item = Option<T>>> {
         FrameSig(OptionFirstSome(s.into_iter().collect()))
+    }
+
+    pub fn option_or_last(self, init: T) -> FrameSig<impl FrameSigT<Item = T>> {
+        let mut last = init;
+        self.map(move |x| {
+            if let Some(x) = x {
+                last = x;
+            }
+            last.clone()
+        })
     }
 }
 
