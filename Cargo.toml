@@ -4,6 +4,7 @@ resolver = "2"
 
 members = [
     "audio-file",
+    "bevy",
     "builder-proc-macros",
     "caw",
     "computer-keyboard",

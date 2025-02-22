@@ -1,0 +1,14 @@
+[package]
+name = "caw_bevy"
+version = "0.1.0"
+description = "Helpers for controlling a caw syntesizer from bevy"
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_bevy"
+edition = "2021"
+
+[dependencies]
+bevy = { version = "0.15", default-features = false, features = [ "bevy_window" ] }
+caw_computer_keyboard = { version = "0.3", path = "../computer-keyboard" }
+caw_core = { version = "0.4", path = "../core" }
