@@ -4,9 +4,9 @@ use caw_core::{frame_sig_var, FrameSig, FrameSigVar};
 
 #[derive(Resource, Clone)]
 pub struct BevyInput {
-    mouse_x: FrameSig<FrameSigVar<f32>>,
-    mouse_y: FrameSig<FrameSigVar<f32>>,
-    keyboard: Keyboard<FrameSig<FrameSigVar<bool>>>,
+    pub mouse_x: FrameSig<FrameSigVar<f32>>,
+    pub mouse_y: FrameSig<FrameSigVar<f32>>,
+    pub keyboard: Keyboard<FrameSig<FrameSigVar<bool>>>,
 }
 
 impl Default for BevyInput {
@@ -126,4 +126,3 @@ fn update_input(
     }
     update_mouse_position(window, &input.mouse_x, &input.mouse_y);
 }
-
