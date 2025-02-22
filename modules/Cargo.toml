@@ -1,6 +1,6 @@
 [package]
 name = "caw_modules"
-version = "0.3.0"
+version = "0.3.1"
 description = "Collection of synthesizer modules for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"

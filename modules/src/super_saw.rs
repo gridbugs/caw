@@ -7,6 +7,7 @@ use wide::f32x8;
 #[derive(Debug, Clone, Copy)]
 pub enum SuperSawInit {
     Random,
+    RandomWithSeed(u64),
     Const(f32),
 }
 
@@ -119,6 +120,13 @@ where
             }
             SuperSawInit::Random => {
                 let mut rng = StdRng::from_entropy();
+                for (x, mask) in state_01.iter_mut().zip(mask.iter()) {
+                    *x = rng.gen::<[f32; 8]>().into();
+                    *x *= mask;
+                }
+            }
+            SuperSawInit::RandomWithSeed(seed) => {
+                let mut rng = StdRng::seed_from_u64(seed);
                 for (x, mask) in state_01.iter_mut().zip(mask.iter()) {
                     *x = rng.gen::<[f32; 8]>().into();
                     *x *= mask;
