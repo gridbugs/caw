@@ -3,12 +3,13 @@ use caw_core::{FrameSig, FrameSigT};
 pub mod noise;
 
 /// Returns an array of 8 trigger signals, each corresponding to one of the bits in the patterns.
-/// On each trigger pulse the current pattern is advanced and those of the returned triggers
-/// corresponding to 1s in the current pattern will receive pulses.
+/// On each trigger pulse rising edge the current pattern is advanced and those of the returned
+/// triggers corresponding to 1s in the current pattern will receive pulses.
 pub fn bitwise_pattern_trigs_8(
     trig: impl FrameSigT<Item = bool>,
     patterns: Vec<u8>,
 ) -> [FrameSig<impl FrameSigT<Item = bool>>; 8] {
+    let trig = FrameSig(trig).gate_to_trig_rising_edge();
     let mut i = 0;
     // This will be `Some(<pattern>)` on frames where the trigger is high (and also advance the
     // current pattern) and `None` otherwise.

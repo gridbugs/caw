@@ -101,7 +101,7 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
     let inversion = input.x_01().map(|x| Inversion::InOctave {
         octave_base: Note::from_midi_index((x * 40.0 + 40.0) as u8),
     });
-    let gate = periodic_trig_s(input.y_01()).build().shared();
+    let gate = periodic_gate_s(input.y_01()).build().shared();
     let config = ArpConfig::default()
         .with_shape(ArpShape::UpDown)
         .with_extend_octaves_low(1)
@@ -114,6 +114,7 @@ fn signal(input: Input) -> Sig<impl SigT<Item = f32>> {
         .map(voice)
         .sum::<Sig<_>>()
         .filter(high_pass::default(1.))
+        .filter(chorus())
         .filter(delay_trig(gate.divide(4)))
         .filter(reverb::default().room_size(0.9).damping(0.5))
         .filter(high_pass::default(1.))

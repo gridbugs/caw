@@ -4,9 +4,10 @@ use caw_modules::*;
 
 fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
     let trig = periodic_trig_s(input.mouse.x_01()).build();
-    let osc = super_saw(60.0).build();
+    let osc = super_saw(40.0).build();
     let env = adsr_linear_01(trig).release_s(0.1).build();
-    osc.filter(low_pass::default(20_000. * env))
+    osc.filter(chorus())
+        .filter(low_pass::default(20_000. * env).resonance(0.1))
         .filter(reverb::default())
 }
 

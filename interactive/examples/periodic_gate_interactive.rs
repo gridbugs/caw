@@ -8,7 +8,8 @@ fn sig(input: Input) -> Sig<impl SigT<Item = f32>> {
         .build();
     let osc = super_saw(60.0).build();
     let env = adsr_linear_01(trig).attack_s(0.1).release_s(0.1).build();
-    osc.filter(low_pass::default(20_000. * env).resonance(0.5))
+    osc.filter(chorus())
+        .filter(low_pass::default(20_000. * env).resonance(0.5))
         .filter(reverb::default())
 }
 

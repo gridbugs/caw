@@ -13,7 +13,7 @@ fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32>> {
     let snare = 2;
     let hat_closed = 4;
     let [trig_kick, trig_snare, trig_hat_closed, ..] = bitwise_pattern_trigs_8(
-        periodic_trig_s(input.mouse.x_01() + 0.01).build(),
+        periodic_gate_s(input.mouse.x_01() + 0.01).build(),
         vec![
             kick,
             hat_closed,
