@@ -82,6 +82,12 @@ pub mod reverb {
     pub use freeverb as default;
 }
 
+// Rust doesn't seem to allow functions to be renamed to names that would conflict with module
+// names in the same scope, so this wrapper function appears ot be necessary.
+pub fn reverb() -> reverb_freeverb::Props<f32, f32, f32> {
+    reverb_freeverb()
+}
+
 pub mod sample_playback;
 pub use sample_playback::sample_playback;
 

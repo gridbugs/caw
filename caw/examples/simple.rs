@@ -19,7 +19,7 @@ fn main() {
                 .resonance(input.mouse.y_01()),
         )
         .filter(chorus())
-        .filter(reverb::default());
+        .filter(reverb());
 
     // Play the audio signal, visualizing its waveform in the window.
     window.play_mono(sig, Default::default()).unwrap();
