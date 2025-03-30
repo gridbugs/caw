@@ -1,6 +1,6 @@
 use caw_core::*;
 use caw_interactive::{Input, Visualization, Window};
-use caw_keyboard::{IntoNoteFreqHz_, KeyEvents, KeyEventsT_, MonoVoice_, Note};
+use caw_keyboard::{IntoNoteFreqHz, KeyEvents, KeyEventsT, MonoVoice, Note};
 use caw_midi::*;
 use caw_midi_live::*;
 use caw_modules::*;
@@ -10,17 +10,17 @@ fn sig(
     input: Input,
     key_events: Sig<impl SigT<Item = KeyEvents>>,
     _pitch_bend_freq_mult: Sig<SigShared<impl SigT<Item = f32>>>,
-    controllers: MidiControllers_<impl SigT<Item = MidiMessages>>,
+    controllers: MidiControllers<impl SigT<Item = MidiMessages>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
-        .opinionated_key_events_(Note::B0)
+        .opinionated_key_events(Note::B0)
         .merge(Sig(key_events))
         .poly_voices(48)
         .into_iter()
         .map(
-            |MonoVoice_ {
+            |MonoVoice {
                  note,
                  key_down_gate,
                  key_press_trig,
@@ -125,7 +125,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Play { midi_port } => {
             let connection = midi_live.connect(midi_port)?;
-            run(connection.channel_(0))?;
+            run(connection.channel(0))?;
         }
     }
     Ok(())

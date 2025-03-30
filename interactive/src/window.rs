@@ -1,4 +1,4 @@
-use crate::input::{Input, InputState, Input_};
+use crate::input::Input;
 use anyhow::anyhow;
 use caw_core::{SigSampleIntoBufT, Stereo};
 use caw_player::{ConfigSync, Player, ToF32};
@@ -140,8 +140,7 @@ impl WindowBuilder {
                 .visualization
                 .unwrap_or(Visualization::Oscilloscope),
             fade: self.fade.unwrap_or(false),
-            input_state: InputState::new(),
-            input: Input_::new(),
+            input: Input::new(),
         }
     }
 }
@@ -202,7 +201,6 @@ impl WindowRunning {
                     repeat: false,
                     ..
                 } => {
-                    self.window.input_state.set_key(scancode, true);
                     self.window.input.set_key(scancode, true);
                 }
                 Event::KeyUp {
@@ -210,25 +208,18 @@ impl WindowRunning {
                     repeat: false,
                     ..
                 } => {
-                    self.window.input_state.set_key(scancode, false);
                     self.window.input.set_key(scancode, false);
                 }
                 Event::MouseMotion { x, y, .. } => {
-                    self.window.input_state.set_mouse_position(
-                        x as f32 / self.window.width_px as f32,
-                        y as f32 / self.window.height_px as f32,
-                    );
                     self.window.input.set_mouse_position(
                         x as f32 / self.window.width_px as f32,
                         y as f32 / self.window.height_px as f32,
                     );
                 }
                 Event::MouseButtonDown { mouse_btn, .. } => {
-                    self.window.input_state.set_mouse_button(mouse_btn, true);
                     self.window.input.set_mouse_button(mouse_btn, true);
                 }
                 Event::MouseButtonUp { mouse_btn, .. } => {
-                    self.window.input_state.set_mouse_button(mouse_btn, false);
                     self.window.input.set_mouse_button(mouse_btn, false);
                 }
 
@@ -283,8 +274,7 @@ pub struct Window {
     background: Rgb24,
     visualization: Visualization,
     fade: bool,
-    input_state: InputState,
-    input: Input_,
+    input: Input,
 }
 
 impl Window {
@@ -323,9 +313,6 @@ impl Window {
     }
 
     pub fn input(&self) -> Input {
-        self.input_state.input()
-    }
-    pub fn input_(&self) -> Input_ {
         self.input.clone()
     }
 

@@ -1,4 +1,4 @@
-use caw_core::{FrameSig, FrameSigT};
+use caw_core::{Sig, SigT};
 
 pub mod noise;
 
@@ -6,14 +6,14 @@ pub mod noise;
 /// On each trigger pulse rising edge the current pattern is advanced and those of the returned
 /// triggers corresponding to 1s in the current pattern will receive pulses.
 pub fn bitwise_pattern_trigs_8(
-    trig: impl FrameSigT<Item = bool>,
+    trig: impl SigT<Item = bool>,
     patterns: Vec<u8>,
-) -> [FrameSig<impl FrameSigT<Item = bool>>; 8] {
-    let trig = FrameSig(trig).gate_to_trig_rising_edge();
+) -> [Sig<impl SigT<Item = bool>>; 8] {
+    let trig = Sig(trig).gate_to_trig_rising_edge();
     let mut i = 0;
-    // This will be `Some(<pattern>)` on frames where the trigger is high (and also advance the
+    // This will be `Some(<pattern>)` on samples where the trigger is high (and also advance the
     // current pattern) and `None` otherwise.
-    let pattern_frame_sig = FrameSig(trig)
+    let pattern_sig = Sig(trig)
         .on(move || {
             let pattern = patterns[i];
             i = (i + 1) % patterns.len();
@@ -22,9 +22,8 @@ pub fn bitwise_pattern_trigs_8(
         .shared();
     let vec: Vec<_> = (0..8)
         .map(move |i| {
-            pattern_frame_sig.clone().map(move |pattern_opt| {
-                pattern_opt
-                    .map_or(false, move |pattern| pattern & (1 << i) != 0)
+            pattern_sig.clone().map(move |pattern_opt| {
+                pattern_opt.is_some_and(|pattern| pattern & (1 << i) != 0)
             })
         })
         .collect();

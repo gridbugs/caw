@@ -1,4 +1,4 @@
-use caw_core::{FrameSig, FrameSigT};
+use caw_core::{Sig, SigT};
 use caw_midi::MidiMessages;
 use midly::live::LiveEvent;
 use nix::sys::termios::BaudRate;
@@ -89,13 +89,13 @@ impl MidiLiveSerial {
 
     /// This consumes `self` as only a single channel may be subscribed to at a time. This
     /// constraint is purely for simplicity and can be lifted eventually if necessary.
-    pub fn channel(
-        self,
-        channel: u8,
-    ) -> FrameSig<impl FrameSigT<Item = MidiMessages>> {
+    pub fn channel(self, channel: u8) -> Sig<impl SigT<Item = MidiMessages>> {
         let mut raw_buf = Vec::new();
         let mut message_buf = Vec::new();
-        FrameSig::from_fn(move |_ctx| {
+        Sig::from_buf_fn(move |ctx, buf| {
+            // This is called once per frame (not once per sample). This will add an imperceptible
+            // amount of latency (unless the output buffer is too large!), but reduce cpu usage.
+            buf.resize_with(ctx.num_samples, Default::default);
             let mut midi_messages = MidiMessages::empty();
             raw_buf.clear();
             if let Ok(()) = self.read_all_available(&mut raw_buf) {
@@ -134,7 +134,8 @@ impl MidiLiveSerial {
                     }
                 }
             }
-            midi_messages
+            // Only the first sample of each frame is populated with midi messages.
+            buf[0] = midi_messages;
         })
     }
 }

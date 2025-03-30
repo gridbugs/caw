@@ -1,19 +1,19 @@
 use bevy::{input::keyboard::KeyboardInput, prelude::*, window::PrimaryWindow};
 use caw_computer_keyboard::Keyboard;
-use caw_core::{frame_sig_var, FrameSig, FrameSigVar};
+use caw_core::{sig_var, Sig, SigVar};
 
 #[derive(Resource, Clone)]
 pub struct BevyInput {
-    pub mouse_x: FrameSig<FrameSigVar<f32>>,
-    pub mouse_y: FrameSig<FrameSigVar<f32>>,
-    pub keyboard: Keyboard<FrameSig<FrameSigVar<bool>>>,
+    pub mouse_x: Sig<SigVar<f32>>,
+    pub mouse_y: Sig<SigVar<f32>>,
+    pub keyboard: Keyboard<Sig<SigVar<bool>>>,
 }
 
 impl Default for BevyInput {
     fn default() -> Self {
-        let keyboard = Keyboard::new(|_| frame_sig_var(false));
-        let mouse_x = frame_sig_var(0.5);
-        let mouse_y = frame_sig_var(0.5);
+        let keyboard = Keyboard::new(|_| sig_var(false));
+        let mouse_x = sig_var(0.5);
+        let mouse_y = sig_var(0.5);
         Self {
             keyboard,
             mouse_x,
@@ -88,7 +88,7 @@ fn get_key<K>(key_code: KeyCode, keyboard: &Keyboard<K>) -> Option<&K> {
 
 fn update_key_state(
     input: &KeyboardInput,
-    keyboard: &Keyboard<FrameSig<FrameSigVar<bool>>>,
+    keyboard: &Keyboard<Sig<SigVar<bool>>>,
 ) {
     get_key(input.key_code, keyboard)
         .iter()
@@ -104,8 +104,8 @@ fn update_key_state(
 
 fn update_mouse_position(
     window: &Window,
-    mouse_x: &FrameSig<FrameSigVar<f32>>,
-    mouse_y: &FrameSig<FrameSigVar<f32>>,
+    mouse_x: &Sig<SigVar<f32>>,
+    mouse_y: &Sig<SigVar<f32>>,
 ) {
     if let Some(position) = window.cursor_position() {
         let window_size = window.size();

@@ -1,5 +1,5 @@
 use caw_core::*;
-pub use caw_midi::{MidiMessages, MidiMessagesT, MidiMessagesT_};
+pub use caw_midi::{MidiMessages, MidiMessagesT};
 use midly::{
     num::u4, Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent,
     TrackEventKind,
@@ -132,21 +132,6 @@ impl TrackState {
     }
 
     pub fn into_midi_messages(
-        mut self,
-        channel: u8,
-    ) -> FrameSig<impl FrameSigT<Item = MidiMessages>> {
-        FrameSig::from_fn(move |ctx| {
-            let mut messages = MidiMessages::empty();
-            self.for_each_new_event(ctx.sample_rate_hz, |event| {
-                if event.channel == u4::new(channel) {
-                    messages.push(event.message);
-                }
-            });
-            messages
-        })
-    }
-
-    pub fn into_midi_messages_(
         mut self,
         channel: u8,
     ) -> Sig<impl SigT<Item = MidiMessages>> {

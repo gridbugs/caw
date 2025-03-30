@@ -5,6 +5,6 @@ mod event;
 pub use event::*;
 
 pub mod mono_voice;
-pub use mono_voice::{MonoVoice, MonoVoice_};
+pub use mono_voice::MonoVoice;
 
 pub mod polyphony;

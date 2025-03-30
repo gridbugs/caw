@@ -9,16 +9,16 @@ use clap::{Parser, Subcommand};
 
 fn sig(
     input: Input,
-    key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
-    _pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
-    controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
-    extra_controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
+    key_events: Sig<impl SigT<Item = KeyEvents>>,
+    _pitch_bend_freq_mult: Sig<SigShared<impl SigT<Item = f32>>>,
+    controllers: MidiControllers<impl SigT<Item = MidiMessages>>,
+    extra_controllers: MidiControllers<impl SigT<Item = MidiMessages>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
         .opinionated_key_events(Note::B0)
-        .merge(FrameSig(key_events))
+        .merge(Sig(key_events))
         .poly_voices(48)
         .into_iter()
         .map(
@@ -74,8 +74,8 @@ fn sig(
 }
 
 fn run(
-    midi_messages: FrameSig<impl FrameSigT<Item = MidiMessages>>,
-    extra_midi_messages: FrameSig<impl FrameSigT<Item = MidiMessages>>,
+    midi_messages: Sig<impl SigT<Item = MidiMessages>>,
+    extra_midi_messages: Sig<impl SigT<Item = MidiMessages>>,
 ) -> anyhow::Result<()> {
     let window = Window::builder()
         .sane_default()

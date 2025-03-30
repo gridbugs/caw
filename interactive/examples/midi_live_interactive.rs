@@ -8,15 +8,15 @@ use clap::{Parser, Subcommand};
 
 fn sig(
     input: Input,
-    key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
-    _pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
-    controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
+    key_events: Sig<impl SigT<Item = KeyEvents>>,
+    pitch_bend_freq_mult: Sig<SigShared<impl SigT<Item = f32>>>,
+    controllers: MidiControllers<impl SigT<Item = MidiMessages>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
         .opinionated_key_events(Note::B0)
-        .merge(FrameSig(key_events))
+        .merge(Sig(key_events))
         .poly_voices(12)
         .into_iter()
         .map(
@@ -41,9 +41,12 @@ fn sig(
                     Channel::Left => 0.0,
                     Channel::Right => std::f32::consts::PI / 2.0,
                 };
-                let osc = oscillator(Pulse, note.freq_hz())
-                    .reset_offset_01(offset)
-                    .build();
+                let osc = oscillator(
+                    Pulse,
+                    note.freq_hz() * pitch_bend_freq_mult.clone(),
+                )
+                .reset_offset_01(offset)
+                .build();
                 osc.filter(
                     low_pass::default(
                         env * controllers.get_01(21).exp_01(1.)
@@ -84,9 +87,7 @@ enum Commands {
     },
 }
 
-fn run(
-    midi_events: FrameSig<impl FrameSigT<Item = MidiMessages>>,
-) -> anyhow::Result<()> {
+fn run(midi_events: Sig<impl SigT<Item = MidiMessages>>) -> anyhow::Result<()> {
     let window = Window::builder()
         .sane_default()
         .visualization(Visualization::StereoOscillographics)

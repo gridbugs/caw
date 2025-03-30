@@ -1,8 +1,8 @@
 use crate::{
     chord::{Chord, Inversion},
-    polyphony, MonoVoice, MonoVoice_, Note,
+    polyphony, MonoVoice, Note,
 };
-use caw_core::{Buf, ConstBuf, FrameSig, FrameSigT, Sig, SigCtx, SigT};
+use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use itertools::izip;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use smallvec::{smallvec, SmallVec};
@@ -20,11 +20,11 @@ pub struct KeyEvent {
 }
 
 /// A collection of simultaneous key events. When dealing with streams of key events it's necessary
-/// to group them into a collection because multiple key events may occur during the same frame.
+/// to group them into a collection because multiple key events may occur during the same sample.
 /// This collection only uses the heap when more than one event occurred on the same sample which
 /// is very unlikely.
 #[derive(Clone, Debug, Default)]
-pub struct KeyEvents(SmallVec<[KeyEvent; 4]>);
+pub struct KeyEvents(SmallVec<[KeyEvent; 1]>);
 
 impl KeyEvents {
     pub fn empty() -> Self {
@@ -50,12 +50,16 @@ impl KeyEvents {
     pub fn extend(&mut self, i: impl IntoIterator<Item = KeyEvent>) {
         self.0.extend(i);
     }
+
+    pub fn len(&self) -> usize {
+        self.0.len()
+    }
 }
 
 impl IntoIterator for KeyEvents {
     type Item = KeyEvent;
 
-    type IntoIter = smallvec::IntoIter<[KeyEvent; 4]>;
+    type IntoIter = smallvec::IntoIter<[KeyEvent; 1]>;
 
     fn into_iter(self) -> Self::IntoIter {
         self.0.into_iter()
@@ -75,22 +79,22 @@ impl FromIterator<KeyEvent> for KeyEvents {
     }
 }
 
-pub trait KeyEventsT_ {
+pub trait KeyEventsT {
     fn merge<S>(self, other: S) -> Sig<impl SigT<Item = KeyEvents>>
     where
         S: SigT<Item = KeyEvents>;
 
-    fn mono_voice(self) -> MonoVoice_<impl SigT<Item = KeyEvents>>;
+    fn mono_voice(self) -> MonoVoice<impl SigT<Item = KeyEvents>>;
 
     fn poly_voices(
         self,
         n: usize,
-    ) -> Vec<MonoVoice_<impl SigT<Item = KeyEvents>>>;
+    ) -> Vec<MonoVoice<impl SigT<Item = KeyEvents>>>;
 
     fn arp<G, V, H, L, S>(
         self,
         gate: G,
-        config: ArpConfig_<V, H, L, S>,
+        config: ArpConfig<V, H, L, S>,
     ) -> Sig<impl SigT<Item = KeyEvents>>
     where
         G: SigT<Item = bool>,
@@ -100,32 +104,7 @@ pub trait KeyEventsT_ {
         S: SigT<Item = ArpShape>;
 }
 
-pub trait KeyEventsT {
-    fn merge<S>(self, other: S) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-    where
-        S: FrameSigT<Item = KeyEvents>;
-
-    fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>>;
-
-    fn poly_voices(
-        self,
-        n: usize,
-    ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>>;
-
-    fn arp<G, V, H, L, S>(
-        self,
-        gate: G,
-        config: ArpConfig<V, H, L, S>,
-    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-    where
-        G: FrameSigT<Item = bool>,
-        V: FrameSigT<Item = f32>,
-        H: FrameSigT<Item = u32>,
-        L: FrameSigT<Item = u32>,
-        S: FrameSigT<Item = ArpShape>;
-}
-
-impl<K> KeyEventsT_ for Sig<K>
+impl<K> KeyEventsT for Sig<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -144,21 +123,21 @@ where
         })
     }
 
-    fn mono_voice(self) -> MonoVoice_<impl SigT<Item = KeyEvents>> {
-        MonoVoice_::from_key_events(self.0)
+    fn mono_voice(self) -> MonoVoice<impl SigT<Item = KeyEvents>> {
+        MonoVoice::from_key_events(self.0)
     }
 
     fn poly_voices(
         self,
         n: usize,
-    ) -> Vec<MonoVoice_<impl SigT<Item = KeyEvents>>> {
-        polyphony::voices_from_key_events_(self.0, n)
+    ) -> Vec<MonoVoice<impl SigT<Item = KeyEvents>>> {
+        polyphony::voices_from_key_events(self.0, n)
     }
 
     fn arp<G, V, H, L, S>(
         self,
         gate: G,
-        config: ArpConfig_<V, H, L, S>,
+        config: ArpConfig<V, H, L, S>,
     ) -> Sig<impl SigT<Item = KeyEvents>>
     where
         G: SigT<Item = bool>,
@@ -167,61 +146,7 @@ where
         L: SigT<Item = u32>,
         S: SigT<Item = ArpShape>,
     {
-        key_events_from_chords_arp_(self, gate, config)
-    }
-}
-
-impl<K> KeyEventsT for FrameSig<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    fn merge<S>(
-        mut self,
-        mut other: S,
-    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-    where
-        S: FrameSigT<Item = KeyEvents>,
-    {
-        FrameSig::from_fn(move |ctx| {
-            let mut s = self.frame_sample(ctx);
-            let o = other.frame_sample(ctx);
-            s.extend(o);
-            s
-        })
-    }
-
-    fn mono_voice(self) -> MonoVoice<impl FrameSigT<Item = KeyEvents>> {
-        MonoVoice::from_key_events(self.0)
-    }
-
-    fn poly_voices(
-        self,
-        n: usize,
-    ) -> Vec<MonoVoice<impl FrameSigT<Item = KeyEvents>>> {
-        polyphony::voices_from_key_events(self.0, n)
-    }
-
-    fn arp<G, V, H, L, S>(
-        self,
-        gate: G,
-        config: ArpConfig<V, H, L, S>,
-    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-    where
-        G: FrameSigT<Item = bool>,
-        V: FrameSigT<Item = f32>,
-        H: FrameSigT<Item = u32>,
-        L: FrameSigT<Item = u32>,
-        S: FrameSigT<Item = ArpShape>,
-    {
         key_events_from_chords_arp(self, gate, config)
-    }
-}
-
-impl FrameSigT for Inversion {
-    type Item = Inversion;
-
-    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
-        *self
     }
 }
 
@@ -238,8 +163,8 @@ impl SigT for Inversion {
 
 pub struct ChordVoiceConfig<V, I>
 where
-    V: FrameSigT<Item = f32>,
-    I: FrameSigT<Item = Inversion>,
+    V: SigT<Item = f32>,
+    I: SigT<Item = Inversion>,
 {
     pub velocity_01: V,
     pub inversion: I,
@@ -247,15 +172,15 @@ where
 
 impl<V, I> ChordVoiceConfig<V, I>
 where
-    V: FrameSigT<Item = f32>,
-    I: FrameSigT<Item = Inversion>,
+    V: SigT<Item = f32>,
+    I: SigT<Item = Inversion>,
 {
     pub fn with_velocity_01<V_>(
         self,
         velocity_01: V_,
     ) -> ChordVoiceConfig<V_, I>
     where
-        V_: FrameSigT<Item = f32>,
+        V_: SigT<Item = f32>,
     {
         let Self { inversion, .. } = self;
         ChordVoiceConfig {
@@ -266,7 +191,7 @@ where
 
     pub fn with_inversion<I_>(self, inversion: I_) -> ChordVoiceConfig<V, I_>
     where
-        I_: FrameSigT<Item = Inversion>,
+        I_: SigT<Item = Inversion>,
     {
         let Self { velocity_01, .. } = self;
         ChordVoiceConfig {
@@ -286,51 +211,56 @@ impl Default for ChordVoiceConfig<f32, Inversion> {
 }
 
 fn key_events_from_chords<C, V, I>(
-    chords: C,
+    mut chords: C,
     mut config: ChordVoiceConfig<V, I>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+) -> Sig<impl SigT<Item = KeyEvents>>
 where
-    C: FrameSigT<Item = Option<Chord>>,
-    V: FrameSigT<Item = f32>,
-    I: FrameSigT<Item = Inversion>,
+    C: SigT<Item = Option<Chord>>,
+    V: SigT<Item = f32>,
+    I: SigT<Item = Inversion>,
 {
     let mut notes_to_release = HashSet::new();
     let mut pressed_notes = HashSet::new();
-    FrameSig(chords).map_ctx(move |chord_opt, ctx| {
-        let mut key_events = KeyEvents::empty();
-        let inversion = config.inversion.frame_sample(ctx);
-        if let Some(chord) = chord_opt {
-            notes_to_release.clear();
-            notes_to_release.clone_from(&pressed_notes);
-            chord.with_notes(inversion, |note| {
-                if pressed_notes.insert(note) {
-                    let velocity_01 = config.velocity_01.frame_sample(ctx);
+    Sig::from_buf_fn(move |ctx, buf| {
+        buf.resize_with(ctx.num_samples, KeyEvents::empty);
+        let chords = chords.sample(ctx);
+        let inversion = config.inversion.sample(ctx);
+        let velocity_01 = config.velocity_01.sample(ctx);
+        for (out, chord_opt, inversion, velocity_01) in izip! { buf.iter_mut(), chords.iter(), inversion.iter(), velocity_01.iter() }
+        {
+            let mut key_events = KeyEvents::empty();
+            if let Some(chord) = chord_opt {
+                notes_to_release.clear();
+                notes_to_release.clone_from(&pressed_notes);
+                chord.with_notes(inversion, |note| {
+                    if pressed_notes.insert(note) {
+                        key_events.push(KeyEvent {
+                            note,
+                            velocity_01,
+                            pressed: true,
+                        });
+                    }
+                    notes_to_release.remove(&note);
+                });
+                for note in &notes_to_release {
+                    pressed_notes.remove(note);
                     key_events.push(KeyEvent {
-                        note,
-                        velocity_01,
-                        pressed: true,
+                        note: *note,
+                        velocity_01: 0.0,
+                        pressed: false,
                     });
                 }
-                notes_to_release.remove(&note);
-            });
-            for note in &notes_to_release {
-                pressed_notes.remove(note);
-                key_events.push(KeyEvent {
-                    note: *note,
-                    velocity_01: 0.0,
-                    pressed: false,
-                });
+            } else {
+                for note in pressed_notes.drain() {
+                    key_events.push(KeyEvent {
+                        note,
+                        velocity_01: 0.0,
+                        pressed: false,
+                    });
+                }
             }
-        } else {
-            for note in pressed_notes.drain() {
-                key_events.push(KeyEvent {
-                    note,
-                    velocity_01: 0.0,
-                    pressed: false,
-                });
-            }
+            *out = key_events;
         }
-        key_events
     })
 }
 
@@ -338,23 +268,23 @@ pub trait ChordsT {
     fn key_events<V, I>(
         self,
         config: ChordVoiceConfig<V, I>,
-    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    ) -> Sig<impl SigT<Item = KeyEvents>>
     where
-        V: FrameSigT<Item = f32>,
-        I: FrameSigT<Item = Inversion>;
+        V: SigT<Item = f32>,
+        I: SigT<Item = Inversion>;
 }
 
-impl<C> ChordsT for FrameSig<C>
+impl<C> ChordsT for Sig<C>
 where
-    C: FrameSigT<Item = Option<Chord>>,
+    C: SigT<Item = Option<Chord>>,
 {
     fn key_events<V, I>(
         self,
         config: ChordVoiceConfig<V, I>,
-    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
+    ) -> Sig<impl SigT<Item = KeyEvents>>
     where
-        V: FrameSigT<Item = f32>,
-        I: FrameSigT<Item = Inversion>,
+        V: SigT<Item = f32>,
+        I: SigT<Item = Inversion>,
     {
         key_events_from_chords(self, config)
     }
@@ -379,14 +309,6 @@ impl SigT for ArpShape {
             count: ctx.num_samples,
             value: self.clone(),
         }
-    }
-}
-
-impl FrameSigT for ArpShape {
-    type Item = ArpShape;
-
-    fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
-        self.clone()
     }
 }
 
@@ -566,25 +488,12 @@ impl ArpState {
     }
 }
 
-pub struct ArpConfig_<V, H, L, S>
+pub struct ArpConfig<V, H, L, S>
 where
     V: SigT<Item = f32>,
     H: SigT<Item = u32>,
     L: SigT<Item = u32>,
     S: SigT<Item = ArpShape>,
-{
-    pub velocity_01: V,
-    pub extend_octaves_high: H,
-    pub extend_octaves_low: L,
-    pub shape: S,
-}
-
-pub struct ArpConfig<V, H, L, S>
-where
-    V: FrameSigT<Item = f32>,
-    H: FrameSigT<Item = u32>,
-    L: FrameSigT<Item = u32>,
-    S: FrameSigT<Item = ArpShape>,
 {
     pub velocity_01: V,
     pub extend_octaves_high: H,
@@ -605,14 +514,14 @@ impl Default for ArpConfig<f32, u32, u32, ArpShape> {
 
 impl<V, H, L, S> ArpConfig<V, H, L, S>
 where
-    V: FrameSigT<Item = f32>,
-    H: FrameSigT<Item = u32>,
-    L: FrameSigT<Item = u32>,
-    S: FrameSigT<Item = ArpShape>,
+    V: SigT<Item = f32>,
+    H: SigT<Item = u32>,
+    L: SigT<Item = u32>,
+    S: SigT<Item = ArpShape>,
 {
     pub fn with_velocity_01<V_>(self, velocity_01: V_) -> ArpConfig<V_, H, L, S>
     where
-        V_: FrameSigT<Item = f32>,
+        V_: SigT<Item = f32>,
     {
         let Self {
             extend_octaves_high,
@@ -633,7 +542,7 @@ where
         extend_octaves_high: H_,
     ) -> ArpConfig<V, H_, L, S>
     where
-        H_: FrameSigT<Item = u32>,
+        H_: SigT<Item = u32>,
     {
         let Self {
             velocity_01,
@@ -654,7 +563,7 @@ where
         extend_octaves_low: L_,
     ) -> ArpConfig<V, H, L_, S>
     where
-        L_: FrameSigT<Item = u32>,
+        L_: SigT<Item = u32>,
     {
         let Self {
             velocity_01,
@@ -672,7 +581,7 @@ where
 
     pub fn with_shape<S_>(self, shape: S_) -> ArpConfig<V, H, L, S_>
     where
-        S_: FrameSigT<Item = ArpShape>,
+        S_: SigT<Item = ArpShape>,
     {
         let Self {
             velocity_01,
@@ -689,10 +598,10 @@ where
     }
 }
 
-fn key_events_from_chords_arp_<K, G, V, H, L, S>(
+fn key_events_from_chords_arp<K, G, V, H, L, S>(
     mut key_events: K,
     gate: G,
-    mut config: ArpConfig_<V, H, L, S>,
+    mut config: ArpConfig<V, H, L, S>,
 ) -> Sig<impl SigT<Item = KeyEvents>>
 where
     K: SigT<Item = KeyEvents>,
@@ -705,6 +614,7 @@ where
     let mut state = ArpState::new();
     let mut trigger = Sig(gate).gate_to_trig_rising_edge();
     Sig::from_buf_fn(move |ctx, buf| {
+        buf.clear();
         let trigger = trigger.sample(ctx);
         let key_events = key_events.sample(ctx);
         let extend_octaves_high = config.extend_octaves_high.sample(ctx);
@@ -778,79 +688,5 @@ where
             }
             buf.push(events);
         }
-    })
-}
-
-fn key_events_from_chords_arp<K, G, V, H, L, S>(
-    mut key_events: K,
-    gate: G,
-    mut config: ArpConfig<V, H, L, S>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-where
-    K: FrameSigT<Item = KeyEvents>,
-    G: FrameSigT<Item = bool>,
-    V: FrameSigT<Item = f32>,
-    H: FrameSigT<Item = u32>,
-    L: FrameSigT<Item = u32>,
-    S: FrameSigT<Item = ArpShape>,
-{
-    let mut state = ArpState::new();
-    let mut gate = FrameSig(gate).edges();
-    FrameSig::from_fn(move |ctx| {
-        gate.frame_sample(ctx);
-        let mut events = KeyEvents::empty();
-        for event in key_events.frame_sample(ctx) {
-            if event.pressed {
-                state.insert_note(event.note);
-                for i in 0..config.extend_octaves_high.frame_sample(ctx) {
-                    if let Some(note) =
-                        event.note.add_octaves_checked(i as i8 + 1)
-                    {
-                        state.insert_note(note);
-                    }
-                }
-                for i in 0..config.extend_octaves_low.frame_sample(ctx) {
-                    if let Some(note) =
-                        event.note.add_octaves_checked(-(i as i8 + 1))
-                    {
-                        state.insert_note(note);
-                    }
-                }
-            } else {
-                state.remove_note(event.note);
-                for i in 0..config.extend_octaves_high.frame_sample(ctx) {
-                    if let Some(note) =
-                        event.note.add_octaves_checked(i as i8 + 1)
-                    {
-                        state.remove_note(note);
-                    }
-                }
-                for i in 0..config.extend_octaves_low.frame_sample(ctx) {
-                    if let Some(note) =
-                        event.note.add_octaves_checked(-(i as i8 + 1))
-                    {
-                        state.remove_note(note);
-                    }
-                }
-            }
-        }
-        if gate.is_rising() {
-            if let Some(note) = state.current_note {
-                events.push(KeyEvent {
-                    note,
-                    pressed: false,
-                    velocity_01: 0.0,
-                });
-            }
-            state.tick(config.shape.frame_sample(ctx));
-            if let Some(note) = state.current_note {
-                events.push(KeyEvent {
-                    note,
-                    pressed: true,
-                    velocity_01: 1.0,
-                });
-            }
-        }
-        events
     })
 }

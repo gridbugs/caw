@@ -3,9 +3,7 @@ use caw_interactive::{Input, Key, Visualization, Window};
 use caw_keyboard::{chord::*, *};
 use caw_modules::*;
 
-fn input_to_chords(
-    input: Input,
-) -> FrameSig<impl FrameSigT<Item = Option<Chord>>> {
+fn input_to_chords(input: Input) -> Sig<impl SigT<Item = Option<Chord>>> {
     use note_name::*;
     let key = |key, note_name, chord_type: ChordType| {
         let mut x = [
@@ -44,7 +42,7 @@ fn input_to_chords(
         x.reverse();
         x
     };
-    FrameSig::option_first_some(
+    sig_option_first_some(
         [
             key(Key::Z, C, MAJOR),
             key(Key::X, D, MINOR),
@@ -84,7 +82,7 @@ fn voice(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
 ) -> Sig<impl SigT<Item = f32>> {
     let env = adsr_linear_01(key_down_gate)
         .key_press_trig(key_press_trig)
@@ -117,12 +115,13 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
     let window = Window::builder()
         .sane_default()
-        .visualization(Visualization::StereoOscillographics)
+        .visualization(Visualization::Oscilloscope)
         .line_width(2)
         .build();
     let input = window.input();
-    window.play_stereo(
-        Stereo::new_fn(|| signal(input.clone())),
+    window.play_mono(
+        //Stereo::new_fn(|| signal(input.clone())),
+        signal(input.clone()),
         Default::default(),
     )
 }

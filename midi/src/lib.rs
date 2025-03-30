@@ -1,7 +1,4 @@
-use caw_core::{
-    frame_sig_shared, sig_shared, FrameSig, FrameSigShared, FrameSigT, Sig,
-    SigShared, SigT,
-};
+use caw_core::{sig_shared, Sig, SigShared, SigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
 use midly::{num::u7, MidiMessage};
 use smallvec::{smallvec, SmallVec};
@@ -69,14 +66,14 @@ impl IntoIterator for MidiMessages {
 }
 
 #[derive(Clone)]
-pub struct MidiControllers_<M>
+pub struct MidiControllers<M>
 where
     M: SigT<Item = MidiMessages>,
 {
     messages: Sig<SigShared<M>>,
 }
 
-impl<M> MidiControllers_<M>
+impl<M> MidiControllers<M>
 where
     M: SigT<Item = MidiMessages>,
 {
@@ -106,45 +103,7 @@ where
     }
 }
 
-#[derive(Clone)]
-pub struct MidiControllers<M>
-where
-    M: FrameSigT<Item = MidiMessages>,
-{
-    messages: FrameSig<FrameSigShared<M>>,
-}
-
-impl<M> MidiControllers<M>
-where
-    M: FrameSigT<Item = MidiMessages>,
-{
-    pub fn get_01(&self, index: u8) -> FrameSig<impl FrameSigT<Item = f32>> {
-        let index: u7 = index.into();
-        let mut state = 0.0;
-        self.messages.clone().map(move |midi_messages| {
-            for midi_message in midi_messages {
-                if let MidiMessage::Controller { controller, value } =
-                    midi_message
-                {
-                    if controller == index {
-                        state = value.as_int() as f32 / 127.0;
-                    }
-                }
-            }
-            state
-        })
-    }
-
-    pub fn volume(&self) -> FrameSig<impl FrameSigT<Item = f32>> {
-        self.get_01(7)
-    }
-
-    pub fn modulation(&self) -> FrameSig<impl FrameSigT<Item = f32>> {
-        self.get_01(1)
-    }
-}
-
-pub trait MidiMessagesT_<M>
+pub trait MidiMessagesT<M>
 where
     M: SigT<Item = MidiMessages>,
 {
@@ -157,10 +116,10 @@ where
     /// down by at most one tone.
     fn pitch_bend_freq_mult(self) -> Sig<impl SigT<Item = f32>>;
 
-    fn controllers(self) -> MidiControllers_<M>;
+    fn controllers(self) -> MidiControllers<M>;
 }
 
-impl<M> MidiMessagesT_<M> for Sig<M>
+impl<M> MidiMessagesT<M> for Sig<M>
 where
     M: SigT<Item = MidiMessages>,
 {
@@ -184,56 +143,9 @@ where
         self.pitch_bend_raw().map(|bend| TONE_RATIO.powf(bend))
     }
 
-    fn controllers(self) -> MidiControllers_<M> {
-        MidiControllers_ {
-            messages: sig_shared(self.0),
-        }
-    }
-}
-
-pub trait MidiMessagesT<M>
-where
-    M: FrameSigT<Item = MidiMessages>,
-{
-    fn key_events(self) -> FrameSig<impl FrameSigT<Item = KeyEvents>>;
-
-    /// The pitch bend value interpolated between -1 and 1
-    fn pitch_bend_raw(self) -> FrameSig<impl FrameSigT<Item = f32>>;
-
-    /// The pitch bend value as a value that can be multiplied by a frequence to scale it up or
-    /// down by at most one tone.
-    fn pitch_bend_freq_mult(self) -> FrameSig<impl FrameSigT<Item = f32>>;
-
-    fn controllers(self) -> MidiControllers<M>;
-}
-
-impl<M> MidiMessagesT<M> for FrameSig<M>
-where
-    M: FrameSigT<Item = MidiMessages>,
-{
-    fn key_events(self) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
-        self.map(|midi_messages| midi_messages.key_events())
-    }
-
-    fn pitch_bend_raw(self) -> FrameSig<impl FrameSigT<Item = f32>> {
-        let mut state = 0.0;
-        self.map(move |midi_messages| {
-            for midi_message in midi_messages {
-                if let MidiMessage::PitchBend { bend } = midi_message {
-                    state = bend.as_f32();
-                }
-            }
-            state
-        })
-    }
-
-    fn pitch_bend_freq_mult(self) -> FrameSig<impl FrameSigT<Item = f32>> {
-        self.pitch_bend_raw().map(|bend| TONE_RATIO.powf(bend))
-    }
-
     fn controllers(self) -> MidiControllers<M> {
         MidiControllers {
-            messages: frame_sig_shared(self.0),
+            messages: sig_shared(self.0),
         }
     }
 }

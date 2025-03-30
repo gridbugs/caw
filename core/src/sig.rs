@@ -1,3 +1,4 @@
+use crate::arith::signed_to_01;
 use std::{
     fmt::Debug,
     iter,
@@ -5,19 +6,11 @@ use std::{
     sync::{Arc, RwLock},
 };
 
-use crate::arith::signed_to_01;
-
 #[derive(Clone, Copy, Debug)]
 pub struct SigCtx {
     pub sample_rate_hz: f32,
     pub batch_index: u64,
     pub num_samples: usize,
-}
-
-impl SigCtx {
-    pub fn sample_period_s(&self) -> f32 {
-        self.num_samples as f32 / self.sample_rate_hz
-    }
 }
 
 pub trait Buf<T>
@@ -261,6 +254,17 @@ pub trait SigSampleIntoBufT {
 
 impl SigT for f32 {
     type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            value: *self,
+            count: ctx.num_samples,
+        }
+    }
+}
+
+impl SigT for u32 {
+    type Item = u32;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         ConstBuf {
@@ -539,6 +543,97 @@ where
             remaining_s -= 1.0 / ctx.sample_rate_hz;
             remaining_s > 0.0
         })
+    }
+
+    pub fn trig<T>(self, triggerable: T) -> Sig<impl SigT<Item = T::Item>>
+    where
+        T: Triggerable,
+    {
+        Sig(triggerable.into_sig(self))
+    }
+
+    pub fn on<T, F>(self, mut f: F) -> Sig<impl SigT<Item = Option<T>>>
+    where
+        T: Clone,
+        F: FnMut() -> T,
+    {
+        self.map_mut(move |x| if x { Some(f()) } else { None })
+    }
+
+    pub fn divide<B>(self, by: B) -> Sig<impl SigT<Item = bool>>
+    where
+        B: SigT<Item = u32>,
+    {
+        let mut prev = false;
+        let mut count = 0u64;
+        self.zip(by).map_mut(move |(current, by)| {
+            let by = by as u64;
+            let is_falling_edge = prev && !current;
+            if is_falling_edge {
+                count += 1;
+            }
+            prev = current;
+            if by == 0 || count % by == 0 {
+                current
+            } else {
+                false
+            }
+        })
+    }
+}
+
+struct OptionFirstSome<T>
+where
+    T: Clone,
+{
+    sigs: Vec<SigBoxed<Option<T>>>,
+    tmp_buf: Vec<Option<T>>,
+    out_buf: Vec<Option<T>>,
+}
+
+impl<T> SigT for OptionFirstSome<T>
+where
+    T: Clone,
+{
+    type Item = Option<T>;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.tmp_buf.resize(ctx.num_samples, None);
+        self.out_buf.clear();
+        self.out_buf.resize(ctx.num_samples, None);
+        for sig in &mut self.sigs {
+            sig.sample_into_buf(ctx, &mut self.tmp_buf);
+            for (out, x) in self.out_buf.iter_mut().zip(self.tmp_buf.iter()) {
+                if out.is_some() {
+                    continue;
+                }
+                *out = x.clone();
+            }
+        }
+        &self.out_buf
+    }
+}
+
+pub fn sig_option_first_some<T: Clone>(
+    s: impl IntoIterator<Item = SigBoxed<Option<T>>>,
+) -> Sig<impl SigT<Item = Option<T>>> {
+    Sig(OptionFirstSome {
+        sigs: s.into_iter().collect(),
+        out_buf: Vec::new(),
+        tmp_buf: Vec::new(),
+    })
+}
+
+impl<T, S> Sig<S>
+where
+    T: Clone,
+    S: SigT<Item = Option<T>>,
+{
+    pub fn option_or<O>(self, other: O) -> Sig<impl SigT<Item = Option<T>>>
+    where
+        O: SigT<Item = Option<T>>,
+    {
+        self.zip(other).map(|(s, o)| s.or(o))
     }
 }
 
@@ -904,4 +999,12 @@ where
             value: self.0.read().unwrap().clone(),
         }
     }
+}
+
+pub trait Triggerable {
+    type Item: Clone;
+
+    fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
+    where
+        T: SigT<Item = bool>;
 }

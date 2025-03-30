@@ -1,4 +1,4 @@
-use caw_core::{Buf, FrameSig, FrameSigT, Sig, SigT};
+use caw_core::{Buf, Sig, SigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note};
 use itertools::izip;
 
@@ -314,7 +314,7 @@ fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
         .collect::<Vec<_>>()
 }
 
-pub fn opinionated_key_events_<S>(
+pub fn opinionated_key_events<S>(
     keyboard: &Keyboard<S>,
     start_note: Note,
 ) -> Sig<impl SigT<Item = KeyEvents>>
@@ -353,67 +353,14 @@ where
     })
 }
 
-pub fn opinionated_key_events<S>(
-    keyboard: &Keyboard<S>,
-    start_note: Note,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
-where
-    S: FrameSigT<Item = bool> + Clone,
-{
-    struct KeyState<S>
-    where
-        S: FrameSigT<Item = bool> + Clone,
-    {
-        key_sig: S,
-        note: Note,
-        pressed: bool,
-    }
-    let note_by_key = opinionated_note_by_key(start_note);
-    let mut state = note_by_key
-        .into_iter()
-        .map(|(key, note)| KeyState {
-            key_sig: keyboard.get(key),
-            note,
-            pressed: false,
-        })
-        .collect::<Vec<_>>();
-    FrameSig::from_fn(move |ctx| {
-        let mut key_events = KeyEvents::empty();
-        for state in state.iter_mut() {
-            let pressed = state.key_sig.frame_sample(ctx);
-            if pressed != state.pressed {
-                state.pressed = pressed;
-                key_events.push(KeyEvent {
-                    note: state.note,
-                    pressed,
-                    velocity_01: 1.0,
-                });
-            }
-        }
-        key_events
-    })
-}
-
 impl<K> Keyboard<K>
 where
     K: SigT<Item = bool> + Clone,
 {
-    pub fn opinionated_key_events_(
-        self,
-        start_note: Note,
-    ) -> Sig<impl SigT<Item = KeyEvents>> {
-        opinionated_key_events_(&self, start_note)
-    }
-}
-
-impl<K> Keyboard<K>
-where
-    K: FrameSigT<Item = bool> + Clone,
-{
     pub fn opinionated_key_events(
         self,
         start_note: Note,
-    ) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    ) -> Sig<impl SigT<Item = KeyEvents>> {
         opinionated_key_events(&self, start_note)
     }
 }

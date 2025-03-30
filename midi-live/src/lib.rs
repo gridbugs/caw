@@ -1,4 +1,4 @@
-use caw_core::{FrameSig, FrameSigT, Sig, SigT};
+use caw_core::{Sig, SigT};
 use caw_midi::MidiMessages;
 use midir::{MidiInput, MidiInputConnection, MidiInputPort};
 use midly::live::LiveEvent;
@@ -117,27 +117,7 @@ impl MidiLiveConnection {
         })
     }
 
-    pub fn channel(
-        &self,
-        channel: u8,
-    ) -> FrameSig<impl FrameSigT<Item = MidiMessages>> {
-        {
-            let mut message_buffers = self.message_buffers.borrow_mut();
-            let buffer = &mut message_buffers.buffers[channel as usize];
-            if buffer.subscribed {
-                panic!("Midi channel {} subscribed to multiple times. Each midi channel may be subscribed to only once.", channel);
-            }
-            buffer.subscribed = true;
-        }
-        let message_buffers = Rc::clone(&self.message_buffers);
-        FrameSig::from_fn(move |_ctx| {
-            let mut message_buffers = message_buffers.borrow_mut();
-            message_buffers.update();
-            mem::take(&mut message_buffers.buffers[channel as usize].messages)
-        })
-    }
-
-    pub fn channel_(&self, channel: u8) -> Sig<impl SigT<Item = MidiMessages>> {
+    pub fn channel(&self, channel: u8) -> Sig<impl SigT<Item = MidiMessages>> {
         {
             let mut message_buffers = self.message_buffers.borrow_mut();
             let buffer = &mut message_buffers.buffers[channel as usize];

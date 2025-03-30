@@ -1,17 +1,17 @@
 use caw_core::*;
-use caw_interactive::{Input_, Visualization, Window};
-use caw_keyboard::{IntoNoteFreqHz_, KeyEventsT_, MonoVoice_, Note};
+use caw_interactive::{Input, Visualization, Window};
+use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
 use caw_modules::*;
 
-fn sig(input: Input_, ch: Channel) -> Sig<impl SigT<Item = f32> + Send> {
+fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32> + Send> {
     input
         .clone()
         .keyboard
-        .opinionated_key_events_(Note::B2)
+        .opinionated_key_events(Note::B2)
         .poly_voices(12)
         .into_iter()
         .map(
-            move |MonoVoice_ {
+            move |MonoVoice {
                       note,
                       key_down_gate,
                       key_press_trig,
@@ -64,7 +64,7 @@ fn main() -> anyhow::Result<()> {
         .scale(0.7)
         .stride(2)
         .build();
-    let input = window.input_();
+    let input = window.input();
     window.play_stereo(
         Stereo::new_fn_channel(|ch| sig(input.clone(), ch)),
         Default::default(),

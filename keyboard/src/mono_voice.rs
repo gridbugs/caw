@@ -1,80 +1,41 @@
 use crate::KeyEvents;
-use caw_core::{
-    frame_sig_shared, sig_shared, Buf, FrameSig, FrameSigShared, FrameSigT,
-    Sig, SigCtx, SigShared, SigT,
-};
+use caw_core::{sig_shared, Buf, Sig, SigCtx, SigShared, SigT};
 use itertools::izip;
 
 /// A collection of signals associated with a monophonic keyboard voice
-pub struct MonoVoice_<K>
+pub struct MonoVoice<K>
 where
     K: SigT<Item = KeyEvents>,
 {
     /// Stream of the current or most recent note played. This always yields a note even if no key
     /// is currently down as the sound of the note may still be playing, such as when an envelope
     /// is not finished releasing. The note yielded before any key has been pressed is arbitrary.
-    pub note: Sig<Note_<K>>,
+    pub note: Sig<Note<K>>,
     /// How hard the most recently pressed/released key was pressed/released
-    pub velocity_01: Sig<Velocity01_<K>>,
+    pub velocity_01: Sig<Velocity01<K>>,
     /// True the entire time at least one key is held
-    pub key_down_gate: Sig<KeyDownGate_<K>>,
+    pub key_down_gate: Sig<KeyDownGate<K>>,
     /// True on the first audio sample after any key is pressed
     pub key_press_trig: Sig<KeyPressTrig_<K>>,
 }
 
-impl<K> MonoVoice_<SigShared<K>>
+impl<K> MonoVoice<SigShared<K>>
 where
     K: SigT<Item = KeyEvents>,
 {
     pub fn from_key_events(key_events: K) -> Self {
         let key_events_shared = sig_shared(key_events).0;
         Self {
-            note: Sig(Note_::new(key_events_shared.clone())),
-            velocity_01: Sig(Velocity01_::new(key_events_shared.clone())),
-            key_down_gate: Sig(KeyDownGate_::new(key_events_shared.clone())),
+            note: Sig(Note::new(key_events_shared.clone())),
+            velocity_01: Sig(Velocity01::new(key_events_shared.clone())),
+            key_down_gate: Sig(KeyDownGate::new(key_events_shared.clone())),
             key_press_trig: Sig(KeyPressTrig_::new(key_events_shared.clone())),
         }
     }
 }
 
-/// A collection of signals associated with a monophonic keyboard voice
-pub struct MonoVoice<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    /// Stream of the current or most recent note played. This always yields a note even if no key
-    /// is currently down as the sound of the note may still be playing, such as when an envelope
-    /// is not finished releasing. The note yielded before any key has been pressed is arbitrary.
-    pub note: FrameSig<Note<K>>,
-    /// How hard the most recently pressed/released key was pressed/released
-    pub velocity_01: FrameSig<Velocity01<K>>,
-    /// True the entire time at least one key is held
-    pub key_down_gate: FrameSig<KeyDownGate<K>>,
-    /// True on the first audio sample after any key is pressed
-    pub key_press_trig: FrameSig<KeyPressTrig<K>>,
-}
-
-impl<K> MonoVoice<FrameSigShared<K>>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    pub fn from_key_events(key_events: K) -> Self {
-        let key_events_shared = frame_sig_shared(key_events).0;
-        Self {
-            note: FrameSig(Note::new(key_events_shared.clone())),
-            velocity_01: FrameSig(Velocity01::new(key_events_shared.clone())),
-            key_down_gate: FrameSig(KeyDownGate::new(
-                key_events_shared.clone(),
-            )),
-            key_press_trig: FrameSig(KeyPressTrig::new(
-                key_events_shared.clone(),
-            )),
-        }
-    }
-}
-
 /// Extracts a sequence of notes from a sequence of key events.
-pub struct Note_<K>
+pub struct Note<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -84,7 +45,7 @@ where
     buf: Vec<crate::Note>,
 }
 
-impl<K> Note_<K>
+impl<K> Note<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -98,7 +59,7 @@ where
     }
 }
 
-impl<K> SigT for Note_<K>
+impl<K> SigT for Note<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -133,59 +94,8 @@ where
     }
 }
 
-/// Extracts a sequence of notes from a sequence of key events.
-pub struct Note<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    sig: K,
-    held_notes: Vec<crate::Note>,
-    last_note: crate::Note,
-}
-
-impl<K> Note<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    pub fn new(sig: K) -> Self {
-        Self {
-            sig,
-            held_notes: Vec::new(),
-            last_note: crate::Note::C4, // arbitrarily default to middle C
-        }
-    }
-}
-
-impl<K> FrameSigT for Note<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    type Item = crate::Note;
-
-    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
-        let events = self.sig.frame_sample(ctx);
-        for event in events.iter() {
-            // Remove the held note if it already exists. This assumes there are no duplicate
-            // notes in the vector.
-            for (i, &note) in self.held_notes.iter().enumerate() {
-                if note == event.note {
-                    self.held_notes.remove(i);
-                    break;
-                }
-            }
-            if event.pressed {
-                self.held_notes.push(event.note);
-            }
-            self.last_note = event.note;
-        }
-        // Yield the most-recently pressed note of all held notes, or the last touched note
-        // if no notes are currently held.
-        *self.held_notes.last().unwrap_or(&self.last_note)
-    }
-}
-
 /// Extracts a sequence of velocities from a sequence of key events.
-pub struct Velocity01_<K>
+pub struct Velocity01<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -195,7 +105,7 @@ where
     buf: Vec<f32>,
 }
 
-impl<K> Velocity01_<K>
+impl<K> Velocity01<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -209,7 +119,7 @@ where
     }
 }
 
-impl<K> SigT for Velocity01_<K>
+impl<K> SigT for Velocity01<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -250,65 +160,8 @@ where
     }
 }
 
-/// Extracts a sequence of velocities from a sequence of key events.
-pub struct Velocity01<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    sig: K,
-    held_velocity_by_note: Vec<(crate::Note, f32)>,
-    last_velocity: f32,
-}
-
-impl<K> Velocity01<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    pub fn new(sig: K) -> Self {
-        Self {
-            sig,
-            held_velocity_by_note: Vec::new(),
-            last_velocity: 0.0,
-        }
-    }
-}
-
-impl<K> FrameSigT for Velocity01<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    type Item = f32;
-
-    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
-        let events = self.sig.frame_sample(ctx);
-        for event in events.iter() {
-            // Remove the held note if it already exists. This assumes there are no duplicate
-            // note in the vector.
-            for (i, (note, _)) in self.held_velocity_by_note.iter().enumerate()
-            {
-                if *note == event.note {
-                    self.held_velocity_by_note.remove(i);
-                    break;
-                }
-            }
-            if event.pressed {
-                self.held_velocity_by_note
-                    .push((event.note, event.velocity_01));
-                self.last_velocity = event.velocity_01;
-            }
-        }
-        // Yield the most-recently pressed note of all held notes, or the last touched note
-        // if no notes are currently held.
-        if let Some((_, velocity)) = self.held_velocity_by_note.last() {
-            *velocity
-        } else {
-            self.last_velocity
-        }
-    }
-}
-
 /// Extracts a key down gate from a sequence of key events.
-pub struct KeyDownGate_<K>
+pub struct KeyDownGate<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -317,7 +170,7 @@ where
     buf: Vec<bool>,
 }
 
-impl<K> KeyDownGate_<K>
+impl<K> KeyDownGate<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -330,7 +183,7 @@ where
     }
 }
 
-impl<K> SigT for KeyDownGate_<K>
+impl<K> SigT for KeyDownGate<K>
 where
     K: SigT<Item = KeyEvents>,
 {
@@ -350,46 +203,6 @@ where
             *out = self.num_keys_down > 0;
         }
         &self.buf
-    }
-}
-
-/// Extracts a key down gate from a sequence of key events.
-pub struct KeyDownGate<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    sig: K,
-    num_keys_down: usize,
-}
-
-impl<K> KeyDownGate<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    pub fn new(sig: K) -> Self {
-        Self {
-            sig,
-            num_keys_down: 0,
-        }
-    }
-}
-
-impl<K> FrameSigT for KeyDownGate<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    type Item = bool;
-
-    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
-        let events = self.sig.frame_sample(ctx);
-        for event in events.iter() {
-            if event.pressed {
-                self.num_keys_down += 1;
-            } else {
-                self.num_keys_down -= 1;
-            }
-        }
-        self.num_keys_down > 0
     }
 }
 
@@ -435,39 +248,5 @@ where
             *out = false;
         }
         &self.buf
-    }
-}
-
-/// Extracts a key press trigger from a sequence of key events.
-pub struct KeyPressTrig<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    sig: K,
-}
-
-impl<K> KeyPressTrig<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    pub fn new(sig: K) -> Self {
-        Self { sig }
-    }
-}
-
-impl<K> FrameSigT for KeyPressTrig<K>
-where
-    K: FrameSigT<Item = KeyEvents>,
-{
-    type Item = bool;
-
-    fn frame_sample(&mut self, ctx: &SigCtx) -> Self::Item {
-        let events = self.sig.frame_sample(ctx);
-        for event in events.iter() {
-            if event.pressed {
-                return true;
-            }
-        }
-        false
     }
 }

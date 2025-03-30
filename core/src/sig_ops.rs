@@ -1,4 +1,4 @@
-use crate::{Buf, FrameSig, FrameSigT, Sig, SigCtx, SigT};
+use crate::{Buf, Sig, SigCtx, SigT};
 use std::{
     iter::Sum,
     ops::{Add, BitAnd, BitOr, Div, Mul, Sub},
@@ -9,7 +9,7 @@ macro_rules! impl_op {
         pub mod $sig_mod {
             use crate::{
                 sig::{MapBuf, MapBuf2},
-                Buf, FrameSigT, Sig, SigCtx, SigT,
+                Buf, Sig, SigCtx, SigT,
             };
             use std::ops::$trait;
 
@@ -125,66 +125,6 @@ macro_rules! impl_op {
                     })
                 }
             }
-
-            /// Signal for applying the operation pairwise to each element of a signal and a frame
-            /// signal where the frame signal is on the rhs
-            pub struct OpSigFrameSig<L, R>
-            where
-                L: SigT,
-                R: FrameSigT,
-                L::Item: $trait<R::Item>,
-                <L::Item as $trait<R::Item>>::Output: Clone,
-            {
-                pub lhs: L,
-                pub rhs: R,
-            }
-
-            impl<L, R> SigT for OpSigFrameSig<L, R>
-            where
-                L: SigT,
-                R: FrameSigT<Item: Clone>,
-                L::Item: $trait<R::Item>,
-                <L::Item as $trait<R::Item>>::Output: Clone,
-            {
-                type Item = <L::Item as $trait<R::Item>>::Output;
-
-                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-                    let rhs = self.rhs.frame_sample(ctx);
-                    MapBuf::new(self.lhs.sample(ctx), move |lhs| {
-                        lhs.$fn(rhs.clone())
-                    })
-                }
-            }
-
-            /// Signal for applying the operation pairwise to each element of a signal and a frame
-            /// signal where the frame signal is on the lhs
-            pub struct OpFrameSigSig<L, R>
-            where
-                L: FrameSigT,
-                R: SigT,
-                L::Item: $trait<R::Item>,
-                <L::Item as $trait<R::Item>>::Output: Clone,
-            {
-                pub lhs: L,
-                pub rhs: R,
-            }
-
-            impl<L, R> SigT for OpFrameSigSig<L, R>
-            where
-                L: FrameSigT,
-                R: SigT<Item: Clone>,
-                L::Item: $trait<R::Item>,
-                <L::Item as $trait<R::Item>>::Output: Clone,
-            {
-                type Item = <L::Item as $trait<R::Item>>::Output;
-
-                fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-                    let lhs = self.lhs.frame_sample(ctx);
-                    MapBuf::new(self.rhs.sample(ctx), move |rhs| {
-                        lhs.clone().$fn(rhs)
-                    })
-                }
-            }
         }
     };
 }
@@ -216,36 +156,6 @@ macro_rules! impl_arith_op {
             fn $fn(self, rhs: Sig<S>) -> Self::Output {
                 Sig($sig_mod::OpScalarSig {
                     lhs: self,
-                    rhs: rhs.0,
-                })
-            }
-        }
-
-        impl<L, R> $trait<Sig<R>> for FrameSig<L>
-        where
-            L: FrameSigT<Item = f32>,
-            R: SigT<Item = f32>,
-        {
-            type Output = Sig<$sig_mod::OpFrameSigSig<L, R>>;
-
-            fn $fn(self, rhs: Sig<R>) -> Self::Output {
-                Sig($sig_mod::OpFrameSigSig {
-                    lhs: self.0,
-                    rhs: rhs.0,
-                })
-            }
-        }
-
-        impl<L, R> $trait<FrameSig<R>> for Sig<L>
-        where
-            L: SigT<Item = f32>,
-            R: FrameSigT<Item = f32>,
-        {
-            type Output = Sig<$sig_mod::OpSigFrameSig<L, R>>;
-
-            fn $fn(self, rhs: FrameSig<R>) -> Self::Output {
-                Sig($sig_mod::OpSigFrameSig {
-                    lhs: self.0,
                     rhs: rhs.0,
                 })
             }

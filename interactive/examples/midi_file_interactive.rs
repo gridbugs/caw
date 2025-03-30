@@ -1,12 +1,12 @@
 use caw_core::*;
-use caw_interactive::{Input_, MouseButton, Visualization, Window};
-use caw_keyboard::{IntoNoteFreqHz_, KeyEventsT_, MonoVoice_};
+use caw_interactive::{Input, MouseButton, Visualization, Window};
+use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice};
 use caw_midi_file::*;
 use caw_modules::*;
 use clap::Parser;
 
 fn sig(
-    input: Input_,
+    input: Input,
     midi_messages: Sig<impl SigT<Item = MidiMessages>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
@@ -15,7 +15,7 @@ fn sig(
         .poly_voices(48)
         .into_iter()
         .map(
-            |MonoVoice_ {
+            |MonoVoice {
                  note,
                  key_down_gate,
                  key_press_trig,
@@ -56,15 +56,14 @@ fn main() -> anyhow::Result<()> {
     env_logger::init();
     let args = Args::parse();
     let midi_file = MidiFile::read(args.name)?;
-    let midi_messages =
-        midi_file.track(0, 1.0)?.into_midi_messages_(0).shared();
+    let midi_messages = midi_file.track(0, 1.0)?.into_midi_messages(0).shared();
     let window = Window::builder()
         .sane_default()
         .visualization(Visualization::StereoOscillographics)
         .line_width(2)
         .fade(true)
         .build();
-    let input = window.input_();
+    let input = window.input();
     window.play_stereo(
         Stereo::new_fn_channel(|channel| {
             sig(input.clone(), midi_messages.clone(), channel)

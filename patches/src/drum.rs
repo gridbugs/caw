@@ -1,4 +1,4 @@
-use caw_core::{frame_sig_shared, FrameSig, FrameSigT, Sig, SigT, Triggerable};
+use caw_core::{Sig, SigT, Triggerable};
 use caw_modules::*;
 use caw_utils::noise;
 
@@ -34,11 +34,10 @@ where
 
     fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
     where
-        T: FrameSigT<Item = bool>,
+        T: SigT<Item = bool>,
     {
-        let trig = FrameSig(trig).gate_to_trig_rising_edge();
-        let trig = frame_sig_shared(trig);
-        let gate = FrameSig(trig.clone()).into_sig().trig_to_gate(self.hold_s);
+        let trig = Sig(trig).gate_to_trig_rising_edge().shared();
+        let gate = trig.clone().trig_to_gate(self.hold_s);
         let freq_hz_env = adsr_linear_01(gate)
             .key_press_trig(trig.clone())
             .release_s(self.period_s)
@@ -75,10 +74,10 @@ where
 
     fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
     where
-        T: FrameSigT<Item = bool>,
+        T: SigT<Item = bool>,
     {
-        let trig = FrameSig(trig).gate_to_trig_rising_edge().shared();
-        let gate = FrameSig(trig.clone()).into_sig().trig_to_gate(self.hold_s);
+        let trig = Sig(trig).gate_to_trig_rising_edge().shared();
+        let gate = trig.clone().trig_to_gate(self.hold_s);
         adsr_linear_01(gate)
             .key_press_trig(trig)
             .release_s(self.release_s)
@@ -112,9 +111,9 @@ where
 
     fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
     where
-        T: FrameSigT<Item = bool>,
+        T: SigT<Item = bool>,
     {
-        let trig = FrameSig(trig).gate_to_trig_rising_edge();
+        let trig = Sig(trig).gate_to_trig_rising_edge();
         let env = adsr_linear_01(trig)
             .release_s(self.release_s)
             .build()
@@ -131,9 +130,7 @@ where
 mod kick {
     use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
     use caw_builder_proc_macros::builder;
-    use caw_core::{
-        frame_sig_shared, sig_shared, FrameSigT, Sig, SigT, Triggerable,
-    };
+    use caw_core::{sig_shared, Sig, SigT, Triggerable};
     use caw_modules::*;
 
     struct Props<P, N, BC, BA, PB, PS, NFB, NFS, PH, C>
@@ -271,12 +268,12 @@ mod kick {
 
         fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
         where
-            T: FrameSigT<Item = bool>,
+            T: SigT<Item = bool>,
         {
             let props = self.build();
             let period_s = sig_shared(props.period_s);
             let curve = sig_shared(props.curve);
-            let trig = frame_sig_shared(trig);
+            let trig = sig_shared(trig);
             let pitch_sweep = trig.clone().trig(PitchSweep {
                 hold_s: 0.01,
                 period_s: period_s.clone(),
@@ -310,9 +307,7 @@ mod kick {
 
 mod snare {
     use caw_builder_proc_macros::builder;
-    use caw_core::{
-        frame_sig_shared, sig_shared, FrameSigT, Sig, SigT, Triggerable,
-    };
+    use caw_core::{sig_shared, Sig, SigT, Triggerable};
     use caw_modules::*;
 
     use super::{AmpEnv, NoiseFilterSweep, PitchSweep};
@@ -441,12 +436,12 @@ mod snare {
 
         fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
         where
-            T: FrameSigT<Item = bool>,
+            T: SigT<Item = bool>,
         {
             let props = self.build();
             let period_s = sig_shared(props.period_s);
             let curve = sig_shared(props.curve);
-            let trig = frame_sig_shared(trig);
+            let trig = sig_shared(trig);
             let pitch_sweep = trig.clone().trig(PitchSweep {
                 hold_s: 0.01,
                 period_s: period_s.clone(),
@@ -476,7 +471,7 @@ mod snare {
 
 mod hat_closed {
     use caw_builder_proc_macros::builder;
-    use caw_core::{sig_shared, FrameSig, FrameSigT, SigT, Triggerable};
+    use caw_core::{sig_shared, Sig, SigT, Triggerable};
     use caw_modules::adsr_linear_01;
 
     use super::NoiseFilterSweep;
@@ -553,17 +548,17 @@ mod hat_closed {
 
         fn into_sig<T>(self, trig: T) -> impl SigT<Item = Self::Item>
         where
-            T: FrameSigT<Item = bool>,
+            T: SigT<Item = bool>,
         {
             let props = self.build();
             let period_s = sig_shared(props.period_s);
             let curve = sig_shared(props.curve);
-            let trig = FrameSig(trig).gate_to_trig_rising_edge().shared();
+            let trig = Sig(trig).gate_to_trig_rising_edge().shared();
             let env = adsr_linear_01(trig.clone())
                 .release_s(period_s.clone())
                 .build()
                 .exp_01(curve.clone());
-            FrameSig(trig.clone()).trig(NoiseFilterSweep {
+            Sig(trig.clone()).trig(NoiseFilterSweep {
                 release_s: period_s.clone(),
                 base_cutoff_hz: props.noise_filter_base_cutoff_hz,
                 start_cutoff_offset_hz: props
