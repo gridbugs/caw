@@ -1,5 +1,6 @@
-use caw_core::{FrameSig, FrameSigT};
+use caw_core::{Buf, FrameSig, FrameSigT, Sig, SigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note};
+use itertools::izip;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Key {
@@ -313,6 +314,45 @@ fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
         .collect::<Vec<_>>()
 }
 
+pub fn opinionated_key_events_<S>(
+    keyboard: &Keyboard<S>,
+    start_note: Note,
+) -> Sig<impl SigT<Item = KeyEvents>>
+where
+    S: SigT<Item = bool> + Clone,
+{
+    let note_by_key = opinionated_note_by_key(start_note);
+    let mut key_events_by_key = note_by_key
+        .into_iter()
+        .map(|(key, note)| {
+            let mut pressed_state = false;
+            Sig(keyboard.get(key)).map_mut(move |pressed| {
+                if pressed == pressed_state {
+                    None
+                } else {
+                    pressed_state = pressed;
+                    Some(KeyEvent {
+                        note,
+                        pressed,
+                        velocity_01: 1.0,
+                    })
+                }
+            })
+        })
+        .collect::<Vec<_>>();
+    Sig::from_buf_fn(move |ctx, buf: &mut Vec<KeyEvents>| {
+        buf.clear();
+        buf.resize_with(ctx.num_samples, KeyEvents::empty);
+        for key_events in &mut key_events_by_key {
+            for (out, key_event_opt) in
+                izip! { buf.iter_mut(), key_events.sample(ctx).iter() }
+            {
+                out.extend(key_event_opt);
+            }
+        }
+    })
+}
+
 pub fn opinionated_key_events<S>(
     keyboard: &Keyboard<S>,
     start_note: Note,
@@ -352,6 +392,18 @@ where
         }
         key_events
     })
+}
+
+impl<K> Keyboard<K>
+where
+    K: SigT<Item = bool> + Clone,
+{
+    pub fn opinionated_key_events_(
+        self,
+        start_note: Note,
+    ) -> Sig<impl SigT<Item = KeyEvents>> {
+        opinionated_key_events_(&self, start_note)
+    }
 }
 
 impl<K> Keyboard<K>

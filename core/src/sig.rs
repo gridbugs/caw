@@ -840,7 +840,7 @@ where
 pub struct SigBufFn<F, T>
 where
     F: FnMut(&SigCtx, &mut Vec<T>),
-    T: Clone + Default,
+    T: Clone,
 {
     f: F,
     buf: Vec<T>,
@@ -849,12 +849,11 @@ where
 impl<F, T> SigT for SigBufFn<F, T>
 where
     F: FnMut(&SigCtx, &mut Vec<T>),
-    T: Clone + Default,
+    T: Clone,
 {
     type Item = T;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.buf.resize_with(ctx.num_samples, Default::default);
         (self.f)(ctx, &mut self.buf);
         &self.buf
     }
@@ -863,9 +862,46 @@ where
 impl<F, T> Sig<SigBufFn<F, T>>
 where
     F: FnMut(&SigCtx, &mut Vec<T>),
-    T: Clone + Default,
+    T: Clone,
 {
     pub fn from_buf_fn(f: F) -> Self {
         Self(SigBufFn { f, buf: Vec::new() })
+    }
+}
+
+#[derive(Default)]
+pub struct SigVar<T>(Arc<RwLock<T>>);
+
+impl<T> SigVar<T> {
+    pub fn new(value: T) -> Self {
+        Self(Arc::new(RwLock::new(value)))
+    }
+
+    pub fn set(&self, value: T) {
+        *self.0.write().unwrap() = value;
+    }
+}
+
+pub fn sig_var<T: Clone>(value: T) -> Sig<SigVar<T>> {
+    Sig(SigVar::new(value))
+}
+
+impl<T> Clone for SigVar<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl<T> SigT for SigVar<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            count: ctx.num_samples,
+            value: self.0.read().unwrap().clone(),
+        }
     }
 }

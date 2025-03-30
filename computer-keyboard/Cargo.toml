@@ -12,3 +12,4 @@ edition = "2021"
 [dependencies]
 caw_keyboard = { version = "0.3", path = "../keyboard" }
 caw_core = { version = "0.4", path = "../core" }
+itertools = "0.14"

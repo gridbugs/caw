@@ -1,5 +1,5 @@
 use caw_core::*;
-pub use caw_midi::{MidiMessages, MidiMessagesT};
+pub use caw_midi::{MidiMessages, MidiMessagesT, MidiMessagesT_};
 use midly::{
     num::u4, Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent,
     TrackEventKind,
@@ -78,8 +78,7 @@ impl TrackState {
                 default_s_per_beat / (ticks_per_beat.as_int() as f32)
             }
             Timing::Timecode(frames_per_second, ticks_per_frame) => {
-                1.0 / (frames_per_second.as_f32()
-                    * ticks_per_frame as f32)
+                1.0 / (frames_per_second.as_f32() * ticks_per_frame as f32)
             }
         };
         Self {
@@ -93,12 +92,11 @@ impl TrackState {
         }
     }
 
-    fn for_each_new_event<F>(&mut self, ctx: &SigCtx, mut f: F)
+    fn for_each_new_event<F>(&mut self, sample_rate_hz: f32, mut f: F)
     where
         F: FnMut(MidiEvent),
     {
-        let time_since_prev_tick_s =
-            ctx.num_samples as f32 / ctx.sample_rate_hz;
+        let time_since_prev_tick_s = 1.0 / sample_rate_hz;
         self.current_time_s += time_since_prev_tick_s;
         while self.next_tick_time_s < self.current_time_s {
             self.next_tick_time_s += self.tick_duration_s;
@@ -139,7 +137,23 @@ impl TrackState {
     ) -> FrameSig<impl FrameSigT<Item = MidiMessages>> {
         FrameSig::from_fn(move |ctx| {
             let mut messages = MidiMessages::empty();
-            self.for_each_new_event(ctx, |event| {
+            self.for_each_new_event(ctx.sample_rate_hz, |event| {
+                if event.channel == u4::new(channel) {
+                    messages.push(event.message);
+                }
+            });
+            messages
+        })
+    }
+
+    pub fn into_midi_messages_(
+        mut self,
+        channel: u8,
+    ) -> Sig<impl SigT<Item = MidiMessages>> {
+        Sig::from_fn(move |ctx| {
+            // This is evaluated once per audio sample to allow for sub-frame timing of events.
+            let mut messages = MidiMessages::empty();
+            self.for_each_new_event(ctx.sample_rate_hz, |event| {
                 if event.channel == u4::new(channel) {
                     messages.push(event.message);
                 }

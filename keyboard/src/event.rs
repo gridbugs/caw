@@ -1,8 +1,9 @@
 use crate::{
     chord::{Chord, Inversion},
-    polyphony, MonoVoice, Note,
+    polyphony, MonoVoice, MonoVoice_, Note,
 };
-use caw_core::{FrameSig, FrameSigT, SigCtx};
+use caw_core::{Buf, ConstBuf, FrameSig, FrameSigT, Sig, SigCtx, SigT};
+use itertools::izip;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 use smallvec::{smallvec, SmallVec};
 use std::{cmp::Ordering, collections::HashSet};
@@ -22,12 +23,16 @@ pub struct KeyEvent {
 /// to group them into a collection because multiple key events may occur during the same frame.
 /// This collection only uses the heap when more than one event occurred on the same sample which
 /// is very unlikely.
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, Default)]
 pub struct KeyEvents(SmallVec<[KeyEvent; 4]>);
 
 impl KeyEvents {
     pub fn empty() -> Self {
         Self(smallvec![])
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
     }
 
     pub fn push(&mut self, key_event: KeyEvent) {
@@ -70,6 +75,31 @@ impl FromIterator<KeyEvent> for KeyEvents {
     }
 }
 
+pub trait KeyEventsT_ {
+    fn merge<S>(self, other: S) -> Sig<impl SigT<Item = KeyEvents>>
+    where
+        S: SigT<Item = KeyEvents>;
+
+    fn mono_voice(self) -> MonoVoice_<impl SigT<Item = KeyEvents>>;
+
+    fn poly_voices(
+        self,
+        n: usize,
+    ) -> Vec<MonoVoice_<impl SigT<Item = KeyEvents>>>;
+
+    fn arp<G, V, H, L, S>(
+        self,
+        gate: G,
+        config: ArpConfig_<V, H, L, S>,
+    ) -> Sig<impl SigT<Item = KeyEvents>>
+    where
+        G: SigT<Item = bool>,
+        V: SigT<Item = f32>,
+        H: SigT<Item = u32>,
+        L: SigT<Item = u32>,
+        S: SigT<Item = ArpShape>;
+}
+
 pub trait KeyEventsT {
     fn merge<S>(self, other: S) -> FrameSig<impl FrameSigT<Item = KeyEvents>>
     where
@@ -93,6 +123,52 @@ pub trait KeyEventsT {
         H: FrameSigT<Item = u32>,
         L: FrameSigT<Item = u32>,
         S: FrameSigT<Item = ArpShape>;
+}
+
+impl<K> KeyEventsT_ for Sig<K>
+where
+    K: SigT<Item = KeyEvents>,
+{
+    fn merge<S>(mut self, mut other: S) -> Sig<impl SigT<Item = KeyEvents>>
+    where
+        S: SigT<Item = KeyEvents>,
+    {
+        Sig::from_buf_fn(move |ctx, buf: &mut Vec<KeyEvents>| {
+            buf.clear();
+            let s = self.sample(ctx);
+            let o = other.sample(ctx);
+            for (mut s, o) in izip! { s.iter(), o.iter() } {
+                s.extend(o);
+                buf.push(s);
+            }
+        })
+    }
+
+    fn mono_voice(self) -> MonoVoice_<impl SigT<Item = KeyEvents>> {
+        MonoVoice_::from_key_events(self.0)
+    }
+
+    fn poly_voices(
+        self,
+        n: usize,
+    ) -> Vec<MonoVoice_<impl SigT<Item = KeyEvents>>> {
+        polyphony::voices_from_key_events_(self.0, n)
+    }
+
+    fn arp<G, V, H, L, S>(
+        self,
+        gate: G,
+        config: ArpConfig_<V, H, L, S>,
+    ) -> Sig<impl SigT<Item = KeyEvents>>
+    where
+        G: SigT<Item = bool>,
+        V: SigT<Item = f32>,
+        H: SigT<Item = u32>,
+        L: SigT<Item = u32>,
+        S: SigT<Item = ArpShape>,
+    {
+        key_events_from_chords_arp_(self, gate, config)
+    }
 }
 
 impl<K> KeyEventsT for FrameSig<K>
@@ -146,6 +222,17 @@ impl FrameSigT for Inversion {
 
     fn frame_sample(&mut self, _ctx: &SigCtx) -> Self::Item {
         *self
+    }
+}
+
+impl SigT for Inversion {
+    type Item = Inversion;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            count: ctx.num_samples,
+            value: *self,
+        }
     }
 }
 
@@ -282,6 +369,17 @@ pub enum ArpShape {
     DownUp,
     Random,
     Indices(Vec<Option<usize>>),
+}
+
+impl SigT for ArpShape {
+    type Item = ArpShape;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            count: ctx.num_samples,
+            value: self.clone(),
+        }
+    }
 }
 
 impl FrameSigT for ArpShape {
@@ -468,6 +566,19 @@ impl ArpState {
     }
 }
 
+pub struct ArpConfig_<V, H, L, S>
+where
+    V: SigT<Item = f32>,
+    H: SigT<Item = u32>,
+    L: SigT<Item = u32>,
+    S: SigT<Item = ArpShape>,
+{
+    pub velocity_01: V,
+    pub extend_octaves_high: H,
+    pub extend_octaves_low: L,
+    pub shape: S,
+}
+
 pub struct ArpConfig<V, H, L, S>
 where
     V: FrameSigT<Item = f32>,
@@ -576,6 +687,98 @@ where
             shape,
         }
     }
+}
+
+fn key_events_from_chords_arp_<K, G, V, H, L, S>(
+    mut key_events: K,
+    gate: G,
+    mut config: ArpConfig_<V, H, L, S>,
+) -> Sig<impl SigT<Item = KeyEvents>>
+where
+    K: SigT<Item = KeyEvents>,
+    G: SigT<Item = bool>,
+    V: SigT<Item = f32>,
+    H: SigT<Item = u32>,
+    L: SigT<Item = u32>,
+    S: SigT<Item = ArpShape>,
+{
+    let mut state = ArpState::new();
+    let mut trigger = Sig(gate).gate_to_trig_rising_edge();
+    Sig::from_buf_fn(move |ctx, buf| {
+        let trigger = trigger.sample(ctx);
+        let key_events = key_events.sample(ctx);
+        let extend_octaves_high = config.extend_octaves_high.sample(ctx);
+        let extend_octaves_low = config.extend_octaves_low.sample(ctx);
+        let shape = config.shape.sample(ctx);
+        for (
+            trigger,
+            key_events,
+            extend_octaves_high,
+            extend_octaves_low,
+            shape,
+        ) in izip! {
+            trigger.iter(),
+            key_events.iter(),
+            extend_octaves_high.iter(),
+            extend_octaves_low.iter(),
+            shape.iter(),
+        } {
+            let mut events = KeyEvents::empty();
+            for event in key_events {
+                if event.pressed {
+                    state.insert_note(event.note);
+                    for i in 0..extend_octaves_high {
+                        if let Some(note) =
+                            event.note.add_octaves_checked(i as i8 + 1)
+                        {
+                            state.insert_note(note);
+                        }
+                    }
+                    for i in 0..extend_octaves_low {
+                        if let Some(note) =
+                            event.note.add_octaves_checked(-(i as i8 + 1))
+                        {
+                            state.insert_note(note);
+                        }
+                    }
+                } else {
+                    state.remove_note(event.note);
+                    for i in 0..extend_octaves_high {
+                        if let Some(note) =
+                            event.note.add_octaves_checked(i as i8 + 1)
+                        {
+                            state.remove_note(note);
+                        }
+                    }
+                    for i in 0..extend_octaves_low {
+                        if let Some(note) =
+                            event.note.add_octaves_checked(-(i as i8 + 1))
+                        {
+                            state.remove_note(note);
+                        }
+                    }
+                }
+            }
+            if trigger {
+                if let Some(note) = state.current_note {
+                    events.push(KeyEvent {
+                        note,
+                        pressed: false,
+                        velocity_01: 0.0,
+                    });
+                }
+                state.tick(shape);
+                if let Some(note) = state.current_note {
+                    events.push(KeyEvent {
+                        note,
+                        pressed: true,
+                        velocity_01: 1.0,
+                    });
+                }
+            }
+            buf.push(events);
+        }
+    })
 }
 
 fn key_events_from_chords_arp<K, G, V, H, L, S>(

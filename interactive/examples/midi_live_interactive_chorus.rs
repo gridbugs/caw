@@ -1,6 +1,6 @@
 use caw_core::*;
 use caw_interactive::{Input, Visualization, Window};
-use caw_keyboard::{IntoNoteFreqHz, KeyEvents, KeyEventsT, MonoVoice, Note};
+use caw_keyboard::{IntoNoteFreqHz_, KeyEvents, KeyEventsT_, MonoVoice_, Note};
 use caw_midi::*;
 use caw_midi_live::*;
 use caw_modules::*;
@@ -8,19 +8,19 @@ use clap::{Parser, Subcommand};
 
 fn sig(
     input: Input,
-    key_events: FrameSig<impl FrameSigT<Item = KeyEvents>>,
-    _pitch_bend_freq_mult: FrameSig<FrameSigShared<impl FrameSigT<Item = f32>>>,
-    controllers: MidiControllers<impl FrameSigT<Item = MidiMessages>>,
+    key_events: Sig<impl SigT<Item = KeyEvents>>,
+    _pitch_bend_freq_mult: Sig<SigShared<impl SigT<Item = f32>>>,
+    controllers: MidiControllers_<impl SigT<Item = MidiMessages>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
-        .opinionated_key_events(Note::B0)
-        .merge(FrameSig(key_events))
+        .opinionated_key_events_(Note::B0)
+        .merge(Sig(key_events))
         .poly_voices(48)
         .into_iter()
         .map(
-            |MonoVoice {
+            |MonoVoice_ {
                  note,
                  key_down_gate,
                  key_press_trig,
@@ -86,9 +86,7 @@ enum Commands {
     },
 }
 
-fn run(
-    midi_events: FrameSig<impl FrameSigT<Item = MidiMessages>>,
-) -> anyhow::Result<()> {
+fn run(midi_events: Sig<impl SigT<Item = MidiMessages>>) -> anyhow::Result<()> {
     let window = Window::builder()
         .sane_default()
         .visualization(Visualization::StereoOscillographics)
@@ -127,7 +125,7 @@ fn main() -> anyhow::Result<()> {
         }
         Commands::Play { midi_port } => {
             let connection = midi_live.connect(midi_port)?;
-            run(connection.channel(0))?;
+            run(connection.channel_(0))?;
         }
     }
     Ok(())

@@ -8,8 +8,8 @@ pub use frame_sig::{
     FrameSigT, FrameSigVar, Triggerable,
 };
 pub use sig::{
-    sig_shared, Buf, ConstBuf, Filter, GateToTrigRisingEdge, Sig, SigAbs,
-    SigBoxed, SigCtx, SigSampleIntoBufT, SigShared, SigT,
+    sig_shared, sig_var, Buf, ConstBuf, Filter, GateToTrigRisingEdge, Sig,
+    SigAbs, SigBoxed, SigCtx, SigSampleIntoBufT, SigShared, SigT, SigVar,
 };
 pub mod stereo;
 pub use stereo::{Channel, Stereo, StereoPair};

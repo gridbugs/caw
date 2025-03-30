@@ -1,5 +1,5 @@
-use crate::{KeyEvent, KeyEvents, MonoVoice, Note};
-use caw_core::{frame_sig_shared, FrameSig, FrameSigT};
+use crate::{KeyEvent, KeyEvents, MonoVoice, MonoVoice_, Note};
+use caw_core::{frame_sig_shared, sig_shared, FrameSig, FrameSigT, Sig, SigT};
 use smallvec::SmallVec;
 use std::collections::BinaryHeap;
 
@@ -98,6 +98,47 @@ struct PolyKeyEvent {
 }
 
 /// Routes key events to voice indices
+fn route_key_events_<K>(
+    key_events: K,
+    n: usize,
+) -> Sig<impl SigT<Item = SmallVec<[PolyKeyEvent; 1]>>>
+where
+    K: SigT<Item = KeyEvents>,
+{
+    let mut voice_allocator = VoiceAllocator::new(n);
+    let mut to_free = Vec::new();
+    Sig(key_events).map_mut_ctx(move |key_events, ctx| {
+        let mut out: SmallVec<[PolyKeyEvent; 1]> = smallvec::smallvec![];
+        for key_event in key_events {
+            if key_event.pressed {
+                if let Some(voice_index) = voice_allocator.alloc(key_event.note)
+                {
+                    out.push(PolyKeyEvent {
+                        key_event,
+                        voice_index,
+                    });
+                } else {
+                    log::warn!("Unable to allocate voice for note!");
+                }
+            } else {
+                voice_allocator.free(
+                    key_event.note,
+                    ctx.batch_index,
+                    &mut to_free,
+                );
+                for voice_index in to_free.drain(..) {
+                    out.push(PolyKeyEvent {
+                        key_event,
+                        voice_index,
+                    });
+                }
+            }
+        }
+        out
+    })
+}
+
+/// Routes key events to voice indices
 fn route_key_events<K>(
     key_events: K,
     n: usize,
@@ -165,6 +206,37 @@ where
                     out
                 });
             MonoVoice::from_key_events(key_events_for_this_voice)
+        })
+        .collect()
+}
+
+/// Return a vector with n monophonic voices that can be played together to polyphonically
+/// represent the stream of key events `key_events`.
+pub fn voices_from_key_events_<K>(
+    key_events: K,
+    n: usize,
+) -> Vec<MonoVoice_<impl SigT<Item = KeyEvents>>>
+where
+    K: SigT<Item = KeyEvents>,
+{
+    let poly_key_events = sig_shared(route_key_events_(key_events, n));
+    (0..n)
+        .map(|i| {
+            let key_events_for_this_voice =
+                poly_key_events.clone().map(move |poly_key_events| {
+                    let mut out = KeyEvents::empty();
+                    for PolyKeyEvent {
+                        key_event,
+                        voice_index,
+                    } in poly_key_events
+                    {
+                        if voice_index == i {
+                            out.push(key_event);
+                        }
+                    }
+                    out
+                });
+            MonoVoice_::from_key_events(key_events_for_this_voice)
         })
         .collect()
 }

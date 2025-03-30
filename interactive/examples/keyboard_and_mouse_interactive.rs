@@ -1,15 +1,23 @@
 use caw_core::*;
-use caw_interactive::{Input, MouseButton, Visualization, Window};
-use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
+use caw_interactive::{Input_, MouseButton, Visualization, Window};
+use caw_keyboard::{IntoNoteFreqHz_, KeyEventsT_, MonoVoice_, Note};
 use caw_modules::*;
 
-fn sig(input: Input, channel: Channel) -> Sig<impl SigT<Item = f32> + Send> {
-    let MonoVoice {
+fn sig(input: Input_, channel: Channel) -> Sig<impl SigT<Item = f32> + Send> {
+    let MonoVoice_ {
         note,
         key_down_gate,
         key_press_trig,
         ..
-    } = input.keyboard.opinionated_key_events(Note::B0).mono_voice();
+    } = input
+        .keyboard
+        .opinionated_key_events_(Note::B0)
+        .debug(|x| {
+            if !x.is_empty() {
+                //println!("{:?}", x);
+            }
+        })
+        .mono_voice();
     let key_press_trig = key_press_trig.shared();
     let key_down_gate = key_down_gate | input.mouse.button(MouseButton::Left);
     let env = adsr_linear_01(key_down_gate)
@@ -47,7 +55,7 @@ fn main() -> anyhow::Result<()> {
         .line_width(2)
         .scale(4.)
         .build();
-    let input = window.input();
+    let input = window.input_();
     window.play_stereo(
         Stereo::new_fn_channel(|channel| sig(input.clone(), channel)),
         Default::default(),

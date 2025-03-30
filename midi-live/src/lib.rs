@@ -1,4 +1,4 @@
-use caw_core::{FrameSig, FrameSigT};
+use caw_core::{FrameSig, FrameSigT, Sig, SigT};
 use caw_midi::MidiMessages;
 use midir::{MidiInput, MidiInputConnection, MidiInputPort};
 use midly::live::LiveEvent;
@@ -134,6 +134,29 @@ impl MidiLiveConnection {
             let mut message_buffers = message_buffers.borrow_mut();
             message_buffers.update();
             mem::take(&mut message_buffers.buffers[channel as usize].messages)
+        })
+    }
+
+    pub fn channel_(&self, channel: u8) -> Sig<impl SigT<Item = MidiMessages>> {
+        {
+            let mut message_buffers = self.message_buffers.borrow_mut();
+            let buffer = &mut message_buffers.buffers[channel as usize];
+            if buffer.subscribed {
+                panic!("Midi channel {} subscribed to multiple times. Each midi channel may be subscribed to only once.", channel);
+            }
+            buffer.subscribed = true;
+        }
+        let message_buffers = Rc::clone(&self.message_buffers);
+        Sig::from_buf_fn(move |ctx, buf| {
+            // This is called once per frame (not once per sample). This will add an imperceptible
+            // amount of latency (unless the output buffer is too large!), but reduce cpu usage.
+            buf.resize_with(ctx.num_samples, Default::default);
+            let mut message_buffers = message_buffers.borrow_mut();
+            message_buffers.update();
+            // Only the first sample of each frame is populated with midi messages.
+            buf[0] = mem::take(
+                &mut message_buffers.buffers[channel as usize].messages,
+            );
         })
     }
 }
