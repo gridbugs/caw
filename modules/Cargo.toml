@@ -1,6 +1,6 @@
 [package]
 name = "caw_modules"
-version = "0.3.1"
+version = "0.4.0"
 description = "Collection of synthesizer modules for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -13,7 +13,7 @@ edition = "2021"
 web = ["getrandom/js"]
 
 [dependencies]
-caw_core = { version = "0.4", path = "../core" }
+caw_core = { version = "0.5", path = "../core" }
 caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
 itertools = "0.14"
 wide = "0.7"

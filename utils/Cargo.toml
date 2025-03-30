@@ -1,7 +1,7 @@
 [package]
 name = "caw_utils"
 description = "Utilities for building synthesizers with caw"
-version = "0.3.0"
+version = "0.4.0"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
 homepage = "https://github.com/gridbugs/caw.git"
@@ -13,6 +13,6 @@ edition = "2021"
 web = ["getrandom/js"]
 
 [dependencies]
-caw_core = { version = "0.4", path = "../core" }
+caw_core = { version = "0.5", path = "../core" }
 rand = "0.8"
 getrandom = "0.2"
