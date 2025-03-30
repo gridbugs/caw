@@ -19,6 +19,14 @@ builder! {
         filter_order_half: usize,
     }
 }
+impl<C: SigT<Item = f32>, R: SigT<Item = f32>> Props<C, R> {
+    pub fn q<X>(self, resonance: X) -> Props<C, X>
+    where
+        X: SigT<Item = f32>,
+    {
+        self.resonance(resonance)
+    }
+}
 
 impl<C, R> Filter for Props<C, R>
 where

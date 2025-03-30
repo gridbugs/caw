@@ -37,6 +37,24 @@ builder! {
     }
 }
 
+impl<C: SigT<Item = f32>, R: SigT<Item = f32>> PropsOberheim<C, R> {
+    pub fn q<X>(self, resonance: X) -> PropsOberheim<C, X>
+    where
+        X: SigT<Item = f32>,
+    {
+        self.resonance(resonance)
+    }
+}
+
+impl<C: SigT<Item = f32>, R: SigT<Item = f32>> PropsHuovilainen<C, R> {
+    pub fn q<X>(self, resonance: X) -> PropsHuovilainen<C, X>
+    where
+        X: SigT<Item = f32>,
+    {
+        self.resonance(resonance)
+    }
+}
+
 impl<C, R> Filter for PropsOberheim<C, R>
 where
     C: SigT<Item = f32>,
