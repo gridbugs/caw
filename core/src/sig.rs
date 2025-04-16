@@ -252,6 +252,24 @@ pub trait SigSampleIntoBufT {
     );
 }
 
+pub struct Const<T>(T)
+where
+    T: Clone;
+
+impl<T> SigT for Const<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            value: self.0.clone(),
+            count: ctx.num_samples,
+        }
+    }
+}
+
 impl SigT for f32 {
     type Item = f32;
 
@@ -333,11 +351,13 @@ impl<S: SigT> SigSampleIntoBufT for Sig<S> {
     }
 }
 
-pub struct SigBoxed<T>(
-    Box<dyn SigSampleIntoBufT<Item = T> + Send + Sync + 'static>,
-)
+pub struct SigBoxed<T>
 where
-    T: Clone;
+    T: Clone,
+{
+    sig: Box<dyn SigSampleIntoBufT<Item = T> + Send + Sync + 'static>,
+    buf: Vec<T>,
+}
 
 impl<T> SigSampleIntoBufT for SigBoxed<T>
 where
@@ -346,7 +366,7 @@ where
     type Item = T;
 
     fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
-        self.0.sample_into_buf(ctx, buf);
+        self.sig.sample_into_buf(ctx, buf);
     }
 
     fn sample_into_slice(
@@ -356,7 +376,19 @@ where
         offset: usize,
         out: &mut [Self::Item],
     ) {
-        self.0.sample_into_slice(ctx, stride, offset, out);
+        self.sig.sample_into_slice(ctx, stride, offset, out);
+    }
+}
+
+impl<T> SigT for SigBoxed<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.sig.sample_into_buf(ctx, &mut self.buf);
+        &self.buf
     }
 }
 
@@ -429,12 +461,22 @@ where
     }
 }
 
+pub fn sig_boxed<S>(sig: S) -> SigBoxed<S::Item>
+where
+    S: SigT + Send + Sync + 'static,
+{
+    Sig(sig).boxed()
+}
+
 impl<S> Sig<S>
 where
     S: SigT + Send + Sync + 'static,
 {
     pub fn boxed(self) -> SigBoxed<S::Item> {
-        SigBoxed(Box::new(self))
+        SigBoxed {
+            sig: Box::new(self),
+            buf: Vec::new(),
+        }
     }
 }
 
@@ -977,6 +1019,15 @@ impl<T> SigVar<T> {
     }
 }
 
+impl<T> Sig<SigVar<T>>
+where
+    T: Clone,
+{
+    pub fn set(&self, value: T) {
+        self.0.set(value)
+    }
+}
+
 pub fn sig_var<T: Clone>(value: T) -> Sig<SigVar<T>> {
     Sig(SigVar::new(value))
 }
@@ -999,6 +1050,104 @@ where
             value: self.0.read().unwrap().clone(),
         }
     }
+}
+
+pub struct SigBoxedVar<T: Clone> {
+    sig_boxed: Arc<RwLock<SigBoxed<T>>>,
+    buf: Vec<T>,
+}
+
+impl<T: Clone> Clone for SigBoxedVar<T> {
+    fn clone(&self) -> Self {
+        Self {
+            sig_boxed: Arc::clone(&self.sig_boxed),
+            buf: Vec::new(),
+        }
+    }
+}
+
+impl<T: Clone> SigBoxedVar<T> {
+    pub fn set<S>(&self, sig: S)
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+    {
+        *self.sig_boxed.write().unwrap() = sig_boxed(sig);
+    }
+}
+
+impl<T: Clone> Sig<SigBoxedVar<T>> {
+    pub fn set<S>(&self, sig: S)
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+    {
+        self.0.set(sig);
+    }
+}
+
+impl<T> SigBoxedVar<T>
+where
+    T: Clone + Sync + Send + 'static,
+{
+    pub fn new_const(value: T) -> Self {
+        SigBoxedVar {
+            sig_boxed: Arc::new(RwLock::new(sig_boxed(Const(value)))),
+            buf: Vec::new(),
+        }
+    }
+}
+
+impl<T> SigBoxedVar<T>
+where
+    T: Clone + Default + Sync + Send + 'static,
+{
+    pub fn new_default() -> Self {
+        Self::new_const(T::default())
+    }
+}
+
+impl<T: Clone> SigT for SigBoxedVar<T> {
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let mut unlocked = self.sig_boxed.write().unwrap();
+        unlocked.sample_into_buf(ctx, &mut self.buf);
+        &self.buf
+    }
+}
+
+impl<T: Clone> SigSampleIntoBufT for SigBoxedVar<T> {
+    type Item = T;
+
+    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
+        self.sig_boxed.write().unwrap().sample_into_buf(ctx, buf);
+    }
+
+    fn sample_into_slice(
+        &mut self,
+        ctx: &SigCtx,
+        stride: usize,
+        offset: usize,
+        out: &mut [Self::Item],
+    ) {
+        self.sig_boxed
+            .write()
+            .unwrap()
+            .sample_into_slice(ctx, stride, offset, out);
+    }
+}
+
+pub fn sig_boxed_var_default<T>() -> Sig<SigBoxedVar<T>>
+where
+    T: Clone + Default + Sync + Send + 'static,
+{
+    Sig(SigBoxedVar::new_default())
+}
+
+pub fn sig_boxed_var_const<T>(value: T) -> Sig<SigBoxedVar<T>>
+where
+    T: Clone + Sync + Send + 'static,
+{
+    Sig(SigBoxedVar::new_const(value))
 }
 
 pub trait Triggerable {
