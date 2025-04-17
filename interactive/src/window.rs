@@ -1,7 +1,9 @@
 use crate::input::Input;
 use anyhow::anyhow;
 use caw_core::{SigSampleIntoBufT, Stereo};
-use caw_player::{ConfigSync, Player, ToF32};
+use caw_player::{
+    ConfigOwned, ConfigSync, Player, ToF32, VisualizationDataPolicy,
+};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
 use sdl2::{
@@ -316,16 +318,15 @@ impl Window {
         self.input.clone()
     }
 
-    pub fn play_mono<T, S>(
-        &self,
-        sig: S,
-        config: ConfigSync,
-    ) -> anyhow::Result<()>
+    pub fn play_mono<S>(&self, sig: S, config: ConfigSync) -> anyhow::Result<()>
     where
-        T: ToF32 + Send + Sync + Copy + 'static,
-        S: SigSampleIntoBufT<Item = T>,
+        S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
     {
-        let player = Player::new()?;
+        let config = ConfigOwned {
+            system_latency_s: config.system_latency_s,
+            visualization_data_policy: Some(VisualizationDataPolicy::All),
+        };
+        let player = Player::new()?.into_owned_mono(sig, config)?;
         let mut window_running = self.clone().run()?;
         // Render a few frames to warm up. The first few frames can take longer than usual to
         // render, so warming up prevents the audio from stuttering on startup.
@@ -333,19 +334,14 @@ impl Window {
             window_running.handle_frame_if_enough_time_since_previous_frame();
             thread::sleep(FRAME_DURATION);
         }
-        player.play_signal_sync_mono_callback(
-            sig,
-            |buf| {
-                // Interleave rendering with sending samples to the sound card. Rendering needs to
-                // happen on the main thread as this is a requirement of SDL, and sending samples to
-                // the sound card needs to happen on the main thread as signals are not `Send`.
+        loop {
+            player.with_visualization_data_and_clear(|buf| {
                 window_running.add_samples_to_oscilloscope_state(buf);
                 window_running
                     .handle_frame_if_enough_time_since_previous_frame();
-            },
-            config,
-        )?;
-        Ok(())
+            });
+            thread::sleep(FRAME_DURATION);
+        }
     }
 
     pub fn play_stereo<TL, TR, SL, SR>(
