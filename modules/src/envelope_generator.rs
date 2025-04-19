@@ -151,3 +151,41 @@ builder! {
         release_s: f32,
     }
 }
+
+impl<KD, KP, A, D, S, R> Props<KD, KP, A, D, S, R>
+where
+    KD: SigT<Item = bool>,
+    KP: SigT<Item = bool>,
+    A: SigT<Item = f32>,
+    D: SigT<Item = f32>,
+    S: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+{
+    pub fn a<A_>(self, a: A_) -> Props<KD, KP, A_, D, S, R>
+    where
+        A_: SigT<Item = f32>,
+    {
+        self.attack_s(a)
+    }
+
+    pub fn d<D_>(self, d: D_) -> Props<KD, KP, A, D_, S, R>
+    where
+        D_: SigT<Item = f32>,
+    {
+        self.decay_s(d)
+    }
+
+    pub fn s<S_>(self, s: S_) -> Props<KD, KP, A, D, S_, R>
+    where
+        S_: SigT<Item = f32>,
+    {
+        self.sustain_01(s)
+    }
+
+    pub fn r<R_>(self, r: R_) -> Props<KD, KP, A, D, S, R_>
+    where
+        R_: SigT<Item = f32>,
+    {
+        self.release_s(r)
+    }
+}

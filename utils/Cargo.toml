@@ -16,3 +16,4 @@ web = ["getrandom/js"]
 caw_core = { version = "0.5", path = "../core" }
 rand = "0.8"
 getrandom = "0.2"
+itertools = "0.14"

@@ -40,9 +40,6 @@ name = "saw_interactive"
 name = "basic_stereo_oscillographics"
 
 [[example]]
-name = "many_oscillators_multithreaded_visualized"
-
-[[example]]
 name = "harmonics_oscillographics"
 
 [[example]]
@@ -86,3 +83,6 @@ name = "drums"
 
 [[example]]
 name = "drums_loop"
+
+[[example]]
+name = "sequencer"

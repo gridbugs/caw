@@ -216,6 +216,62 @@ where
     }
 }
 
+/// Used to implement zip3 without the need for an explicit buffer for zipped values. The zipping
+/// will take place in the iteration of the signal that consumes this buffer. Since zip operations
+/// often follow map operations, and map operations use the `MapBuf` buffer type, sequences of zip
+/// and map operations are fused without the need for intermediate buffers.
+pub struct Zip3Buf<BA, BB, BC, A, B, C>
+where
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    BA: Buf<A>,
+    BB: Buf<B>,
+    BC: Buf<C>,
+{
+    buf_a: BA,
+    buf_b: BB,
+    buf_c: BC,
+    phantom: PhantomData<(A, B, C)>,
+}
+
+impl<BA, BB, BC, A, B, C> Zip3Buf<BA, BB, BC, A, B, C>
+where
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    BA: Buf<A>,
+    BB: Buf<B>,
+    BC: Buf<C>,
+{
+    pub fn new(buf_a: BA, buf_b: BB, buf_c: BC) -> Self {
+        Self {
+            buf_a,
+            buf_b,
+            buf_c,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<BA, BB, BC, A, B, C> Buf<(A, B, C)> for Zip3Buf<BA, BB, BC, A, B, C>
+where
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    BA: Buf<A>,
+    BB: Buf<B>,
+    BC: Buf<C>,
+{
+    fn iter(&self) -> impl Iterator<Item = (A, B, C)> {
+        self.buf_a
+            .iter()
+            .zip(self.buf_b.iter())
+            .zip(self.buf_c.iter())
+            .map(|((a, b), c)| (a, b, c))
+    }
+}
+
 /// A signal with values produced for each audio sample. Values are produced in batches of a size
 /// determined by the audio driver. This is suitable for audible audio signals or controls signals
 /// that vary at the same rate as an audio signal (e.g. an envelope follower produced by analyzing
@@ -355,8 +411,20 @@ pub struct SigBoxed<T>
 where
     T: Clone,
 {
-    sig: Box<dyn SigSampleIntoBufT<Item = T> + Send + Sync + 'static>,
+    sig: Arc<RwLock<dyn SigSampleIntoBufT<Item = T> + Send + Sync + 'static>>,
     buf: Vec<T>,
+}
+
+impl<T> Clone for SigBoxed<T>
+where
+    T: Clone,
+{
+    fn clone(&self) -> Self {
+        SigBoxed {
+            sig: Arc::clone(&self.sig),
+            buf: Vec::new(),
+        }
+    }
 }
 
 impl<T> SigSampleIntoBufT for SigBoxed<T>
@@ -366,7 +434,7 @@ where
     type Item = T;
 
     fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
-        self.sig.sample_into_buf(ctx, buf);
+        self.sig.write().unwrap().sample_into_buf(ctx, buf);
     }
 
     fn sample_into_slice(
@@ -376,7 +444,10 @@ where
         offset: usize,
         out: &mut [Self::Item],
     ) {
-        self.sig.sample_into_slice(ctx, stride, offset, out);
+        self.sig
+            .write()
+            .unwrap()
+            .sample_into_slice(ctx, stride, offset, out);
     }
 }
 
@@ -387,7 +458,10 @@ where
     type Item = T;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.sig.sample_into_buf(ctx, &mut self.buf);
+        self.sig
+            .write()
+            .unwrap()
+            .sample_into_buf(ctx, &mut self.buf);
         &self.buf
     }
 }
@@ -446,6 +520,18 @@ where
         })
     }
 
+    pub fn zip3<O1, O2>(self, other1: O1, other2: O2) -> Sig<Zip3<S, O1, O2>>
+    where
+        O1: SigT,
+        O2: SigT,
+    {
+        Sig(Zip3 {
+            a: self.0,
+            b: other1,
+            c: other2,
+        })
+    }
+
     pub fn shared(self) -> Sig<SigShared<S>> {
         sig_shared(self.0)
     }
@@ -458,6 +544,67 @@ where
             f(&x);
             x
         })
+    }
+}
+
+impl<S, A, B> Sig<S>
+where
+    S: SigT<Item = (A, B)>,
+    A: Clone,
+    B: Clone,
+{
+    pub fn unzip(self) -> (Sig<impl SigT<Item = A>>, Sig<impl SigT<Item = B>>) {
+        let shared = self.shared();
+        let a = shared.clone().map(|(a, _)| a);
+        let b = shared.clone().map(|(_, b)| b);
+        (a, b)
+    }
+}
+
+impl<S, A, B, C> Sig<S>
+where
+    S: SigT<Item = (A, B, C)>,
+    A: Clone,
+    B: Clone,
+    C: Clone,
+{
+    pub fn unzip3(
+        self,
+    ) -> (
+        Sig<impl SigT<Item = A>>,
+        Sig<impl SigT<Item = B>>,
+        Sig<impl SigT<Item = C>>,
+    ) {
+        let shared = self.shared();
+        let a = shared.clone().map(|(a, _, _)| a);
+        let b = shared.clone().map(|(_, b, _)| b);
+        let c = shared.clone().map(|(_, _, c)| c);
+        (a, b, c)
+    }
+}
+
+impl<S, A, B, C, D> Sig<S>
+where
+    S: SigT<Item = (A, B, C, D)>,
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    D: Clone,
+{
+    pub fn unzip4(
+        self,
+    ) -> (
+        Sig<impl SigT<Item = A>>,
+        Sig<impl SigT<Item = B>>,
+        Sig<impl SigT<Item = C>>,
+        Sig<impl SigT<Item = D>>,
+    ) {
+        let shared = self.shared();
+        let a = shared.clone().map(|(a, _, _, _)| a);
+        let b = shared.clone().map(|(_, b, _, _)| b);
+        let c = shared.clone().map(|(_, _, c, _)| c);
+        let d = shared.clone().map(|(_, _, _, d)| d);
+        (a, b, c, d)
     }
 }
 
@@ -474,7 +621,7 @@ where
 {
     pub fn boxed(self) -> SigBoxed<S::Item> {
         SigBoxed {
-            sig: Box::new(self),
+            sig: Arc::new(RwLock::new(self)),
             buf: Vec::new(),
         }
     }
@@ -602,25 +749,45 @@ where
         self.map_mut(move |x| if x { Some(f()) } else { None })
     }
 
+    pub fn divide_with_offset<D, O>(
+        self,
+        divide: D,
+        offset: O,
+    ) -> Sig<impl SigT<Item = bool>>
+    where
+        D: SigT<Item = u32>,
+        O: SigT<Item = u32>,
+    {
+        let mut prev = false;
+        let mut count = 0u64;
+        self.zip3(divide, offset)
+            .map_mut(move |(current, divide, offset)| {
+                let divide = divide as u64;
+                let offset = offset as u64;
+                let is_falling_edge = prev && !current;
+                if is_falling_edge {
+                    count += 1;
+                }
+                prev = current;
+                if divide == 0 {
+                    // degenerate case
+                    true
+                } else if count < offset {
+                    // first few tick until count overtakes the offset
+                    false
+                } else if (count - offset) % divide == 0 {
+                    current
+                } else {
+                    false
+                }
+            })
+    }
+
     pub fn divide<B>(self, by: B) -> Sig<impl SigT<Item = bool>>
     where
         B: SigT<Item = u32>,
     {
-        let mut prev = false;
-        let mut count = 0u64;
-        self.zip(by).map_mut(move |(current, by)| {
-            let by = by as u64;
-            let is_falling_edge = prev && !current;
-            if is_falling_edge {
-                count += 1;
-            }
-            prev = current;
-            if by == 0 || count % by == 0 {
-                current
-            } else {
-                false
-            }
-        })
+        self.divide_with_offset(by, 0)
     }
 }
 
@@ -796,6 +963,30 @@ where
     }
 }
 
+pub struct Zip3<A, B, C>
+where
+    A: SigT,
+    B: SigT,
+    C: SigT,
+{
+    a: A,
+    b: B,
+    c: C,
+}
+
+impl<A, B, C> SigT for Zip3<A, B, C>
+where
+    A: SigT,
+    B: SigT,
+    C: SigT,
+{
+    type Item = (A::Item, B::Item, C::Item);
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        Zip3Buf::new(self.a.sample(ctx), self.b.sample(ctx), self.c.sample(ctx))
+    }
+}
+
 pub struct SigAbs<S>(S)
 where
     S: SigT<Item = f32>;
@@ -899,6 +1090,18 @@ where
     buf: Vec<S::Item>,
 }
 
+impl<S> SigShared<S>
+where
+    S: SigT,
+{
+    fn new(sig: S) -> Self {
+        SigShared {
+            shared_cached_sig: Arc::new(RwLock::new(SigCached::new(sig))),
+            buf: Vec::new(),
+        }
+    }
+}
+
 impl<S> Clone for SigShared<S>
 where
     S: SigT,
@@ -933,10 +1136,7 @@ pub fn sig_shared<S>(sig: S) -> Sig<SigShared<S>>
 where
     S: SigT,
 {
-    Sig(SigShared {
-        shared_cached_sig: Arc::new(RwLock::new(SigCached::new(sig))),
-        buf: Vec::new(),
-    })
+    Sig(SigShared::new(sig))
 }
 
 pub struct SigFn<F, T>
@@ -1052,12 +1252,12 @@ where
     }
 }
 
-pub struct SigBoxedVar<T: Clone> {
+pub struct SigBoxedVarUnshared<T: Clone> {
     sig_boxed: Arc<RwLock<SigBoxed<T>>>,
     buf: Vec<T>,
 }
 
-impl<T: Clone> Clone for SigBoxedVar<T> {
+impl<T: Clone> Clone for SigBoxedVarUnshared<T> {
     fn clone(&self) -> Self {
         Self {
             sig_boxed: Arc::clone(&self.sig_boxed),
@@ -1066,7 +1266,17 @@ impl<T: Clone> Clone for SigBoxedVar<T> {
     }
 }
 
-impl<T: Clone> SigBoxedVar<T> {
+impl<T: Clone> SigBoxedVarUnshared<T> {
+    pub fn new<S>(sig: S) -> Self
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+    {
+        SigBoxedVarUnshared {
+            sig_boxed: Arc::new(RwLock::new(sig_boxed(sig))),
+            buf: Vec::new(),
+        }
+    }
+
     pub fn set<S>(&self, sig: S)
     where
         S: SigT<Item = T> + Sync + Send + 'static,
@@ -1075,7 +1285,7 @@ impl<T: Clone> SigBoxedVar<T> {
     }
 }
 
-impl<T: Clone> Sig<SigBoxedVar<T>> {
+impl<T: Clone> Sig<SigBoxedVarUnshared<T>> {
     pub fn set<S>(&self, sig: S)
     where
         S: SigT<Item = T> + Sync + Send + 'static,
@@ -1084,19 +1294,19 @@ impl<T: Clone> Sig<SigBoxedVar<T>> {
     }
 }
 
-impl<T> SigBoxedVar<T>
+impl<T> SigBoxedVarUnshared<T>
 where
     T: Clone + Sync + Send + 'static,
 {
     pub fn new_const(value: T) -> Self {
-        SigBoxedVar {
+        SigBoxedVarUnshared {
             sig_boxed: Arc::new(RwLock::new(sig_boxed(Const(value)))),
             buf: Vec::new(),
         }
     }
 }
 
-impl<T> SigBoxedVar<T>
+impl<T> SigBoxedVarUnshared<T>
 where
     T: Clone + Default + Sync + Send + 'static,
 {
@@ -1105,7 +1315,7 @@ where
     }
 }
 
-impl<T: Clone> SigT for SigBoxedVar<T> {
+impl<T: Clone> SigT for SigBoxedVarUnshared<T> {
     type Item = T;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
@@ -1115,7 +1325,7 @@ impl<T: Clone> SigT for SigBoxedVar<T> {
     }
 }
 
-impl<T: Clone> SigSampleIntoBufT for SigBoxedVar<T> {
+impl<T: Clone> SigSampleIntoBufT for SigBoxedVarUnshared<T> {
     type Item = T;
 
     fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
@@ -1136,18 +1346,66 @@ impl<T: Clone> SigSampleIntoBufT for SigBoxedVar<T> {
     }
 }
 
-pub fn sig_boxed_var_default<T>() -> Sig<SigBoxedVar<T>>
+pub fn sig_boxed_var<S>(sig: S) -> Sig<SigBoxedVar<S::Item>>
 where
-    T: Clone + Default + Sync + Send + 'static,
+    S: SigT + Sync + Send + 'static,
 {
-    Sig(SigBoxedVar::new_default())
+    Sig(SigBoxedVar::new(sig))
 }
 
-pub fn sig_boxed_var_const<T>(value: T) -> Sig<SigBoxedVar<T>>
-where
-    T: Clone + Sync + Send + 'static,
-{
-    Sig(SigBoxedVar::new_const(value))
+#[derive(Clone)]
+pub struct SigBoxedVar<T: Clone>(Sig<SigShared<SigBoxedVarUnshared<T>>>);
+
+impl<T: Clone> SigT for SigBoxedVar<T> {
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample(ctx)
+    }
+}
+
+impl<T: Clone> SigBoxedVar<T> {
+    pub fn new<S>(sig: S) -> Self
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+    {
+        Self(sig_shared(SigBoxedVarUnshared::new(sig)))
+    }
+
+    pub fn set<S>(&self, sig: S)
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+    {
+        let sig_cached = self.0 .0.shared_cached_sig.write().unwrap();
+        sig_cached.sig.set(sig);
+    }
+}
+
+impl<T: Clone> Sig<SigBoxedVar<T>> {
+    pub fn set<S>(&self, sig: S)
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+    {
+        self.0.set(sig);
+    }
+}
+
+impl<T: Clone> SigSampleIntoBufT for SigBoxedVar<T> {
+    type Item = T;
+
+    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
+        self.0.sample_into_buf(ctx, buf);
+    }
+
+    fn sample_into_slice(
+        &mut self,
+        ctx: &SigCtx,
+        stride: usize,
+        offset: usize,
+        out: &mut [Self::Item],
+    ) {
+        self.0.sample_into_slice(ctx, stride, offset, out);
+    }
 }
 
 pub trait Triggerable {

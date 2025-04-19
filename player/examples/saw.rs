@@ -12,5 +12,7 @@ fn signal() -> Sig<impl SigT<Item = f32>> {
 fn main() -> anyhow::Result<()> {
     env_logger::init();
     let player = Player::new()?;
-    player.play_signal_sync_mono(signal(), Default::default())
+    let _handle = player.play_mono(signal(), Default::default())?;
+    std::thread::park();
+    Ok(())
 }

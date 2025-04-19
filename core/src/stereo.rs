@@ -38,6 +38,42 @@ impl<L, R> Stereo<L, R> {
         Self { left, right }
     }
 
+    pub fn zip<OL, OR>(
+        self,
+        other: Stereo<OL, OR>,
+    ) -> Stereo<(L, OL), (R, OR)> {
+        Stereo {
+            left: (self.left, other.left),
+            right: (self.right, other.right),
+        }
+    }
+
+    pub fn zip3<O1L, O1R, O2L, O2R>(
+        self,
+        other1: Stereo<O1L, O1R>,
+        other2: Stereo<O2L, O2R>,
+    ) -> Stereo<(L, O1L, O2L), (R, O1R, O2R)> {
+        Stereo {
+            left: (self.left, other1.left, other2.left),
+            right: (self.right, other1.right, other2.right),
+        }
+    }
+
+    pub fn zip_ref<'a, 'b, OL, OR>(
+        &'a self,
+        other: &'b Stereo<OL, OR>,
+    ) -> Stereo<(&'a L, &'b OL), (&'a R, &'b OR)> {
+        self.as_ref().zip(other.as_ref())
+    }
+
+    pub fn zip_ref3<'a, 'b, 'c, O1L, O1R, O2L, O2R>(
+        &'a self,
+        other1: &'b Stereo<O1L, O1R>,
+        other2: &'c Stereo<O2L, O2R>,
+    ) -> Stereo<(&'a L, &'b O1L, &'c O2L), (&'a R, &'b O1R, &'c O2R)> {
+        self.as_ref().zip3(other1.as_ref(), other2.as_ref())
+    }
+
     pub fn map_ref<'a, OL, FL, OR, FR>(
         &'a self,
         fl: FL,
@@ -51,6 +87,10 @@ impl<L, R> Stereo<L, R> {
             left: fl(&self.left),
             right: fr(&self.right),
         }
+    }
+
+    pub fn as_ref(&self) -> Stereo<&L, &R> {
+        Stereo::new(&self.left, &self.right)
     }
 
     pub fn as_mut(&mut self) -> Stereo<&mut L, &mut R> {
@@ -121,6 +161,34 @@ impl<S> Stereo<S, S> {
         match channel {
             Channel::Left => &mut self.left,
             Channel::Right => &mut self.right,
+        }
+    }
+
+    pub fn with<F>(self, mut f: F)
+    where
+        F: FnMut(S),
+    {
+        f(self.left);
+        f(self.right);
+    }
+
+    pub fn map_pair<O, F>(self, mut f: F) -> Stereo<O, O>
+    where
+        F: FnMut(S) -> O,
+    {
+        Stereo {
+            left: f(self.left),
+            right: f(self.right),
+        }
+    }
+
+    pub fn map_ref_pair<O, F>(&self, mut f: F) -> Stereo<O, O>
+    where
+        F: FnMut(&S) -> O,
+    {
+        Stereo {
+            left: f(&self.left),
+            right: f(&self.right),
         }
     }
 }
