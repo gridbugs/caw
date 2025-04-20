@@ -2,6 +2,11 @@
 name = "caw_midi_udp_widgets_app"
 version = "0.1.0"
 edition = "2024"
+description = "App for launching widgets that communicate with a caw synthesizer by sending midi commands over UDP"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
 
 [dependencies]
 caw_widgets = { version = "0.1", path = "../widgets" }

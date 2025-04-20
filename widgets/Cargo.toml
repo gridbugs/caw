@@ -2,6 +2,12 @@
 name = "caw_widgets"
 version = "0.1.0"
 edition = "2024"
+description = "Graphical widgets for the caw synthesizer framework"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_widgets"
 
 [dependencies]
 anyhow = "1.0"
