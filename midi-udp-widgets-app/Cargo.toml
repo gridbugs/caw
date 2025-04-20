@@ -1,0 +1,9 @@
+[package]
+name = "caw_midi_udp_widgets_app"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+caw_widgets = { version = "0.1", path = "../widgets" }
+caw_midi_udp_client = { version = "0.1", path = "../midi-udp-client" }
+clap = { version = "4", features = ["derive"] }

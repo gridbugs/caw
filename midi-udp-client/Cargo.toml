@@ -1,0 +1,15 @@
+[package]
+name = "caw_midi_udp_client"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+midly = "0.5"
+
+[dev-dependencies]
+env_logger = "0.11"
+clap = { version = "4", features = ["derive"] }
+
+[[example]]
+name = "midi_udp_client_controller"

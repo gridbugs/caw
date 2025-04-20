@@ -1,0 +1,19 @@
+[package]
+name = "caw_widgets"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+sdl2 = { version = "0.37", features = ["ttf"] }
+line_2d = "0.5"
+lazy_static = "1.5"
+midly = "0.5"
+
+[dev-dependencies]
+env_logger = "0.11"
+caw_midi_udp_client = { path = "../midi-udp-client" }
+clap = { version = "4", features = ["derive"] }
+
+[[example]]
+name = "knob_demo"

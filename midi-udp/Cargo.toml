@@ -1,0 +1,19 @@
+[package]
+name = "caw_midi_udp"
+version = "0.1.0"
+edition = "2024"
+
+[dependencies]
+anyhow = "1.0"
+caw_core = { version = "0.5", path = "../core" }
+caw_midi = { version = "0.4", path = "../midi" }
+midly = "0.5"
+log = "0.4"
+
+[dev-dependencies]
+env_logger = "0.11"
+caw_interactive = { path = "../interactive" }
+caw_modules = { path = "../modules" }
+
+[[example]]
+name = "midi_udp_controller"

@@ -77,9 +77,13 @@ impl<M> MidiControllers<M>
 where
     M: SigT<Item = MidiMessages>,
 {
-    pub fn get_01(&self, index: u8) -> Sig<impl SigT<Item = f32>> {
+    pub fn get_with_initial_value_01(
+        &self,
+        index: u8,
+        initial_value: f32,
+    ) -> Sig<impl SigT<Item = f32>> {
         let index: u7 = index.into();
-        let mut state = 0.0;
+        let mut state = initial_value.clamp(0., 1.);
         self.messages.clone().map_mut(move |midi_messages| {
             for midi_message in midi_messages {
                 if let MidiMessage::Controller { controller, value } =
@@ -92,6 +96,10 @@ where
             }
             state
         })
+    }
+
+    pub fn get_01(&self, index: u8) -> Sig<impl SigT<Item = f32>> {
+        self.get_with_initial_value_01(index, 0.0)
     }
 
     pub fn volume(&self) -> Sig<impl SigT<Item = f32>> {

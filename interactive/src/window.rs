@@ -129,7 +129,7 @@ impl WindowBuilder {
             title: self.title.unwrap_or_else(|| "CAW Synthesizer".to_string()),
             width_px: self.width_px.unwrap_or(960),
             height_px: self.height_px.unwrap_or(720),
-            stable: self.stable.unwrap_or(false),
+            stable: self.stable.unwrap_or(true),
             stride: self.stride.unwrap_or(1),
             scale: self.scale.unwrap_or(1.0),
             spread: self.spread.unwrap_or(1),
