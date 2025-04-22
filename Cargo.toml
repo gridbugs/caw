@@ -18,6 +18,7 @@ members = [
     "midi-udp",
     "midi-udp-client",
     "midi-udp-widgets-app",
+    "midi-udp-widgets-app-lib",
     "modules",
     "patches",
     "player",

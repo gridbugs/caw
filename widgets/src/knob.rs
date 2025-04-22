@@ -40,7 +40,7 @@ const RANGE_RADS: f32 = (std::f32::consts::PI * 3.0) / 2.0;
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
 
 pub struct Knob {
-    title: String,
+    title: Option<String>,
     canvas: Canvas<Window>,
     texture_creator: TextureCreator<WindowContext>,
     event_pump: EventPump,
@@ -52,7 +52,7 @@ pub struct Knob {
 
 impl Knob {
     pub fn new(
-        title: &str,
+        title: Option<&str>,
         initial_value_01: f32,
         sensitivity: f32,
     ) -> anyhow::Result<Self> {
@@ -67,7 +67,7 @@ impl Knob {
         let texture_creator = canvas.texture_creator();
         let event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
         Ok(Self {
-            title: title.to_string(),
+            title: title.map(|t| t.to_string()),
             canvas,
             texture_creator,
             event_pump,
@@ -114,28 +114,31 @@ impl Knob {
     }
 
     fn render_title(&mut self) -> anyhow::Result<()> {
-        let text_surface = self
-            .font
-            .render(self.title.as_str())
-            .blended(Color::WHITE)
-            .map_err(|e| anyhow!("{e}"))?;
-        let text_texture = text_surface.as_texture(&self.texture_creator)?;
-        let (canvas_width, canvas_height) =
-            self.canvas.output_size().map_err(|e| anyhow!("{e}"))?;
-        let text_texture_query = text_texture.query();
-        let value_space_px = 20;
-        // Render the title centred at the bottom of the window.
-        let text_rect = Rect::new(
-            (canvas_width as i32 - text_texture_query.width as i32) / 2,
-            canvas_height as i32
-                - text_texture_query.height as i32
-                - value_space_px,
-            text_texture_query.width,
-            text_texture_query.height,
-        );
-        self.canvas
-            .copy(&text_texture, None, Some(text_rect))
-            .map_err(|e| anyhow!("{e}"))?;
+        if let Some(title) = self.title.as_ref() {
+            let text_surface = self
+                .font
+                .render(title.as_str())
+                .blended(Color::WHITE)
+                .map_err(|e| anyhow!("{e}"))?;
+            let text_texture =
+                text_surface.as_texture(&self.texture_creator)?;
+            let (canvas_width, canvas_height) =
+                self.canvas.output_size().map_err(|e| anyhow!("{e}"))?;
+            let text_texture_query = text_texture.query();
+            let value_space_px = 20;
+            // Render the title centred at the bottom of the window.
+            let text_rect = Rect::new(
+                (canvas_width as i32 - text_texture_query.width as i32) / 2,
+                canvas_height as i32
+                    - text_texture_query.height as i32
+                    - value_space_px,
+                text_texture_query.width,
+                text_texture_query.height,
+            );
+            self.canvas
+                .copy(&text_texture, None, Some(text_rect))
+                .map_err(|e| anyhow!("{e}"))?;
+        }
         Ok(())
     }
 

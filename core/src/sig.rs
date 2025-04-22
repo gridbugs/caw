@@ -1100,6 +1100,14 @@ where
             buf: Vec::new(),
         }
     }
+
+    pub fn with_inner<T, F>(&self, mut f: F) -> T
+    where
+        F: FnMut(&S) -> T,
+    {
+        let inner_cached = self.shared_cached_sig.read().unwrap();
+        f(&inner_cached.sig)
+    }
 }
 
 impl<S> Clone for SigShared<S>

@@ -1,4 +1,4 @@
-use caw_core::{sig_shared, Sig, SigShared, SigT};
+use caw_core::{sig_shared, Buf, Sig, SigCtx, SigShared, SigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
 use midly::{num::u7, MidiMessage};
 use smallvec::{smallvec, SmallVec};
@@ -73,6 +73,39 @@ where
     messages: Sig<SigShared<M>>,
 }
 
+pub struct MidiController01<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    index: u7,
+    state: f32,
+    messages: SigShared<M>,
+    buf: Vec<f32>,
+}
+
+impl<M> SigT for MidiController01<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, 0.0);
+        let messages = self.messages.sample(ctx);
+        for (out, messages) in self.buf.iter_mut().zip(messages.iter()) {
+            for message in messages {
+                if let MidiMessage::Controller { controller, value } = message {
+                    if controller == self.index {
+                        self.state = value.as_int() as f32 / 127.0;
+                    }
+                }
+            }
+            *out = self.state;
+        }
+        &self.buf
+    }
+}
+
 impl<M> MidiControllers<M>
 where
     M: SigT<Item = MidiMessages>,
@@ -81,32 +114,24 @@ where
         &self,
         index: u8,
         initial_value: f32,
-    ) -> Sig<impl SigT<Item = f32>> {
-        let index: u7 = index.into();
-        let mut state = initial_value.clamp(0., 1.);
-        self.messages.clone().map_mut(move |midi_messages| {
-            for midi_message in midi_messages {
-                if let MidiMessage::Controller { controller, value } =
-                    midi_message
-                {
-                    if controller == index {
-                        state = value.as_int() as f32 / 127.0;
-                    }
-                }
-            }
-            state
+    ) -> Sig<MidiController01<M>> {
+        Sig(MidiController01 {
+            index: index.into(),
+            state: initial_value.clamp(0., 1.),
+            messages: self.messages.clone().0,
+            buf: Vec::new(),
         })
     }
 
-    pub fn get_01(&self, index: u8) -> Sig<impl SigT<Item = f32>> {
+    pub fn get_01(&self, index: u8) -> Sig<MidiController01<M>> {
         self.get_with_initial_value_01(index, 0.0)
     }
 
-    pub fn volume(&self) -> Sig<impl SigT<Item = f32>> {
+    pub fn volume(&self) -> Sig<MidiController01<M>> {
         self.get_01(7)
     }
 
-    pub fn modulation(&self) -> Sig<impl SigT<Item = f32>> {
+    pub fn modulation(&self) -> Sig<MidiController01<M>> {
         self.get_01(1)
     }
 }

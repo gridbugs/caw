@@ -41,9 +41,9 @@ fn main() {
             sensitivity,
         } => {
             let client = MidiUdpClient::new(server).unwrap();
-            let title = title.unwrap_or_else(|| "".to_string());
             let mut knob =
-                Knob::new(title.as_str(), initial_value, sensitivity).unwrap();
+                Knob::new(title.as_deref(), initial_value, sensitivity)
+                    .unwrap();
             loop {
                 knob.tick().unwrap();
                 client
