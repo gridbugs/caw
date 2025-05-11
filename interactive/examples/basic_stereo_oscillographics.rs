@@ -7,21 +7,15 @@ use caw_modules::*;
 use rgb_int::Rgb24;
 
 fn signal_left(input: Input) -> Sig<impl SigT<Item = f32>> {
-    let freq = 30.0
-        + (input.mouse.y_01() * 500.0)
-        + (oscillator(waveform::Triangle, 0.002)
-            .reset_offset_01(0.25)
-            .build());
-    oscillator(waveform::Pulse, freq).build()
+    let freq = 200.0 * input.mouse().y_01();
+    oscillator(waveform::Sine, freq).build()
 }
 
 fn signal_right(input: Input) -> Sig<impl SigT<Item = f32>> {
-    let freq = 30.0
-        + (input.mouse.x_01() * 500.0)
-        + (oscillator(waveform::Triangle, -0.0013)
-            .reset_offset_01(0.25)
-            .build());
-    oscillator(waveform::Pulse, freq).build()
+    let freq = 300.0 * input.mouse().x_01();
+    oscillator(waveform::Sine, freq)
+        .reset_offset_01(0.25)
+        .build()
 }
 
 fn run() -> anyhow::Result<()> {
