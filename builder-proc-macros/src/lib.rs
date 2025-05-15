@@ -4,13 +4,12 @@ use proc_macro2::Span;
 use quote::{format_ident, quote};
 use std::collections::HashMap;
 use syn::{
-    parse_macro_input, parse_quote,
-    punctuated::Punctuated,
-    token::{Comma, Plus},
     AngleBracketedGenericArguments, Attribute, Expr, ExprLit, GenericArgument,
     GenericParam, Generics, Ident, ItemStruct, Lit, LitStr, Meta, Pat, PatRest,
     Path, PathArguments, PathSegment, Token, Type, TypeParam, TypeParamBound,
-    TypePath, WhereClause, WherePredicate,
+    TypePath, WhereClause, WherePredicate, parse_macro_input, parse_quote,
+    punctuated::Punctuated,
+    token::{Comma, Plus},
 };
 
 fn convert_snake_to_camel(ident: Ident) -> Ident {
@@ -307,7 +306,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
     let new_fn_return_type_generics = {
         let mut args = Punctuated::new();
         for generic_param in &input.generics.params {
-            if let GenericParam::Type(ref type_param) = generic_param {
+            if let GenericParam::Type(type_param) = generic_param {
                 let ty = if let Some(default_type) =
                     generic_field_type_to_default_type.get(&type_param.ident)
                 {
@@ -343,7 +342,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
     let make_setter_return_type = |type_param_ident| {
         let mut args = Punctuated::new();
         for generic_param in &input.generics.params {
-            if let GenericParam::Type(ref type_param) = generic_param {
+            if let GenericParam::Type(type_param) = generic_param {
                 let type_ident = if &type_param.ident == type_param_ident {
                     // The current type parameter is the one that
                     // should be replaced by the argument type of

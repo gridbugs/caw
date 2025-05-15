@@ -7,7 +7,7 @@ license = "MIT"
 homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw"
-edition = "2021"
+edition = "2024"
 
 [features]
 web = ["caw_player/web", "caw_keyboard/web", "caw_modules/web", "caw_utils/web"]

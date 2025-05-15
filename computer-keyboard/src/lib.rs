@@ -317,7 +317,7 @@ fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
 pub fn opinionated_key_events<S>(
     keyboard: &Keyboard<S>,
     start_note: Note,
-) -> Sig<impl SigT<Item = KeyEvents>>
+) -> Sig<impl SigT<Item = KeyEvents> + use<S>>
 where
     S: SigT<Item = bool> + Clone,
 {

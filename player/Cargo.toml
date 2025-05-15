@@ -7,7 +7,7 @@ license = "MIT"
 homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_player"
-edition = "2021"
+edition = "2024"
 
 [features]
 web = ["cpal/wasm-bindgen"]
