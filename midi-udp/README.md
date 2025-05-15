@@ -7,6 +7,7 @@
 [![test](https://github.com/gridbugs/caw/actions/workflows/test.yml/badge.svg)](https://github.com/gridbugs/caw/actions/workflows/test.yml)
 [![dependency status](https://deps.rs/repo/github/gridbugs/caw/status.svg)](https://deps.rs/repo/github/gridbugs/caw)
 
-A caw signal of MIDI events backed by a UDP/IP server which can receive serialized MIDI events.
+A caw signal of MIDI events backed by a UDP/IP server which
+can receive serialized MIDI events.
 
 Part of the [CAW Synthesizer Framework](..).
