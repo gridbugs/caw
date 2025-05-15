@@ -19,15 +19,15 @@ rgb_int = "0.1"
 sdl2 = "0.37"
 
 [dev-dependencies]
-caw_keyboard = { version = "0.4", path = "../keyboard" }
-caw_midi = { version = "0.4", path = "../midi" }
-caw_midi_live = { version = "0.4", path = "../midi-live" }
-caw_midi_file = { version = "0.4", path = "../midi-file" }
-caw_midi_serial = { version = "0.4", path = "../midi-serial" }
-caw_modules = { version = "0.4", path = "../modules" }
-caw_patches = { version = "0.4", path = "../patches" }
-caw_utils = { version = "0.4", path = "../utils" }
-caw_audio_file = { version = "0.4", path = "../audio-file" }
+caw_keyboard = { path = "../keyboard" }
+caw_midi = { path = "../midi" }
+caw_midi_live = { path = "../midi-live" }
+caw_midi_file = { path = "../midi-file" }
+caw_midi_serial = { path = "../midi-serial" }
+caw_modules = { path = "../modules" }
+caw_patches = { path = "../patches" }
+caw_utils = { path = "../utils" }
+caw_audio_file = { path = "../audio-file" }
 caw_widgets = { path = "../widgets" }
 env_logger = "0.11"
 rand = "0.9"

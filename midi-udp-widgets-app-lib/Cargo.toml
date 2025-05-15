@@ -20,7 +20,7 @@ anyhow = "1.0"
 [dev-dependencies]
 env_logger = "0.11"
 caw_interactive = { path = "../interactive" }
-caw_modules = { version = "0.4", path = "../modules" }
+caw_modules = { path = "../modules" }
 
 [[example]]
 name = "midi_udp_widgets_app_lib_knob"
