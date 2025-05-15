@@ -2,6 +2,12 @@
 name = "caw_midi_udp_widgets_app_lib"
 version = "0.1.0"
 edition = "2024"
+description = "Library for launching instances of caw_midi_udp_widgets_app as signals of MIDI commands"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_midi_udp_widgets_app_lib"
 
 [dependencies]
 caw_midi_udp = { version = "0.1", path = "../midi-udp" }
