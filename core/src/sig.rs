@@ -1101,6 +1101,7 @@ where
         }
     }
 
+    /// Call a supplied function on the `SigT` implementation inside `self`.
     pub fn with_inner<T, F>(&self, mut f: F) -> T
     where
         F: FnMut(&S) -> T,

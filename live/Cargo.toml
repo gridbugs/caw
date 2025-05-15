@@ -1,0 +1,10 @@
+[package]
+name = "caw_live"
+version = "0.1.0"
+edition = "2024"
+description = "Helpers for live-coding performances with CAW"
+
+[dependencies]
+caw_core = { version = "0.5", path = "../core" }
+caw_player = { version = "0.7", path = "../player" }
+lazy_static = "1.5"

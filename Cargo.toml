@@ -11,6 +11,7 @@ members = [
     "core",
     "interactive",
     "keyboard",
+    "live",
     "midi",
     "midi-file",
     "midi-live",
