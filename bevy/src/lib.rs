@@ -1,6 +1,6 @@
 use bevy::{input::keyboard::KeyboardInput, prelude::*, window::PrimaryWindow};
 use caw_computer_keyboard::Keyboard;
-use caw_core::{sig_var, Sig, SigVar};
+use caw_core::{Sig, SigVar, sig_var};
 
 #[derive(Resource, Clone)]
 pub struct BevyInput {
@@ -120,7 +120,7 @@ fn update_input(
     mut evr_kbd: EventReader<KeyboardInput>,
     window: Query<&Window, With<PrimaryWindow>>,
 ) {
-    let window = window.single();
+    let window = window.single().expect("There is more than one window!");
     for ev in evr_kbd.read() {
         update_key_state(ev, &input.keyboard);
     }
