@@ -15,7 +15,7 @@ struct Args {
 fn main() {
     let args = Args::parse();
     let client = MidiUdpClient::new(args.server).unwrap();
-    let mut knob = Knob::new("foo bar", 0.5, 0.2).unwrap();
+    let mut knob = Knob::new(Some("foo bar"), 0.5, 0.2).unwrap();
     loop {
         knob.tick().unwrap();
         client
