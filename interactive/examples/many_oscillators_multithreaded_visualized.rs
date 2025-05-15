@@ -4,8 +4,8 @@ use rand::Rng;
 use rgb_int::Rgb24;
 use std::{
     sync::{
-        mpsc::{self, Receiver, Sender},
         Arc, RwLock,
+        mpsc::{self, Receiver, Sender},
     },
     thread,
 };
@@ -34,11 +34,11 @@ impl SigT for SawOscillatorWide {
 
 fn osc_wide(freq: f32x8) -> Sig<impl SigT<Item = f32>> {
     let num_steps = 3.0;
-    let mut rng = rand::thread_rng();
+    let mut rng = rand::rng();
     Sig(SawOscillatorWide {
         freq,
         state_01: f32x8::splat(
-            (rng.gen::<f32>() * num_steps).floor() / num_steps,
+            (rng.random::<f32>() * num_steps).floor() / num_steps,
         ) * 0.1,
         buf: Vec::new(),
     })

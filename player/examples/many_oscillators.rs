@@ -5,7 +5,7 @@ use rand::Rng;
 
 fn osc(freq: f32) -> Sig<impl SigT<Item = f32>> {
     oscillator(waveform::Saw, freq)
-        .reset_offset_01(rand::thread_rng().gen::<f32>() * 0.1)
+        .reset_offset_01(rand::rng().random::<f32>() * 0.1)
         .build()
 }
 

@@ -10,12 +10,12 @@ documentation = "https://docs.rs/caw_keyboard"
 edition = "2024"
 
 [features]
-web = ["getrandom/js"]
+web = ["getrandom/wasm_js"]
 
 [dependencies]
 caw_core = { version = "0.5", path = "../core" }
 smallvec = ">=1.6.1,<2"
 log = "0.4"
-rand = "0.8"
-getrandom = "0.2"
+rand = "0.9"
+getrandom = "0.3"
 itertools = "0.14"

@@ -1,26 +1,26 @@
 use caw_core::*;
 use caw_interactive::{
-    window::{Visualization, Window},
     Input,
+    window::{Visualization, Window},
 };
 use caw_modules::*;
 use rand::Rng;
 use rgb_int::Rgb24;
 use std::{
     sync::{
-        mpsc::{self, Receiver, Sender},
         Arc, RwLock,
+        mpsc::{self, Receiver, Sender},
     },
     thread,
 };
 
 fn signal() -> Sig<impl SigT<Item = f32>> {
     let base_freq_hz = 50.0;
-    let mut rng = rand::thread_rng();
-    let freq_hz =
-        (rng.gen_range(1..=3) as f32 * base_freq_hz) + (rng.gen::<f32>() * 0.1);
-    let lfo =
-        oscillator(Saw, rng.gen::<f32>() * 0.1).build() * rng.gen::<f32>();
+    let mut rng = rand::rng();
+    let freq_hz = (rng.random_range(1..=3) as f32 * base_freq_hz)
+        + (rng.random::<f32>() * 0.1);
+    let lfo = oscillator(Saw, rng.random::<f32>() * 0.1).build()
+        * rng.random::<f32>();
     oscillator(Saw, freq_hz + lfo).build() * 0.2
 }
 
@@ -62,7 +62,7 @@ struct MultithreadedSignal {
 }
 
 impl MultithreadedSignal {
-    fn new(num_threads: usize, input: Input) -> Sig<impl SigT<Item = f32>> {
+    fn new_sig(num_threads: usize, input: Input) -> Sig<impl SigT<Item = f32>> {
         let mut thread_info = Vec::new();
         for _ in 0..num_threads {
             let (send_query, recv_query) = mpsc::channel();
@@ -132,7 +132,7 @@ fn main() -> anyhow::Result<()> {
     let thresh = 10.0;
     let input = window.input();
     let sig = Stereo::new_fn(|| {
-        MultithreadedSignal::new(6, input.clone())
+        MultithreadedSignal::new_sig(6, input.clone())
             .map(|x| x.clamp(-thresh, thresh))
     });
     window.play_stereo(sig, Default::default())

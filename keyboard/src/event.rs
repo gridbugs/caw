@@ -1,11 +1,12 @@
 use crate::{
+    MonoVoice, Note,
     chord::{Chord, Inversion},
-    polyphony, MonoVoice, Note,
+    polyphony,
 };
 use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use itertools::izip;
-use rand::{rngs::StdRng, Rng, SeedableRng};
-use smallvec::{smallvec, SmallVec};
+use rand::{Rng, SeedableRng, rngs::StdRng};
+use smallvec::{SmallVec, smallvec};
 use std::{cmp::Ordering, collections::HashSet};
 
 /// A key being pressed or released
@@ -392,7 +393,7 @@ impl ArpState {
             index: 0,
             current_note: None,
             ascending: true,
-            rng: StdRng::from_entropy(),
+            rng: StdRng::from_os_rng(),
         }
     }
 
@@ -465,7 +466,8 @@ impl ArpState {
                     }
                 }
                 Random => {
-                    let index = self.rng.gen_range(0..self.store.entries.len());
+                    let index =
+                        self.rng.random_range(0..self.store.entries.len());
                     self.store.entries[index].note
                 }
                 Indices(indices) => {

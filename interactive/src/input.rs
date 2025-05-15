@@ -1,5 +1,5 @@
 pub use caw_computer_keyboard::{Key, Keyboard as KeyboardGeneric};
-use caw_core::{sig_var, Sig, SigT, SigVar};
+use caw_core::{Sig, SigT, SigVar, sig_var};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
 
 #[derive(Debug, Clone, Copy)]
@@ -146,7 +146,7 @@ impl Input {
         self.mouse.clone()
     }
 
-    pub fn key(&self, key: Key) -> Sig<impl SigT<Item = bool>> {
+    pub fn key(&self, key: Key) -> Sig<impl SigT<Item = bool> + use<>> {
         self.keyboard.get(key)
     }
 
@@ -157,11 +157,11 @@ impl Input {
         self.mouse.button(mouse_button)
     }
 
-    pub fn x_01(&self) -> Sig<impl SigT<Item = f32>> {
+    pub fn x_01(&self) -> Sig<impl SigT<Item = f32> + use<>> {
         self.mouse.x_01()
     }
 
-    pub fn y_01(&self) -> Sig<impl SigT<Item = f32>> {
+    pub fn y_01(&self) -> Sig<impl SigT<Item = f32> + use<>> {
         self.mouse.y_01()
     }
 }

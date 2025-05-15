@@ -1,9 +1,9 @@
 use caw_core::{Sig, SigT};
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 
 pub fn white() -> Sig<impl SigT<Item = f32>> {
-    let mut rng = StdRng::from_entropy();
-    Sig::from_fn(move |_| rng.gen::<f32>() * 2. - 1.)
+    let mut rng = StdRng::from_os_rng();
+    Sig::from_fn(move |_| rng.random::<f32>() * 2. - 1.)
 }
 
 /// Approximation of brown noise made by integrating white noise with a leaky integrator and

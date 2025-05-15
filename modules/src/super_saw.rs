@@ -1,7 +1,7 @@
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Sig, SigCtx, SigT};
 use itertools::izip;
-use rand::{rngs::StdRng, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng};
 use wide::f32x8;
 
 #[derive(Debug, Clone, Copy)]
@@ -119,16 +119,16 @@ where
                 }
             }
             SuperSawInit::Random => {
-                let mut rng = StdRng::from_entropy();
+                let mut rng = StdRng::from_os_rng();
                 for (x, mask) in state_01.iter_mut().zip(mask.iter()) {
-                    *x = rng.gen::<[f32; 8]>().into();
+                    *x = rng.random::<[f32; 8]>().into();
                     *x *= mask;
                 }
             }
             SuperSawInit::RandomWithSeed(seed) => {
                 let mut rng = StdRng::seed_from_u64(seed);
                 for (x, mask) in state_01.iter_mut().zip(mask.iter()) {
-                    *x = rng.gen::<[f32; 8]>().into();
+                    *x = rng.random::<[f32; 8]>().into();
                     *x *= mask;
                 }
             }
