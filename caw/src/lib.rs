@@ -27,6 +27,12 @@ pub use caw_interactive as interactive;
 #[cfg(feature = "caw_audio_file")]
 pub use caw_audio_file as audio_file;
 
+#[cfg(feature = "caw_live")]
+pub use caw_live as live;
+
+#[cfg(feature = "caw_midi_udp_widgets_app_lib")]
+pub use caw_midi_udp_widgets_app_lib as midi_udp_widgets_app_lib;
+
 pub mod prelude {
     pub use super::builder_proc_macros::*;
     pub use super::computer_keyboard::*;
@@ -56,4 +62,10 @@ pub mod prelude {
 
     #[cfg(feature = "caw_audio_file")]
     pub use super::audio_file::*;
+
+    #[cfg(feature = "caw_live")]
+    pub use super::live::*;
+
+    #[cfg(feature = "caw_midi_udp_widgets_app_lib")]
+    pub use super::midi_udp_widgets_app_lib::*;
 }

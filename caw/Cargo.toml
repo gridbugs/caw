@@ -1,6 +1,6 @@
 [package]
 name = "caw"
-version = "0.8.0"
+version = "0.8.1"
 description = "A framework for building software-defined modular synthesizers"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -12,6 +12,8 @@ edition = "2021"
 [features]
 web = ["caw_player/web", "caw_keyboard/web", "caw_modules/web", "caw_utils/web"]
 player = ["caw_player"]
+live = ["caw_live"]
+widgets = ["caw_midi_udp_widgets_app_lib"]
 midi_live = ["caw_midi", "caw_midi_live"]
 midi_file = ["caw_midi", "caw_midi_file"]
 midi_serial = ["caw_midi", "caw_midi_serial"]
@@ -33,6 +35,8 @@ caw_midi_file = { version = "0.4", path = "../midi-file", optional = true }
 caw_midi_serial = { version = "0.4", path = "../midi-serial", optional = true }
 caw_audio_file = { version = "0.4", path = "../audio-file", optional = true }
 caw_interactive = { version = "0.7", path = "../interactive", optional = true }
+caw_live = { version = "0.1", path = "../live", optional = true }
+caw_midi_udp_widgets_app_lib = { version = "0.1", path = "../midi-udp-widgets-app-lib", optional = true }
 
 [dev-dependencies]
 anyhow = "1.0"
