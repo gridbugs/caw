@@ -14,4 +14,4 @@ anyhow = "1.0"
 caw_core = { version = "0.5", path = "../core" }
 caw_midi = { version = "0.4", path = "../midi" }
 midly = "0.5"
-nix = { version = "0.29", features = ["fs", "term"] }
+nix = { version = "0.30", features = ["fs", "term"] }

@@ -19,7 +19,7 @@ fn sig(
         .keyboard
         .opinionated_key_events(Note::B0)
         .merge(Sig(key_events))
-        .poly_voices(48)
+        .poly_voices(12)
         .into_iter()
         .map(
             |MonoVoice {

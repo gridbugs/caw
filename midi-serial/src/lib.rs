@@ -2,7 +2,10 @@ use caw_core::{Sig, SigT};
 use caw_midi::MidiMessages;
 use midly::live::LiveEvent;
 use nix::sys::termios::BaudRate;
-use std::{os::fd::OwnedFd, path::Path};
+use std::{
+    os::fd::{AsFd, OwnedFd},
+    path::Path,
+};
 
 pub struct MidiLiveSerial {
     owned_fd: OwnedFd,
@@ -45,16 +48,11 @@ impl MidiLiveSerial {
                 termios::{self, LocalFlags, SetArg},
             },
         };
-        let fd = fcntl::open(
+        let owned_fd = fcntl::open(
             tty_path.as_ref(),
             OFlag::O_RDONLY | OFlag::O_NONBLOCK,
             Mode::empty(),
         )?;
-        let owned_fd = unsafe {
-            use std::os::fd::FromRawFd;
-            // fd is a valid file descriptor and the only cleanup it needs is close
-            OwnedFd::from_raw_fd(fd)
-        };
         let mut termios = termios::tcgetattr(&owned_fd)?;
         termios.local_flags &= !(LocalFlags::ECHO | LocalFlags::ICANON);
         let baud_rate = Self::convert_baud_rate(baud_rate)?;
@@ -65,9 +63,8 @@ impl MidiLiveSerial {
 
     fn read_byte(&self) -> anyhow::Result<Option<u8>> {
         use nix::{errno::Errno, unistd};
-        use std::os::fd::AsRawFd;
         let mut buf = [0];
-        let nbytes = match unistd::read(self.owned_fd.as_raw_fd(), &mut buf) {
+        let nbytes = match unistd::read(self.owned_fd.as_fd(), &mut buf) {
             Ok(nbytes) => nbytes,
             Err(Errno::EAGAIN) => 0,
             Err(e) => return Err(e.into()),
