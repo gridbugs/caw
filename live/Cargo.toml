@@ -3,6 +3,11 @@ name = "caw_live"
 version = "0.1.0"
 edition = "2024"
 description = "Helpers for live-coding performances with CAW"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_live"
 
 [dependencies]
 caw_core = { version = "0.5", path = "../core" }
