@@ -1,0 +1,16 @@
+[package]
+name = "viz_udp_app_lib"
+version = "0.1.0"
+edition = "2024"
+description = "Library for launching and interacting with instances of caw_viz_udp_app"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/viz_udp_app_lib"
+
+[dependencies]
+anyhow = "1.0"
+
+[[example]]
+name = "viz_udp_app_lib_handshake"

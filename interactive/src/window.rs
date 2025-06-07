@@ -222,7 +222,6 @@ impl WindowRunning {
                 Event::MouseButtonUp { mouse_btn, .. } => {
                     self.window.input.set_mouse_button(mouse_btn, false);
                 }
-
                 _ => (),
             }
         }

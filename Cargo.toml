@@ -24,5 +24,7 @@ members = [
     "patches",
     "player",
     "utils",
+    "viz-udp-app",
+    "viz-udp-app-lib",
     "widgets",
 ]

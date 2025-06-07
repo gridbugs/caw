@@ -1,0 +1,16 @@
+[package]
+name = "caw_viz_udp_app"
+version = "0.1.0"
+edition = "2024"
+description = "App for visualizing audio data from the caw synthesizer framework"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_viz_udp_app"
+
+[dependencies]
+anyhow = "1.0"
+sdl2 = { version = "0.37" }
+line_2d = "0.5"
+clap = { version = "4", features = ["derive"] }
