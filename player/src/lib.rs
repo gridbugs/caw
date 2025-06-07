@@ -1,10 +1,10 @@
 use caw_core::{SigCtx, SigSampleIntoBufT, Stereo};
 use cpal::{
-    traits::{DeviceTrait, HostTrait, StreamTrait},
     BufferSize, Device, OutputCallbackInfo, Stream, StreamConfig,
     SupportedBufferSize,
+    traits::{DeviceTrait, HostTrait, StreamTrait},
 };
-use std::sync::{mpsc, Arc, RwLock};
+use std::sync::{Arc, RwLock, mpsc};
 
 pub trait ToF32 {
     fn to_f32(self) -> f32;
@@ -418,10 +418,10 @@ impl Player {
             num_samples: 0,
         };
         let channels = stream_config.channels;
-        let data_for_visualization = Arc::new(RwLock::new(Vec::new()));
+        let visualization_data = Arc::new(RwLock::new(Vec::new()));
         assert!(channels >= 2);
         let stream = {
-            let data_for_visualization = Arc::clone(&data_for_visualization);
+            let visualization_data = Arc::clone(&visualization_data);
             self.device.build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
@@ -443,15 +443,15 @@ impl Player {
                     match config.visualization_data_policy {
                         None => (),
                         Some(VisualizationDataPolicy::LatestOnly) => {
-                            let mut data_for_visualization =
-                                data_for_visualization.write().unwrap();
-                            data_for_visualization.resize(data.len(), 0.0);
-                            data_for_visualization.copy_from_slice(data);
+                            let mut visualization_data =
+                                visualization_data.write().unwrap();
+                            visualization_data.resize(data.len(), 0.0);
+                            visualization_data.copy_from_slice(data);
                         }
                         Some(VisualizationDataPolicy::All) => {
-                            let mut data_for_visualization =
-                                data_for_visualization.write().unwrap();
-                            data_for_visualization.extend_from_slice(data);
+                            let mut visualization_data =
+                                visualization_data.write().unwrap();
+                            visualization_data.extend_from_slice(data);
                         }
                     }
                 },
@@ -462,7 +462,7 @@ impl Player {
         stream.play()?;
         Ok(PlayerHandle {
             stream,
-            data_for_visualization,
+            visualization_data: PlayerVisualizationData(visualization_data),
         })
     }
 
@@ -485,9 +485,9 @@ impl Player {
         };
         let channels = stream_config.channels;
         let mut data_tmp = Vec::new();
-        let data_for_visualization = Arc::new(RwLock::new(Vec::new()));
+        let visualization_data = Arc::new(RwLock::new(Vec::new()));
         let stream = {
-            let data_for_visualization = Arc::clone(&data_for_visualization);
+            let visualization_data = Arc::clone(&visualization_data);
             self.device.build_output_stream(
                 &stream_config,
                 move |data: &mut [f32], _: &OutputCallbackInfo| {
@@ -506,15 +506,15 @@ impl Player {
                     match config.visualization_data_policy {
                         None => (),
                         Some(VisualizationDataPolicy::LatestOnly) => {
-                            let mut data_for_visualization =
-                                data_for_visualization.write().unwrap();
-                            data_for_visualization.resize(data_tmp.len(), 0.0);
-                            data_for_visualization.copy_from_slice(&data_tmp);
+                            let mut visualization_data =
+                                visualization_data.write().unwrap();
+                            visualization_data.resize(data_tmp.len(), 0.0);
+                            visualization_data.copy_from_slice(&data_tmp);
                         }
                         Some(VisualizationDataPolicy::All) => {
-                            let mut data_for_visualization =
-                                data_for_visualization.write().unwrap();
-                            data_for_visualization.extend_from_slice(&data_tmp);
+                            let mut visualization_data =
+                                visualization_data.write().unwrap();
+                            visualization_data.extend_from_slice(&data_tmp);
                         }
                     }
                 },
@@ -525,41 +525,86 @@ impl Player {
         stream.play()?;
         Ok(PlayerHandle {
             stream,
-            data_for_visualization,
+            visualization_data: PlayerVisualizationData(visualization_data),
         })
+    }
+}
+
+#[derive(Default)]
+pub struct PlayerVisualizationData(Arc<RwLock<Vec<f32>>>);
+
+impl Clone for PlayerVisualizationData {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl PlayerVisualizationData {
+    pub fn with<F>(&self, mut f: F)
+    where
+        F: FnMut(&[f32]),
+    {
+        f(&self.0.read().unwrap());
+    }
+
+    pub fn with_and_clear<F>(&self, mut f: F)
+    where
+        F: FnMut(&[f32]),
+    {
+        let mut visualization_data = self.0.write().unwrap();
+        f(&visualization_data);
+        visualization_data.clear();
     }
 }
 
 pub struct PlayerHandle {
     #[allow(unused)]
     stream: Stream,
-    data_for_visualization: Arc<RwLock<Vec<f32>>>,
+    visualization_data: PlayerVisualizationData,
 }
 
 impl PlayerHandle {
-    pub fn with_visualization_data<F>(&self, mut f: F)
+    pub fn visualization_data(&self) -> PlayerVisualizationData {
+        self.visualization_data.clone()
+    }
+    pub fn with_visualization_data<F>(&self, f: F)
     where
         F: FnMut(&[f32]),
     {
-        f(&self.data_for_visualization.read().unwrap());
+        self.visualization_data.with(f);
     }
 
-    pub fn with_visualization_data_and_clear<F>(&self, mut f: F)
+    pub fn with_visualization_data_and_clear<F>(&self, f: F)
     where
         F: FnMut(&[f32]),
     {
-        let mut data_for_visualization =
-            self.data_for_visualization.write().unwrap();
-        f(&data_for_visualization);
-        data_for_visualization.clear();
+        self.visualization_data.with_and_clear(f);
     }
+}
+
+pub fn play_mono<S>(sig: S, config: ConfigOwned) -> anyhow::Result<PlayerHandle>
+where
+    S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
+{
+    Player::new()?.play_mono(sig, config)
 }
 
 pub fn play_mono_default<S>(sig: S) -> anyhow::Result<PlayerHandle>
 where
     S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
 {
-    Player::new()?.play_mono(sig, Default::default())
+    play_mono(sig, Default::default())
+}
+
+pub fn play_stereo<SL, SR>(
+    sig: Stereo<SL, SR>,
+    config: ConfigOwned,
+) -> anyhow::Result<PlayerHandle>
+where
+    SL: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
+    SR: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
+{
+    Player::new()?.play_stereo(sig, config)
 }
 
 pub fn play_stereo_default<SL, SR>(
@@ -569,5 +614,5 @@ where
     SL: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
     SR: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
 {
-    Player::new()?.play_stereo(sig, Default::default())
+    play_stereo(sig, Default::default())
 }

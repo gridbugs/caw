@@ -2,10 +2,10 @@ mod arith;
 mod sig;
 pub mod sig_ops;
 pub use sig::{
-    sig_boxed, sig_boxed_var, sig_option_first_some, sig_shared, sig_var, Buf,
-    Const, ConstBuf, Filter, GateToTrigRisingEdge, Sig, SigAbs, SigBoxed,
+    Buf, Const, ConstBuf, Filter, GateToTrigRisingEdge, Sig, SigAbs, SigBoxed,
     SigBoxedVar, SigCtx, SigSampleIntoBufT, SigShared, SigT, SigVar,
-    Triggerable,
+    Triggerable, sig_boxed, sig_boxed_var, sig_option_first_some, sig_shared,
+    sig_var,
 };
 pub mod stereo;
 pub use stereo::{Channel, Stereo, StereoPair};
@@ -36,5 +36,13 @@ where
         F: FnMut() -> S,
     {
         self.as_ref().with(|s| s.set(f()));
+    }
+
+    pub fn set_channel<F, S>(&self, mut f: F)
+    where
+        S: SigT<Item = T> + Sync + Send + 'static,
+        F: FnMut(Channel) -> S,
+    {
+        self.as_ref().with_channel(|channel, s| s.set(f(channel)));
     }
 }

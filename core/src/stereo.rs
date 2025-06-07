@@ -172,6 +172,14 @@ impl<S> Stereo<S, S> {
         f(self.right);
     }
 
+    pub fn with_channel<F>(self, mut f: F)
+    where
+        F: FnMut(Channel, S),
+    {
+        f(Channel::Left, self.left);
+        f(Channel::Right, self.right);
+    }
+
     pub fn map_pair<O, F>(self, mut f: F) -> Stereo<O, O>
     where
         F: FnMut(S) -> O,
