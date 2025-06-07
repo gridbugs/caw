@@ -1,18 +1,18 @@
 use caw::prelude::*;
 
 pub fn melee(
-    trig: impl FrameSigT<Item = bool> + 'static,
+    trig: impl SigT<Item = bool> + 'static,
 ) -> Sig<impl SigT<Item = f32>> {
-    FrameSig(trig)
+    Sig(trig)
         .trig(drum::kick())
         .filter(low_pass::moog_ladder::oberheim(4000.0))
         * 2.0
 }
 
 pub fn death(
-    trig: impl FrameSigT<Item = bool> + 'static,
+    trig: impl SigT<Item = bool> + 'static,
 ) -> Sig<impl SigT<Item = f32>> {
-    let trig = FrameSig(trig).shared();
+    let trig = Sig(trig).shared();
     let make_noise = || noise::white().filter(sample_and_hold(trig.clone()));
     let duration = 1.0;
     let env = adsr_linear_01(trig.clone())
@@ -34,9 +34,9 @@ pub fn death(
 }
 
 pub fn pistol(
-    trig: impl FrameSigT<Item = bool> + 'static,
+    trig: impl SigT<Item = bool> + 'static,
 ) -> Sig<impl SigT<Item = f32>> {
-    let trig = FrameSig(trig).shared();
+    let trig = Sig(trig).shared();
     let make_noise = || noise::white().filter(sample_and_hold(trig.clone()));
     let duration = 0.2;
     let env = adsr_linear_01(trig.clone())
@@ -58,9 +58,9 @@ pub fn pistol(
 }
 
 pub fn shotgun(
-    trig: impl FrameSigT<Item = bool> + 'static,
+    trig: impl SigT<Item = bool> + 'static,
 ) -> Sig<impl SigT<Item = f32>> {
-    let trig = FrameSig(trig).shared();
+    let trig = Sig(trig).shared();
     let make_noise = || noise::white().filter(sample_and_hold(trig.clone()));
     let duration = 0.2;
     let env = adsr_linear_01(trig.clone())
@@ -83,9 +83,9 @@ pub fn shotgun(
 }
 
 pub fn rocket(
-    trig: impl FrameSigT<Item = bool> + 'static,
+    trig: impl SigT<Item = bool> + 'static,
 ) -> Sig<impl SigT<Item = f32>> {
-    let trig = FrameSig(trig).gate_to_trig_rising_edge().shared();
+    let trig = Sig(trig).gate_to_trig_rising_edge().shared();
     let make_noise = || noise::white().filter(sample_and_hold(trig.clone()));
     let duration = 0.4;
     let env = adsr_linear_01(trig.clone().trig_to_gate(duration))
@@ -104,9 +104,9 @@ pub fn rocket(
 }
 
 pub fn explosion(
-    trig: impl FrameSigT<Item = bool> + 'static,
+    trig: impl SigT<Item = bool> + 'static,
 ) -> Sig<impl SigT<Item = f32>> {
-    let trig = FrameSig(trig).gate_to_trig_rising_edge().shared();
+    let trig = Sig(trig).gate_to_trig_rising_edge().shared();
     let make_noise = || noise::white().filter(sample_and_hold(trig.clone()));
     let duration = 0.8;
     let env = ((adsr_linear_01(trig.clone().trig_to_gate(duration))

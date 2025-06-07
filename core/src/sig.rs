@@ -272,6 +272,72 @@ where
     }
 }
 
+/// Used to implement zip4 without the need for an explicit buffer for zipped values. The zipping
+/// will take place in the iteration of the signal that consumes this buffer. Since zip operations
+/// often follow map operations, and map operations use the `MapBuf` buffer type, sequences of zip
+/// and map operations are fused without the need for intermediate buffers.
+pub struct Zip4Buf<BA, BB, BC, BD, A, B, C, D>
+where
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    D: Clone,
+    BA: Buf<A>,
+    BB: Buf<B>,
+    BC: Buf<C>,
+    BD: Buf<D>,
+{
+    buf_a: BA,
+    buf_b: BB,
+    buf_c: BC,
+    buf_d: BD,
+    phantom: PhantomData<(A, B, C, D)>,
+}
+
+impl<BA, BB, BC, BD, A, B, C, D> Zip4Buf<BA, BB, BC, BD, A, B, C, D>
+where
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    D: Clone,
+    BA: Buf<A>,
+    BB: Buf<B>,
+    BC: Buf<C>,
+    BD: Buf<D>,
+{
+    pub fn new(buf_a: BA, buf_b: BB, buf_c: BC, buf_d: BD) -> Self {
+        Self {
+            buf_a,
+            buf_b,
+            buf_c,
+            buf_d,
+            phantom: PhantomData,
+        }
+    }
+}
+
+impl<BA, BB, BC, BD, A, B, C, D> Buf<(A, B, C, D)>
+    for Zip4Buf<BA, BB, BC, BD, A, B, C, D>
+where
+    A: Clone,
+    B: Clone,
+    C: Clone,
+    D: Clone,
+    BA: Buf<A>,
+    BB: Buf<B>,
+    BC: Buf<C>,
+    BD: Buf<D>,
+{
+    fn iter(&self) -> impl Iterator<Item = (A, B, C, D)> {
+        self.buf_a
+            .iter()
+            .zip(self.buf_b.iter())
+            .zip(self.buf_c.iter())
+            .zip(self.buf_d.iter())
+            .map(|(((a, b), c), d)| (a, b, c, d))
+    }
+}
+
 /// A signal with values produced for each audio sample. Values are produced in batches of a size
 /// determined by the audio driver. This is suitable for audible audio signals or controls signals
 /// that vary at the same rate as an audio signal (e.g. an envelope follower produced by analyzing
@@ -529,6 +595,25 @@ where
             a: self.0,
             b: other1,
             c: other2,
+        })
+    }
+
+    pub fn zip4<O1, O2, O3>(
+        self,
+        other1: O1,
+        other2: O2,
+        other3: O3,
+    ) -> Sig<Zip4<S, O1, O2, O3>>
+    where
+        O1: SigT,
+        O2: SigT,
+        O3: SigT,
+    {
+        Sig(Zip4 {
+            a: self.0,
+            b: other1,
+            c: other2,
+            d: other3,
         })
     }
 
@@ -987,6 +1072,38 @@ where
     }
 }
 
+pub struct Zip4<A, B, C, D>
+where
+    A: SigT,
+    B: SigT,
+    C: SigT,
+    D: SigT,
+{
+    a: A,
+    b: B,
+    c: C,
+    d: D,
+}
+
+impl<A, B, C, D> SigT for Zip4<A, B, C, D>
+where
+    A: SigT,
+    B: SigT,
+    C: SigT,
+    D: SigT,
+{
+    type Item = (A::Item, B::Item, C::Item, D::Item);
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        Zip4Buf::new(
+            self.a.sample(ctx),
+            self.b.sample(ctx),
+            self.c.sample(ctx),
+            self.d.sample(ctx),
+        )
+    }
+}
+
 pub struct SigAbs<S>(S)
 where
     S: SigT<Item = f32>;
@@ -1385,7 +1502,7 @@ impl<T: Clone> SigBoxedVar<T> {
     where
         S: SigT<Item = T> + Sync + Send + 'static,
     {
-        let sig_cached = self.0 .0.shared_cached_sig.write().unwrap();
+        let sig_cached = self.0.0.shared_cached_sig.write().unwrap();
         sig_cached.sig.set(sig);
     }
 }

@@ -23,7 +23,7 @@ impl Effects<f32, f32, f32> {
 }
 
 fn drum_loop(
-    trig: impl FrameSigT<Item = bool>,
+    trig: impl SigT<Item = bool>,
     pattern: Vec<u8>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
@@ -41,7 +41,7 @@ fn voice(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
     effect_x: impl SigT<Item = f32>,
     effect_y: impl SigT<Item = f32>,
     channel: Channel,
@@ -71,7 +71,7 @@ fn voice_bass(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     let oscillator = pulse_pwm(note.freq_hz() / 2.0)
@@ -87,8 +87,8 @@ fn voice_bass(
 }
 
 fn virtual_key_events(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    trig: impl SigT<Item = bool>,
+) -> Sig<impl SigT<Item = KeyEvents>> {
     let chords = [
         chord(note_name::C, MINOR),
         chord(note_name::B, MAJOR),
@@ -99,8 +99,8 @@ fn virtual_key_events(
         index: usize,
     }
     let mut state = State { index: 0 };
-    let trig = FrameSig(trig);
-    trig.divide(32).map(move |t| {
+    let trig = Sig(trig);
+    trig.divide(32).map_mut(move |t| {
         let inversion = Inversion::InOctave {
             octave_base: note::A2,
         };
@@ -149,15 +149,15 @@ fn virtual_key_events(
 }
 
 fn virtual_key_events_bass(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    trig: impl SigT<Item = bool>,
+) -> Sig<impl SigT<Item = KeyEvents>> {
     let notes = [note::C2, note::B2, note::F2, note::G2];
     struct State {
         index: usize,
     }
     let mut state = State { index: 0 };
-    let trig = FrameSig(trig);
-    trig.divide(32).map(move |t| {
+    let trig = Sig(trig);
+    trig.divide(32).map_mut(move |t| {
         let mut events = KeyEvents::empty();
         if t {
             if state.index > 0 {
@@ -186,7 +186,7 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
     let snare = 1 << 1;
     let kick = 1 << 2;
     let trigger = periodic_trig_hz(effects.tempo * 8.).build().shared();
-    let mut drums0 = drum_loop(
+    let drums0 = drum_loop(
         trigger.clone(),
         vec![
             kick, hat_closed, hat_closed, kick, snare, hat_closed, kick,
@@ -195,7 +195,7 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
         ],
         channel,
     );
-    let mut drums1 = drum_loop(
+    let drums1 = drum_loop(
         trigger.clone(),
         vec![
             kick, 0, 0, kick, snare, 0, kick, 0, 0, 0, 0, kick, snare, 0, kick,
@@ -203,24 +203,26 @@ fn sig(_input: Input, channel: Channel) -> Sig<impl SigT<Item = f32>> {
         ],
         channel,
     );
-    let mut drums2 = drum_loop(
+    let drums2 = drum_loop(
         trigger.clone(),
         vec![kick, 0, 0, 0, snare, 0, 0, 0, kick, 0, 0, 0, snare, 0, 0, 0],
         channel,
     );
     let drums = {
         let mut count = -1;
-        let mut trigger = trigger.clone().divide(128);
-        Sig::from_buf_fn(move |ctx, buf| {
-            if trigger.frame_sample(ctx) {
-                count += 1;
-            }
-            match (count % 4).cmp(&2) {
-                Ordering::Less => drums2.sample(ctx).clone_to_vec(buf),
-                Ordering::Equal => drums1.sample(ctx).clone_to_vec(buf),
-                Ordering::Greater => drums0.sample(ctx).clone_to_vec(buf),
-            }
-        })
+        let trigger = trigger.clone().divide(128);
+        trigger.zip4(drums0, drums1, drums2).map_mut(
+            move |(trigger, drums0, drums1, drums2)| {
+                if trigger {
+                    count += 1;
+                }
+                match (count % 4).cmp(&2) {
+                    Ordering::Less => drums2,
+                    Ordering::Equal => drums1,
+                    Ordering::Greater => drums0,
+                }
+            },
+        )
     };
     let arp_config = ArpConfig::default()
         .with_shape(ArpShape::Random)

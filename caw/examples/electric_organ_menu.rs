@@ -19,7 +19,7 @@ impl Effects<f32, f32> {
 }
 
 fn drum_loop(
-    trig: impl FrameSigT<Item = bool>,
+    trig: impl SigT<Item = bool>,
     pattern: Vec<u8>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
@@ -37,7 +37,7 @@ fn voice(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
     effect_x: impl SigT<Item = f32>,
     effect_y: impl SigT<Item = f32>,
     channel: Channel,
@@ -69,7 +69,7 @@ fn voice_bass(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     let oscillator = oscillator(Saw, note.freq_hz())
@@ -85,30 +85,29 @@ fn voice_bass(
     oscillator.filter(low_pass::default(env * 1000.0))
 }
 
-fn arp_shape(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = ArpShape>> {
-    use rand::{rngs::StdRng, Rng, SeedableRng};
+fn arp_shape(trig: impl SigT<Item = bool>) -> Sig<impl SigT<Item = ArpShape>> {
+    use rand::{Rng, SeedableRng, rngs::StdRng};
     struct State {
         rng: StdRng,
         indices: Vec<Option<usize>>,
     }
     let mut state = State {
-        rng: StdRng::from_entropy(),
+        rng: StdRng::from_rng(&mut rand::rng()),
         indices: vec![Some(0); 8],
     };
     const MAX_INDEX: usize = 6;
-    let trig = FrameSig(trig);
-    trig.divide(16).map(move |trig| {
+    let trig = Sig(trig);
+    trig.divide(16).map_mut(move |trig| {
         if trig {
             let index_to_change =
-                state.rng.gen::<usize>() % state.indices.len();
-            let value =
-                if state.indices.len() <= 1 || state.rng.gen::<f64>() < 0.9 {
-                    Some(state.rng.gen::<usize>() % MAX_INDEX)
-                } else {
-                    None
-                };
+                state.rng.random::<u32>() as usize % state.indices.len();
+            let value = if state.indices.len() <= 1
+                || state.rng.random::<f64>() < 0.9
+            {
+                Some(state.rng.random::<u32>() as usize % MAX_INDEX)
+            } else {
+                None
+            };
             state.indices[index_to_change] = value;
         }
         ArpShape::Indices(state.indices.clone())
@@ -116,8 +115,8 @@ fn arp_shape(
 }
 
 fn virtual_key_events(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    trig: impl SigT<Item = bool>,
+) -> Sig<impl SigT<Item = KeyEvents>> {
     let chords = [
         chord(note_name::C, MINOR),
         chord(note_name::C, MINOR),
@@ -127,8 +126,8 @@ fn virtual_key_events(
         index: usize,
     }
     let mut state = State { index: 0 };
-    let trig = FrameSig(trig);
-    trig.divide(32).map(move |t| {
+    let trig = Sig(trig);
+    trig.divide(32).map_mut(move |t| {
         let octave_base = note::A2;
         let mut events = KeyEvents::empty();
         if t {
@@ -163,15 +162,15 @@ fn virtual_key_events(
 }
 
 fn virtual_key_events_bass(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    trig: impl SigT<Item = bool>,
+) -> Sig<impl SigT<Item = KeyEvents>> {
     let notes = [note::C2, note::C2, note::G2];
     struct State {
         index: usize,
     }
     let mut state = State { index: 0 };
-    let trig = FrameSig(trig);
-    trig.divide(32).map(move |t| {
+    let trig = Sig(trig);
+    trig.divide(32).map_mut(move |t| {
         let mut events = KeyEvents::empty();
         if t {
             if state.index > 0 {

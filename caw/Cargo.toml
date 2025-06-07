@@ -67,7 +67,3 @@ required-features = [ "interactive" ]
 [[example]]
 name = "audio_file_playback"
 required-features = [ "interactive", "audio_file" ]
-
-[[example]]
-name = "guitar_strings"
-required-features = [ "interactive" ]

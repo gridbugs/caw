@@ -1,5 +1,5 @@
 use caw::prelude::*;
-use rand::{rngs::StdRng, seq::SliceRandom, Rng, SeedableRng};
+use rand::{Rng, SeedableRng, rngs::StdRng, seq::SliceRandom};
 
 struct Effects<T, DV, DLPF>
 where
@@ -23,7 +23,7 @@ impl Effects<f32, f32, f32> {
 }
 
 fn drum_loop(
-    trig: impl FrameSigT<Item = bool>,
+    trig: impl SigT<Item = bool>,
     pattern: Vec<u8>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
@@ -41,7 +41,7 @@ fn voice(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
     effect_x: impl SigT<Item = f32>,
     effect_y: impl SigT<Item = f32>,
     effect_z: impl SigT<Item = f32>,
@@ -72,7 +72,7 @@ fn voice_bass(
         key_down_gate,
         key_press_trig,
         ..
-    }: MonoVoice<impl FrameSigT<Item = KeyEvents>>,
+    }: MonoVoice<impl SigT<Item = KeyEvents>>,
     channel: Channel,
 ) -> Sig<impl SigT<Item = f32>> {
     let oscillator = oscillator(Triangle, note.freq_hz() / 2.0)
@@ -88,8 +88,8 @@ fn voice_bass(
 }
 
 fn virtual_key_events(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    trig: impl SigT<Item = bool>,
+) -> Sig<impl SigT<Item = KeyEvents>> {
     let chords = [
         chord(note_name::C, MINOR),
         chord(note_name::E, MAJOR),
@@ -100,8 +100,8 @@ fn virtual_key_events(
         index: usize,
     }
     let mut state = State { index: 0 };
-    let trig = FrameSig(trig);
-    trig.divide(32).map(move |t| {
+    let trig = Sig(trig);
+    trig.divide(32).map_mut(move |t| {
         let inversion = Inversion::InOctave {
             octave_base: note::A2,
         };
@@ -150,15 +150,15 @@ fn virtual_key_events(
 }
 
 fn virtual_key_events_bass(
-    trig: impl FrameSigT<Item = bool>,
-) -> FrameSig<impl FrameSigT<Item = KeyEvents>> {
+    trig: impl SigT<Item = bool>,
+) -> Sig<impl SigT<Item = KeyEvents>> {
     let notes = [note::C2, note::E2, note::F2, note::F2];
     struct State {
         index: usize,
     }
     let mut state = State { index: 0 };
-    let trig = FrameSig(trig);
-    trig.divide(32).map(move |t| {
+    let trig = Sig(trig);
+    trig.divide(32).map_mut(move |t| {
         let mut events = KeyEvents::empty();
         if t {
             if state.index > 0 {
@@ -277,7 +277,7 @@ fn main() -> anyhow::Result<()> {
         .stride(2)
         .build();
     let input = window.input();
-    let rng_seed = StdRng::from_entropy().gen::<u64>();
+    let rng_seed = rand::rng().random::<u64>();
     window.play_stereo(
         Stereo::new_fn_channel(|ch| sig(input.clone(), ch, rng_seed)),
         Default::default(),
