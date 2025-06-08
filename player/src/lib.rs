@@ -540,20 +540,21 @@ impl Clone for PlayerVisualizationData {
 }
 
 impl PlayerVisualizationData {
-    pub fn with<F>(&self, mut f: F)
+    pub fn with<F, T>(&self, mut f: F) -> T
     where
-        F: FnMut(&[f32]),
+        F: FnMut(&[f32]) -> T,
     {
-        f(&self.0.read().unwrap());
+        f(&self.0.read().unwrap())
     }
 
-    pub fn with_and_clear<F>(&self, mut f: F)
+    pub fn with_and_clear<F, T>(&self, mut f: F) -> T
     where
-        F: FnMut(&[f32]),
+        F: FnMut(&[f32]) -> T,
     {
         let mut visualization_data = self.0.write().unwrap();
-        f(&visualization_data);
+        let out = f(&visualization_data);
         visualization_data.clear();
+        out
     }
 }
 
@@ -567,18 +568,18 @@ impl PlayerHandle {
     pub fn visualization_data(&self) -> PlayerVisualizationData {
         self.visualization_data.clone()
     }
-    pub fn with_visualization_data<F>(&self, f: F)
+    pub fn with_visualization_data<F, T>(&self, f: F) -> T
     where
-        F: FnMut(&[f32]),
+        F: FnMut(&[f32]) -> T,
     {
-        self.visualization_data.with(f);
+        self.visualization_data.with(f)
     }
 
-    pub fn with_visualization_data_and_clear<F>(&self, f: F)
+    pub fn with_visualization_data_and_clear<F, T>(&self, f: F) -> T
     where
-        F: FnMut(&[f32]),
+        F: FnMut(&[f32]) -> T,
     {
-        self.visualization_data.with_and_clear(f);
+        self.visualization_data.with_and_clear(f)
     }
 }
 

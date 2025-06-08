@@ -1,8 +1,9 @@
-use std::net::{Ipv4Addr, UdpSocket};
-
 use anyhow::anyhow;
+use caw_viz_udp_app_lib::VizUdpClient;
 use clap::Parser;
-use sdl2::{event::Event, pixels::Color};
+use line_2d::Coord;
+use sdl2::{event::Event, pixels::Color, rect::Rect};
+use std::collections::VecDeque;
 
 #[derive(Parser)]
 struct Args {
@@ -12,6 +13,21 @@ struct Args {
     width: u32,
     #[arg(long, default_value_t = 480)]
     height: u32,
+    #[arg(long, default_value_t = 100.0)]
+    scale: f32,
+    #[arg(long, default_value_t = 5000)]
+    max_num_samples: usize,
+    #[arg(long, short, default_value_t = 0)]
+    red: u8,
+    #[arg(long, short, default_value_t = 255)]
+    green: u8,
+    #[arg(long, short, default_value_t = 0)]
+    blue: u8,
+}
+
+#[derive(Default)]
+struct ScopeState {
+    samples: VecDeque<(f32, f32)>,
 }
 
 fn main() -> anyhow::Result<()> {
@@ -20,33 +36,60 @@ fn main() -> anyhow::Result<()> {
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
     let window = video_subsystem
         .window("CAW Visualization", args.width, args.height)
+        .always_on_top()
         .build()?;
     let mut canvas = window
         .into_canvas()
         .target_texture()
         .present_vsync()
         .build()?;
+    canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
     let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
-    let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
-    socket.connect(args.server)?;
-    // TODO: send a magic number here
-    assert_eq!(socket.send(&[42])?, 1);
-    socket.set_nonblocking(true)?;
+    let mut viz_udp_client = VizUdpClient::new(args.server)?;
+    let mut scope_state = ScopeState::default();
+    let line_width = 2;
     loop {
         for event in event_pump.poll_iter() {
             if let Event::Quit { .. } = event {
                 std::process::exit(0);
             }
         }
-        // TODO: larger buffer
-        let mut buf = [0];
-        if let Ok(size) = socket.recv(&mut buf) {
-            // TODO: check for "would block" errors here
-            assert_eq!(size, 1);
-            println!("{}", buf[0]);
+        while let Ok(true) = viz_udp_client.recv_sample() {
+            for sample_pair in viz_udp_client.pairs() {
+                scope_state.samples.push_back(sample_pair);
+            }
+            while scope_state.samples.len() > args.max_num_samples {
+                scope_state.samples.pop_front();
+            }
         }
         canvas.set_draw_color(Color::RGB(0, 0, 0));
         canvas.clear();
+        let screen_size = Coord {
+            x: args.width as i32,
+            y: args.height as i32,
+        };
+        let mut coord_iter = scope_state.samples.iter().map(|(left, right)| {
+            Coord {
+                x: (left * args.scale) as i32,
+                y: (right * args.scale) as i32,
+            } + screen_size / 2
+        });
+        let mut prev = if let Some(first) = coord_iter.next() {
+            first
+        } else {
+            Coord::new(0, 0)
+        };
+        for (i, coord) in coord_iter.enumerate() {
+            let alpha = ((255 * i) / args.max_num_samples).min(255) as u8;
+            canvas.set_draw_color(Color::RGBA(
+                args.red, args.green, args.blue, alpha,
+            ));
+            for Coord { x, y } in line_2d::coords_between(prev, coord) {
+                let rect = Rect::new(x, y, line_width, line_width);
+                let _ = canvas.fill_rect(rect);
+            }
+            prev = coord;
+        }
         canvas.present();
     }
 }

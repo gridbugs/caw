@@ -1,5 +1,5 @@
 [package]
-name = "viz_udp_app_lib"
+name = "caw_viz_udp_app_lib"
 version = "0.1.0"
 edition = "2024"
 description = "Library for launching and interacting with instances of caw_viz_udp_app"
@@ -11,6 +11,7 @@ documentation = "https://docs.rs/viz_udp_app_lib"
 
 [dependencies]
 anyhow = "1.0"
+log = "0.4"
 
 [[example]]
 name = "viz_udp_app_lib_handshake"

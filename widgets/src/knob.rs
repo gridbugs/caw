@@ -58,7 +58,10 @@ impl Knob {
     ) -> anyhow::Result<Self> {
         let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
         let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
-        let window = video_subsystem.window("", WIDTH_PX, HEIGHT_PX).build()?;
+        let window = video_subsystem
+            .window("", WIDTH_PX, HEIGHT_PX)
+            .always_on_top()
+            .build()?;
         let canvas = window
             .into_canvas()
             .target_texture()

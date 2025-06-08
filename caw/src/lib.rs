@@ -33,6 +33,9 @@ pub use caw_live as live;
 #[cfg(feature = "caw_midi_udp_widgets_app_lib")]
 pub use caw_midi_udp_widgets_app_lib as midi_udp_widgets_app_lib;
 
+#[cfg(feature = "caw_viz_udp_app_lib")]
+pub use caw_viz_udp_app_lib as viz_udp_app_lib;
+
 pub mod prelude {
     pub use super::builder_proc_macros::*;
     pub use super::computer_keyboard::*;
@@ -68,4 +71,7 @@ pub mod prelude {
 
     #[cfg(feature = "caw_midi_udp_widgets_app_lib")]
     pub use super::midi_udp_widgets_app_lib::*;
+
+    #[cfg(feature = "caw_viz_udp_app_lib")]
+    pub use super::viz_udp_app_lib::*;
 }
