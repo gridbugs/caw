@@ -1,4 +1,4 @@
-use crate::{Buf, SigCtx, SigSampleIntoBufT, SigT};
+use crate::{Buf, Sig, SigCtx, SigSampleIntoBufT, SigT, sig_ops::sig_add};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
@@ -111,6 +111,16 @@ where
             left: self.left.sample(ctx),
             right: self.right.sample(ctx),
         }
+    }
+}
+
+impl<L, R> Stereo<L, R>
+where
+    L: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+{
+    pub fn sum(self) -> Sig<sig_add::OpSigSig<L, R>> {
+        Sig(self.left) + Sig(self.right)
     }
 }
 

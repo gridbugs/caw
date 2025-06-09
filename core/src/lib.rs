@@ -46,3 +46,15 @@ where
         self.as_ref().with_channel(|channel, s| s.set(f(channel)));
     }
 }
+
+impl Stereo<SV<f32>, SV<f32>> {
+    pub fn with_volume<V>(self, volume: V) -> Self
+    where
+        V: SigT<Item = f32> + Sync + Send + 'static,
+    {
+        let out = StereoPair::new_fn(|| sv(0.));
+        let volume = sig_shared(volume);
+        self.set_channel(|channel| out.get(channel).clone() * volume.clone());
+        out
+    }
+}
