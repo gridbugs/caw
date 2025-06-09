@@ -13,7 +13,7 @@ struct Args {
     width: u32,
     #[arg(long, default_value_t = 480)]
     height: u32,
-    #[arg(long, default_value_t = 100.0)]
+    #[arg(long, default_value_t = 1000.0)]
     scale: f32,
     #[arg(long, default_value_t = 5000)]
     max_num_samples: usize,
@@ -35,7 +35,7 @@ struct ScopeState {
 }
 
 fn main() -> anyhow::Result<()> {
-    let args = Args::parse();
+    let mut args = Args::parse();
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
     let window = video_subsystem
@@ -53,8 +53,31 @@ fn main() -> anyhow::Result<()> {
     let mut scope_state = ScopeState::default();
     loop {
         for event in event_pump.poll_iter() {
-            if let Event::Quit { .. } = event {
-                std::process::exit(0);
+            match event {
+                Event::Quit { .. } => std::process::exit(0),
+                Event::MouseWheel { y, .. } => {
+                    let ratio = 1.1;
+                    if y > 0 {
+                        args.scale *= ratio;
+                    } else {
+                        args.scale /= ratio;
+                    }
+                }
+                Event::MouseMotion {
+                    mousestate, xrel, ..
+                } => {
+                    if mousestate.left() {
+                        args.line_width = ((args.line_width as i32) + xrel)
+                            .clamp(1, 20)
+                            as u32;
+                    }
+                    if mousestate.right() {
+                        args.alpha_scale = (args.alpha_scale as i32 + xrel)
+                            .clamp(1, 255)
+                            as u8;
+                    }
+                }
+                _ => (),
             }
         }
         while let Ok(true) = viz_udp_client.recv_sample() {

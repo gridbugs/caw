@@ -2,8 +2,9 @@ use caw_core::{Sig, SigBoxedVar, Stereo, StereoPair, svf32};
 use caw_player::{
     PlayerConfig, PlayerVisualizationData, VisualizationDataPolicy, play_stereo,
 };
+use caw_viz_udp_app_lib::{VizAppConfig, VizUdpServer};
 use lazy_static::lazy_static;
-use std::sync::Mutex;
+use std::{sync::Mutex, thread, time::Duration};
 
 lazy_static! {
     static ref OUT: StereoPair<Sig<SigBoxedVar<f32>>> =
@@ -13,9 +14,11 @@ lazy_static! {
     static ref INITIALIZED: Mutex<bool> = Mutex::new(false);
 }
 
-pub fn live_stereo_visualized(
+pub type LiveStereoOut = StereoPair<Sig<SigBoxedVar<f32>>>;
+
+pub fn live_stereo_viz(
     visualization_data_policy: VisualizationDataPolicy,
-) -> (StereoPair<Sig<SigBoxedVar<f32>>>, PlayerVisualizationData) {
+) -> (LiveStereoOut, PlayerVisualizationData) {
     let mut initialized = INITIALIZED.lock().unwrap();
     if *initialized {
         return (OUT.clone(), VISUALIZATION_DATA.lock().unwrap().clone());
@@ -35,7 +38,20 @@ pub fn live_stereo_visualized(
     (OUT.clone(), visualization_data_ref.clone())
 }
 
-pub fn live_stereo() -> StereoPair<Sig<SigBoxedVar<f32>>> {
+pub fn live_stereo_viz_udp(config: VizAppConfig) -> LiveStereoOut {
+    let (out, viz_data) = live_stereo_viz(VisualizationDataPolicy::All);
+    let mut viz = VizUdpServer::new(config).unwrap();
+    thread::spawn(move || {
+        loop {
+            // TODO: Is it ok to ignore errors here?
+            let _ = viz_data.with_and_clear(|buf| viz.send_samples(buf));
+            thread::sleep(Duration::from_millis(16));
+        }
+    });
+    out
+}
+
+pub fn live_stereo() -> LiveStereoOut {
     let mut initialized = INITIALIZED.lock().unwrap();
     if *initialized {
         return OUT.clone();
