@@ -15,7 +15,7 @@ web = ["cpal/wasm-bindgen"]
 [dependencies]
 caw_core = { version = "0.5", path = "../core" }
 anyhow = "1.0"
-cpal = "0.15"
+cpal = "0.16"
 log = "0.4"
 
 [dev-dependencies]
