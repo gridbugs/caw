@@ -14,6 +14,7 @@ caw_midi_udp = { version = "0.1", path = "../midi-udp" }
 caw_core = { version = "0.5", path = "../core" }
 caw_midi = { version = "0.4", path = "../midi" }
 caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
+caw_keyboard = { version = "0.4", path = "../keyboard" }
 lazy_static = "1.5"
 anyhow = "1.0"
 
@@ -23,4 +24,4 @@ caw_interactive = { path = "../interactive" }
 caw_modules = { path = "../modules" }
 
 [[example]]
-name = "midi_udp_widgets_app_lib_knob"
+name = "midi_udp_widgets_app_lib_demo"

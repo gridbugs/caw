@@ -1,7 +1,7 @@
-use caw_core::{sig_shared, Buf, Sig, SigCtx, SigShared, SigT};
+use caw_core::{Buf, Sig, SigCtx, SigShared, SigT, sig_shared};
 use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
-use midly::{num::u7, MidiMessage};
-use smallvec::{smallvec, SmallVec};
+use midly::{MidiMessage, num::u7};
+use smallvec::{SmallVec, smallvec};
 
 fn u7_to_01(u7: u7) -> f32 {
     u7.as_int() as f32 / 127.0
@@ -106,6 +106,47 @@ where
     }
 }
 
+pub struct MidiKeyPress<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    messages: SigShared<M>,
+    state: bool,
+    note: Note,
+    buf: Vec<bool>,
+}
+
+impl<M> SigT for MidiKeyPress<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, false);
+        let messages = self.messages.sample(ctx);
+        for (out, messages) in self.buf.iter_mut().zip(messages.iter()) {
+            for message in messages {
+                match message {
+                    MidiMessage::NoteOn { key, .. } => {
+                        if key.as_int() == self.note.to_midi_index() {
+                            self.state = true;
+                        }
+                    }
+                    MidiMessage::NoteOff { key, .. } => {
+                        if key.as_int() == self.note.to_midi_index() {
+                            self.state = false;
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            *out = self.state;
+        }
+        &self.buf
+    }
+}
+
 impl<M> MidiControllers<M>
 where
     M: SigT<Item = MidiMessages>,
@@ -150,6 +191,8 @@ where
     fn pitch_bend_freq_mult(self) -> Sig<impl SigT<Item = f32>>;
 
     fn controllers(self) -> MidiControllers<M>;
+
+    fn key_press(self, note: Note) -> MidiKeyPress<M>;
 }
 
 impl<M> MidiMessagesT<M> for Sig<M>
@@ -179,6 +222,15 @@ where
     fn controllers(self) -> MidiControllers<M> {
         MidiControllers {
             messages: sig_shared(self.0),
+        }
+    }
+
+    fn key_press(self, note: Note) -> MidiKeyPress<M> {
+        MidiKeyPress {
+            messages: sig_shared(self.0).0,
+            state: false,
+            note,
+            buf: Vec::new(),
         }
     }
 }

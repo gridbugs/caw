@@ -4,8 +4,8 @@ pub mod sig_ops;
 pub use sig::{
     Buf, Const, ConstBuf, Filter, GateToTrigRisingEdge, Sig, SigAbs, SigBoxed,
     SigBoxedVar, SigCtx, SigSampleIntoBufT, SigShared, SigT, SigVar,
-    Triggerable, sig_boxed, sig_boxed_var, sig_option_first_some, sig_shared,
-    sig_var,
+    Triggerable, Zip, Zip3, Zip4, sig_boxed, sig_boxed_var,
+    sig_option_first_some, sig_shared, sig_var,
 };
 pub mod stereo;
 pub use stereo::{Channel, Stereo, StereoPair};
