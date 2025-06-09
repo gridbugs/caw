@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_udp_widgets_app"
-version = "0.1.2"
+version = "0.1.3"
 edition = "2024"
 description = "App for launching widgets that communicate with a caw synthesizer by sending midi commands over UDP"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
