@@ -1,7 +1,7 @@
 use crate::input::Input;
 use anyhow::anyhow;
 use caw_core::{SigSampleIntoBufT, Stereo};
-use caw_player::{ConfigSync, Player, ToF32};
+use caw_player::{Player, PlayerConfig, ToF32};
 use line_2d::Coord;
 pub use rgb_int::Rgb24;
 use sdl2::{
@@ -318,7 +318,7 @@ impl Window {
     pub fn play_mono<T, S>(
         &self,
         sig: S,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -350,7 +350,7 @@ impl Window {
     pub fn play_stereo<TL, TR, SL, SR>(
         &self,
         sig: Stereo<SL, SR>,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,

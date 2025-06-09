@@ -10,8 +10,37 @@ pub const HANDSHAKE: [u8; 4] = [0x43, 0x41, 0x57, 0x0];
 // reduce this to an even number.
 const MAX_SAMPLES_TO_SEND: usize = 126;
 
-// TODO
-const PROGRAM_NAME: &str = "/Users/s/src/caw/target/release/caw_viz_udp_app";
+const PROGRAM_NAME: &str = "caw_viz_udp_app";
+
+pub struct VizAppConfig {
+    pub program_name: String,
+    pub width: u32,
+    pub height: u32,
+    pub scale: f32,
+    pub max_num_samples: usize,
+    pub line_width: u32,
+    pub alpha_scale: u8,
+    pub red: u8,
+    pub green: u8,
+    pub blue: u8,
+}
+
+impl Default for VizAppConfig {
+    fn default() -> Self {
+        Self {
+            program_name: PROGRAM_NAME.to_string(),
+            width: 640,
+            height: 480,
+            scale: 100.0,
+            max_num_samples: 5000,
+            line_width: 1,
+            alpha_scale: 255,
+            red: 0,
+            green: 255,
+            blue: 0,
+        }
+    }
+}
 
 fn wait_for_handshake(socket: &UdpSocket) -> anyhow::Result<SocketAddr> {
     let mut buf = [0; 8];
@@ -45,22 +74,37 @@ fn samples_from_ne_bytes(bytes: &[u8], out: &mut Vec<f32>) {
     }
 }
 
-fn start_client_app(socket: &UdpSocket) -> anyhow::Result<Child> {
-    let mut command = Command::new(PROGRAM_NAME);
-    command.args(["--server".to_string(), socket.local_addr()?.to_string()]);
+fn start_client_app(
+    socket: &UdpSocket,
+    config: &VizAppConfig,
+) -> anyhow::Result<Child> {
+    let mut command = Command::new(&config.program_name);
+    command.args([
+        format!("--server={}", socket.local_addr()?.to_string()),
+        format!("--width={}", config.width),
+        format!("--height={}", config.height),
+        format!("--scale={}", config.scale),
+        format!("--max-num-samples={}", config.max_num_samples),
+        format!("--line-width={}", config.line_width),
+        format!("--alpha-scale={}", config.alpha_scale),
+        format!("--red={}", config.red),
+        format!("--green={}", config.green),
+        format!("--blue={}", config.blue),
+    ]);
     Ok(command.spawn()?)
 }
 
 pub struct VizUdpServer {
     socket: UdpSocket,
     buf: Vec<u8>,
+    client_running: bool,
 }
 
 impl VizUdpServer {
-    pub fn new() -> anyhow::Result<Self> {
+    pub fn new(config: VizAppConfig) -> anyhow::Result<Self> {
         let socket = UdpSocket::bind((Ipv4Addr::UNSPECIFIED, 0))?;
         log::info!("Viz udp server address: {:?}", socket.local_addr());
-        let _client_process = start_client_app(&socket)?;
+        let _client_process = start_client_app(&socket, &config)?;
         let client_address = wait_for_handshake(&socket)?;
         log::info!("Viz udp client address: {:?}", client_address);
         socket.connect(client_address)?;
@@ -68,20 +112,36 @@ impl VizUdpServer {
         Ok(Self {
             socket,
             buf: Vec::new(),
+            client_running: true,
         })
     }
 
     pub fn send_samples(&mut self, samples: &[f32]) -> anyhow::Result<()> {
+        if !self.client_running {
+            // If the client window is closed then there is nothing to do. Possibly we could
+            // restart the client at this point in the future?
+            return Ok(());
+        }
         for samples_chunk in samples.chunks(MAX_SAMPLES_TO_SEND) {
             samples_to_ne_bytes(samples_chunk, &mut self.buf);
-            // TODO: gracefully handle case when the client dissapears
-            let bytes_sent = self.socket.send(&self.buf)?;
-            if bytes_sent != samples.len() {
-                log::error!(
-                    "Failed to send all samples to viz udp client. Tried to send {}. Actually sent {}.",
-                    samples.len(),
-                    bytes_sent
-                );
+            match self.socket.send(&self.buf) {
+                Ok(bytes_sent) => {
+                    if bytes_sent != self.buf.len() {
+                        log::error!(
+                            "Failed to send all samples to viz udp client. Tried to send {} bytes. Actually sent {} bytes.",
+                            self.buf.len(),
+                            bytes_sent
+                        );
+                    }
+                }
+                Err(e) => match e.kind() {
+                    std::io::ErrorKind::ConnectionRefused => {
+                        self.client_running = false;
+                        log::error!("Viz udp client has closed!");
+                        break;
+                    }
+                    _ => anyhow::bail!(e),
+                },
             }
         }
         Ok(())

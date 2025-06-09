@@ -1,7 +1,6 @@
 use caw_core::{Sig, SigBoxedVar, Stereo, StereoPair, svf32};
 use caw_player::{
-    ConfigOwned, PlayerVisualizationData, VisualizationDataPolicy, play_stereo,
-    play_stereo_default,
+    PlayerConfig, PlayerVisualizationData, VisualizationDataPolicy, play_stereo,
 };
 use lazy_static::lazy_static;
 use std::sync::Mutex;
@@ -24,7 +23,7 @@ pub fn live_stereo_visualized(
     *initialized = true;
     let player = play_stereo(
         OUT.clone(),
-        ConfigOwned {
+        PlayerConfig {
             visualization_data_policy: Some(visualization_data_policy),
             ..Default::default()
         },
@@ -42,7 +41,7 @@ pub fn live_stereo() -> StereoPair<Sig<SigBoxedVar<f32>>> {
         return OUT.clone();
     }
     *initialized = true;
-    let player = play_stereo_default(OUT.clone()).unwrap();
+    let player = play_stereo(OUT.clone(), Default::default()).unwrap();
     std::mem::forget(player);
     OUT.clone()
 }

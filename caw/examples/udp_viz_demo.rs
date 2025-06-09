@@ -1,8 +1,8 @@
+use caw::prelude::*;
 use std::{thread, time::Duration};
 
-use caw::prelude::*;
-
 fn main() -> anyhow::Result<()> {
+    env_logger::init();
     let sig = Stereo::new_fn_channel(|channel| {
         let freq_hz = match channel {
             Channel::Left => 60.,
@@ -19,13 +19,19 @@ fn main() -> anyhow::Result<()> {
     });
     let player_handle = play_stereo(
         sig,
-        ConfigOwned {
+        PlayerConfig {
             visualization_data_policy: Some(VisualizationDataPolicy::All),
             ..Default::default()
         },
     )?;
     let viz_data = player_handle.visualization_data();
-    let mut viz = VizUdpServer::new()?;
+    let mut viz = VizUdpServer::new(VizAppConfig {
+        scale: 1000.0,
+        alpha_scale: 50,
+        line_width: 2,
+        max_num_samples: 10_000,
+        ..Default::default()
+    })?;
     loop {
         viz_data.with_and_clear(|buf| viz.send_samples(buf))?;
         thread::sleep(Duration::from_millis(16));

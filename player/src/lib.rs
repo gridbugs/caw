@@ -23,33 +23,19 @@ impl ToF32 for f64 {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ConfigSync {
-    /// default: 0.01
-    pub system_latency_s: f32,
-}
-
-impl Default for ConfigSync {
-    fn default() -> Self {
-        Self {
-            system_latency_s: 0.01,
-        }
-    }
-}
-
-#[derive(Debug, Clone, Copy)]
 pub enum VisualizationDataPolicy {
     LatestOnly,
     All,
 }
 
 #[derive(Debug, Clone, Copy)]
-pub struct ConfigOwned {
+pub struct PlayerConfig {
     /// default: 0.01
     pub system_latency_s: f32,
     pub visualization_data_policy: Option<VisualizationDataPolicy>,
 }
 
-impl Default for ConfigOwned {
+impl Default for PlayerConfig {
     fn default() -> Self {
         Self {
             system_latency_s: 0.01,
@@ -121,7 +107,7 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<(Stream, StreamConfig)>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -163,7 +149,7 @@ impl Player {
         &self,
         mut sig: S,
         mut f: F,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -217,7 +203,7 @@ impl Player {
     pub fn play_signal_sync_mono<T, S>(
         &self,
         signal: S,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -231,7 +217,7 @@ impl Player {
         &self,
         signal: S,
         mut f: F,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         T: ToF32 + Send + Sync + Copy + 'static,
@@ -255,7 +241,7 @@ impl Player {
             SyncCommandRequestNumSamples,
         >,
         recv_sync_command_done: mpsc::Receiver<SyncCommandDone>,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<(Stream, StreamConfig)>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -300,7 +286,7 @@ impl Player {
         &self,
         mut sig: Stereo<SL, SR>,
         mut f: F,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -362,7 +348,7 @@ impl Player {
     pub fn play_signal_sync_stereo<TL, TR, SL, SR>(
         &self,
         sig: Stereo<SL, SR>,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -378,7 +364,7 @@ impl Player {
         &self,
         sig: Stereo<SL, SR>,
         mut f: F,
-        config: ConfigSync,
+        config: PlayerConfig,
     ) -> anyhow::Result<()>
     where
         TL: ToF32 + Send + Sync + Copy + 'static,
@@ -402,7 +388,7 @@ impl Player {
     pub fn play_stereo<SL, SR>(
         self,
         mut sig: Stereo<SL, SR>,
-        config: ConfigOwned,
+        config: PlayerConfig,
     ) -> anyhow::Result<PlayerHandle>
     where
         SL: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
@@ -469,7 +455,7 @@ impl Player {
     pub fn play_mono<S>(
         self,
         mut sig: S,
-        config: ConfigOwned,
+        config: PlayerConfig,
     ) -> anyhow::Result<PlayerHandle>
     where
         S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
@@ -583,37 +569,23 @@ impl PlayerHandle {
     }
 }
 
-pub fn play_mono<S>(sig: S, config: ConfigOwned) -> anyhow::Result<PlayerHandle>
+pub fn play_mono<S>(
+    sig: S,
+    config: PlayerConfig,
+) -> anyhow::Result<PlayerHandle>
 where
     S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
 {
     Player::new()?.play_mono(sig, config)
 }
 
-pub fn play_mono_default<S>(sig: S) -> anyhow::Result<PlayerHandle>
-where
-    S: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
-{
-    play_mono(sig, Default::default())
-}
-
 pub fn play_stereo<SL, SR>(
     sig: Stereo<SL, SR>,
-    config: ConfigOwned,
+    config: PlayerConfig,
 ) -> anyhow::Result<PlayerHandle>
 where
     SL: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
     SR: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
 {
     Player::new()?.play_stereo(sig, config)
-}
-
-pub fn play_stereo_default<SL, SR>(
-    sig: Stereo<SL, SR>,
-) -> anyhow::Result<PlayerHandle>
-where
-    SL: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
-    SR: SigSampleIntoBufT<Item = f32> + Send + Sync + 'static,
-{
-    play_stereo(sig, Default::default())
 }

@@ -17,6 +17,10 @@ struct Args {
     scale: f32,
     #[arg(long, default_value_t = 5000)]
     max_num_samples: usize,
+    #[arg(long, default_value_t = 1)]
+    line_width: u32,
+    #[arg(long, default_value_t = 255)]
+    alpha_scale: u8,
     #[arg(long, short, default_value_t = 0)]
     red: u8,
     #[arg(long, short, default_value_t = 255)]
@@ -47,7 +51,6 @@ fn main() -> anyhow::Result<()> {
     let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
     let mut viz_udp_client = VizUdpClient::new(args.server)?;
     let mut scope_state = ScopeState::default();
-    let line_width = 2;
     loop {
         for event in event_pump.poll_iter() {
             if let Event::Quit { .. } = event {
@@ -80,12 +83,13 @@ fn main() -> anyhow::Result<()> {
             Coord::new(0, 0)
         };
         for (i, coord) in coord_iter.enumerate() {
-            let alpha = ((255 * i) / args.max_num_samples).min(255) as u8;
+            let alpha = ((args.alpha_scale as usize * i) / args.max_num_samples)
+                .min(255) as u8;
             canvas.set_draw_color(Color::RGBA(
                 args.red, args.green, args.blue, alpha,
             ));
             for Coord { x, y } in line_2d::coords_between(prev, coord) {
-                let rect = Rect::new(x, y, line_width, line_width);
+                let rect = Rect::new(x, y, args.line_width, args.line_width);
                 let _ = canvas.fill_rect(rect);
             }
             prev = coord;

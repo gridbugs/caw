@@ -1,6 +1,6 @@
 use caw_core::*;
 use caw_modules::*;
-use caw_player::play_mono_default;
+use caw_player::play_mono;
 use rand::Rng;
 
 fn osc(freq: f32) -> Sig<impl SigT<Item = f32>> {
@@ -21,7 +21,7 @@ fn signal() -> Sig<impl SigT<Item = f32>> {
 
 fn main() -> anyhow::Result<()> {
     env_logger::init();
-    let _handle = play_mono_default(signal());
+    let _handle = play_mono(signal(), Default::default());
     std::thread::park();
     Ok(())
 }
