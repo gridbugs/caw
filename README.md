@@ -1,6 +1,6 @@
 ![CAW Logo](assets/logo.png)
 
-# Combinatorial Audia Workspace (CAW)
+# Combinatorial Audio Workstation (CAW)
 
 [![Version](https://img.shields.io/crates/v/caw.svg)](https://crates.io/crates/caw)
 [![Documentation](https://docs.rs/caw/badge.svg)](https://docs.rs/caw)
