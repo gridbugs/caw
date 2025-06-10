@@ -8,12 +8,13 @@ pub use oscillator::{
 
 pub mod envelope_generator;
 pub use envelope_generator::adsr_linear_01;
+pub use envelope_generator::adsr_linear_01 as adsr;
 
 pub mod envelope_follower;
 pub use envelope_follower::envelope_follower;
 
 pub mod super_saw;
-pub use super_saw::{super_saw, SuperSawInit};
+pub use super_saw::{SuperSawInit, super_saw};
 
 pub mod sample_and_hold;
 pub use sample_and_hold::sample_and_hold;
@@ -107,7 +108,7 @@ pub mod compressor;
 pub use compressor::compressor;
 
 pub mod chorus;
-pub use chorus::{chorus, ChorusLfoOffset};
+pub use chorus::{ChorusLfoOffset, chorus};
 
 pub mod quantizer;
 pub use quantizer::quantizer;
