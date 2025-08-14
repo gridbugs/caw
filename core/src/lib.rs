@@ -26,6 +26,13 @@ pub fn svf32(
     sig_boxed_var(initial_sig)
 }
 
+pub fn sv_default<T>() -> SV<T>
+where
+    T: SigT<Item = T> + Clone + Default + Sync + Send + 'static,
+{
+    sv(T::default())
+}
+
 impl<T> Stereo<SV<T>, SV<T>>
 where
     T: Clone,

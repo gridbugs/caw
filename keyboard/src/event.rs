@@ -57,6 +57,17 @@ impl KeyEvents {
     }
 }
 
+impl SigT for KeyEvents {
+    type Item = Self;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            value: self.clone(),
+            count: ctx.num_samples,
+        }
+    }
+}
+
 impl IntoIterator for KeyEvents {
     type Item = KeyEvent;
 

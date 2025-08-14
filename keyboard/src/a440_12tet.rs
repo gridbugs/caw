@@ -1,5 +1,5 @@
 /// 12-tone equal temperament following the A440Hz convention
-use caw_core::{Sig, SigT};
+use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Octave(u8);
@@ -220,8 +220,28 @@ where
     }
 }
 
+impl SigT for Note {
+    type Item = Self;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            value: *self,
+            count: ctx.num_samples,
+        }
+    }
+}
+
+/// Arbitrary default value to help when a temporary value must be set before updating a note by
+/// some other process, as signals cannot have undefined values. The default note is C4.
+impl Default for Note {
+    fn default() -> Self {
+        note::C4
+    }
+}
+
 pub mod chord {
-    use super::{Note, NoteName, Octave};
+    use super::{Note, NoteName, Octave, note_name};
+    use caw_core::{Buf, ConstBuf, SigCtx, SigT};
     use smallvec::{SmallVec, smallvec};
 
     pub struct Notes(SmallVec<[Note; 4]>);
@@ -424,7 +444,7 @@ pub mod chord {
     }
 
     impl Chord {
-        pub fn new(root: NoteName, typ: ChordType) -> Self {
+        pub const fn new(root: NoteName, typ: ChordType) -> Self {
             Self {
                 root,
                 typ,
@@ -505,8 +525,27 @@ pub mod chord {
         }
     }
 
-    pub fn chord(root: NoteName, typ: ChordType) -> Chord {
+    pub const fn chord(root: NoteName, typ: ChordType) -> Chord {
         Chord::new(root, typ)
+    }
+
+    impl SigT for Chord {
+        type Item = Self;
+
+        fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+            ConstBuf {
+                value: *self,
+                count: ctx.num_samples,
+            }
+        }
+    }
+
+    /// Arbitrary default value to help when a temporary value must be set before updating a note by
+    /// some other process, as signals cannot have undefined values. The default chord is C major.
+    impl Default for Chord {
+        fn default() -> Self {
+            chord(note_name::C, MAJOR)
+        }
     }
 }
 

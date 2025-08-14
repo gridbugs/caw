@@ -393,7 +393,7 @@ where
 }
 
 impl SigT for f32 {
-    type Item = f32;
+    type Item = Self;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         ConstBuf {
@@ -404,7 +404,7 @@ impl SigT for f32 {
 }
 
 impl SigT for u32 {
-    type Item = u32;
+    type Item = Self;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         ConstBuf {
@@ -416,7 +416,7 @@ impl SigT for u32 {
 
 /// For gate and trigger signals
 impl SigT for bool {
-    type Item = bool;
+    type Item = Self;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         ConstBuf {
