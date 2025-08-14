@@ -6,7 +6,7 @@ use sdl2::{
     rect::Rect,
     render::{Canvas, TextureCreator},
     rwops::RWops,
-    ttf::{Font, InitError, Sdl2TtfContext},
+    ttf::{Font, Sdl2TtfContext},
     video::{Window as SdlWindow, WindowContext},
 };
 use std::{
@@ -17,8 +17,7 @@ use std::{
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
 
 lazy_static! {
-    static ref TTF_CONTEXT: Result<Sdl2TtfContext, InitError> =
-        sdl2::ttf::init();
+    static ref TTF_CONTEXT: Result<Sdl2TtfContext, String> = sdl2::ttf::init();
 }
 
 fn load_font() -> anyhow::Result<Font<'static, 'static>> {

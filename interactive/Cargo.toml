@@ -16,7 +16,7 @@ caw_core = { version = "0.5", path = "../core" }
 caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
 line_2d = "0.5"
 rgb_int = "0.1"
-sdl2 = "0.37"
+sdl2 = "0.38"
 
 [dev-dependencies]
 caw_keyboard = { path = "../keyboard" }

@@ -11,7 +11,7 @@ documentation = "https://docs.rs/caw_widgets"
 
 [dependencies]
 anyhow = "1.0"
-sdl2 = { version = "0.37", features = ["ttf"] }
+sdl2 = { version = "0.38", features = ["ttf"] }
 line_2d = "0.5"
 lazy_static = "1.5"
 midly = "0.5"
