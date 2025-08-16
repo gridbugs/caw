@@ -13,7 +13,7 @@ struct Args {
     width: u32,
     #[arg(long, default_value_t = 480)]
     height: u32,
-    #[arg(long, default_value_t = 1000.0)]
+    #[arg(long, default_value_t = 500.0)]
     scale: f32,
     #[arg(long, default_value_t = 5000)]
     max_num_samples: usize,

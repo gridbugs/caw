@@ -6,7 +6,7 @@ fn main() -> anyhow::Result<()> {
         ..Default::default()
     })?;
     loop {
-        server.send_samples(&[1.0, 1.5, 2.0, 3.0])?;
+        server.send_samples(&[-0.5, -0.75, 1.0, 0.5])?;
         std::thread::sleep(Duration::from_millis(100));
     }
 }

@@ -31,7 +31,7 @@ impl Default for VizAppConfig {
             program_name: PROGRAM_NAME.to_string(),
             width: 640,
             height: 480,
-            scale: 1000.0,
+            scale: 500.0,
             max_num_samples: 5000,
             line_width: 1,
             alpha_scale: 255,
