@@ -884,6 +884,67 @@ where
     {
         self.divide_with_offset(by, 0)
     }
+
+    pub fn counted(self) -> Sig<impl SigT<Item = Option<u64>>> {
+        let mut prev = false;
+        let mut count = 0;
+        self.map_mut(move |current| {
+            let ret = if current {
+                Some(count)
+            } else {
+                if prev {
+                    // increment the count on the falling edge
+                    count += 1;
+                }
+                None
+            };
+            prev = current;
+            ret
+        })
+    }
+}
+
+/// A counting gate, which is a gate which implements a counter each time it transitions to "on".
+impl<S> Sig<S>
+where
+    S: SigT<Item = Option<u64>>,
+{
+    pub fn counted_to_gate(self) -> Sig<impl SigT<Item = bool>> {
+        self.map(|x| x.is_some())
+    }
+    pub fn counted_to_trig_rising_edge(self) -> Sig<impl SigT<Item = bool>> {
+        self.counted_to_gate().gate_to_trig_rising_edge()
+    }
+    pub fn counted_divide_with_offset<D, O>(
+        self,
+        divide: D,
+        offset: O,
+    ) -> Sig<impl SigT<Item = bool>>
+    where
+        D: SigT<Item = u32>,
+        O: SigT<Item = u32>,
+    {
+        self.zip3(divide, offset).map(|(current, divide, offset)| {
+            if let Some(current) = current {
+                let divide = divide as u64;
+                let offset = offset as u64;
+                if divide == 0 {
+                    // degenerate case
+                    true
+                } else {
+                    current % divide == offset
+                }
+            } else {
+                false
+            }
+        })
+    }
+    pub fn counted_divide<B>(self, by: B) -> Sig<impl SigT<Item = bool>>
+    where
+        B: SigT<Item = u32>,
+    {
+        self.counted_divide_with_offset(by, 0)
+    }
 }
 
 struct OptionFirstSome<T>
