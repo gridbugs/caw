@@ -63,11 +63,13 @@ fn samples_from_ne_bytes(bytes: &[u8], out: &mut Vec<f32>) {
 fn start_client_app(
     server_addr: SocketAddr,
     program_name: &str,
+    title: &str,
     config: &Config,
 ) -> anyhow::Result<Child> {
     let mut command = Command::new(program_name);
     command.args([
         format!("--server={}", server_addr.to_string()),
+        format!("--title={}", title.to_string()),
         "oscilloscope".to_string(),
         format!("--width={}", config.width),
         format!("--height={}", config.height),
@@ -82,23 +84,52 @@ fn start_client_app(
     Ok(command.spawn()?)
 }
 
-pub struct Server(VizUdpServer);
+pub struct Server {
+    raw: VizUdpServer,
+    buf: Vec<f32>,
+}
+
+fn send_samples(
+    server: &mut VizUdpServer,
+    samples: &[f32],
+) -> anyhow::Result<()> {
+    for samples_chunk in samples.chunks(MAX_SAMPLES_TO_SEND) {
+        samples_to_ne_bytes(samples_chunk, &mut server.buf);
+        if !server.send_buf()? {
+            break;
+        }
+    }
+    Ok(())
+}
 
 impl Server {
-    pub fn new(config: Config) -> anyhow::Result<Self> {
-        Ok(Self(VizUdpServer::new(|server_addr| {
-            let _client_process =
-                start_client_app(server_addr, PROGRAM_NAME, &config)?;
-            Ok(())
-        })?))
+    pub fn new(title: &str, config: Config) -> anyhow::Result<Self> {
+        Ok(Self {
+            raw: VizUdpServer::new(|server_addr| {
+                let _client_process = start_client_app(
+                    server_addr,
+                    PROGRAM_NAME,
+                    title,
+                    &config,
+                )?;
+                Ok(())
+            })?,
+            buf: Vec::new(),
+        })
     }
 
     pub fn send_samples(&mut self, samples: &[f32]) -> anyhow::Result<()> {
-        for samples_chunk in samples.chunks(MAX_SAMPLES_TO_SEND) {
-            samples_to_ne_bytes(samples_chunk, &mut self.0.buf);
-            if !self.0.send_buf()? {
-                break;
-            }
+        send_samples(&mut self.raw, samples)
+    }
+
+    pub fn send_samples_batched(
+        &mut self,
+        samples: &[f32],
+    ) -> anyhow::Result<()> {
+        self.buf.extend_from_slice(samples);
+        if self.buf.len() >= MAX_SAMPLES_TO_SEND {
+            send_samples(&mut self.raw, &self.buf)?;
+            self.buf.clear();
         }
         Ok(())
     }

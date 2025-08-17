@@ -576,6 +576,16 @@ where
         Sig(MapCtx { sig: self.0, f })
     }
 
+    pub fn for_each<F>(self, mut f: F) -> Sig<impl SigT<Item = S::Item>>
+    where
+        F: FnMut(S::Item),
+    {
+        self.map_mut(move |x| {
+            f(x.clone());
+            x
+        })
+    }
+
     pub fn zip<O>(self, other: O) -> Sig<Zip<S, O>>
     where
         O: SigT,

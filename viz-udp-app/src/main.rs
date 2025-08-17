@@ -44,6 +44,8 @@ struct Cli {
     command: Command,
     #[arg(long)]
     server: String,
+    #[arg(long)]
+    title: String,
 }
 
 #[derive(Default)]
@@ -52,12 +54,16 @@ struct ScopeState {
 }
 
 fn main() -> anyhow::Result<()> {
-    let Cli { server, command } = Cli::parse();
+    let Cli {
+        command,
+        server,
+        title,
+    } = Cli::parse();
     let Command::Oscilloscope(mut args) = command;
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
     let window = video_subsystem
-        .window("CAW Visualization", args.width, args.height)
+        .window(title.as_str(), args.width, args.height)
         .always_on_top()
         .build()?;
     let mut canvas = window
