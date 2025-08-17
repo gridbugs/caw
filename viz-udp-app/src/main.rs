@@ -1,14 +1,12 @@
 use anyhow::anyhow;
 use caw_viz_udp_app_lib::VizUdpClient;
-use clap::Parser;
+use clap::{Parser, Subcommand};
 use line_2d::Coord;
 use sdl2::{event::Event, pixels::Color, rect::Rect};
 use std::collections::VecDeque;
 
 #[derive(Parser)]
-struct Args {
-    #[arg(long)]
-    server: String,
+struct OscilloscopeCommand {
     #[arg(long, default_value_t = 640)]
     width: u32,
     #[arg(long, default_value_t = 480)]
@@ -29,13 +27,31 @@ struct Args {
     blue: u8,
 }
 
+#[derive(Subcommand)]
+enum Command {
+    Oscilloscope(OscilloscopeCommand),
+}
+
+#[derive(Parser)]
+#[command(name = "caw_viz_udp_app")]
+#[command(
+    about = "App for launching visualization for a caw synthesizer that receives data to visualize over udp"
+)]
+struct Cli {
+    #[command(subcommand)]
+    command: Command,
+    #[arg(long)]
+    server: String,
+}
+
 #[derive(Default)]
 struct ScopeState {
     samples: VecDeque<(f32, f32)>,
 }
 
 fn main() -> anyhow::Result<()> {
-    let mut args = Args::parse();
+    let Cli { server, command } = Cli::parse();
+    let Command::Oscilloscope(mut args) = command;
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
     let window = video_subsystem
@@ -49,7 +65,7 @@ fn main() -> anyhow::Result<()> {
         .build()?;
     canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
     let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
-    let mut viz_udp_client = VizUdpClient::new(args.server)?;
+    let mut viz_udp_client = VizUdpClient::new(server)?;
     let mut scope_state = ScopeState::default();
     loop {
         for event in event_pump.poll_iter() {
