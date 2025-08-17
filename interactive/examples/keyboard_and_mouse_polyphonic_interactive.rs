@@ -2,13 +2,14 @@ use caw_core::*;
 use caw_interactive::{Input, Visualization, Window};
 use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note};
 use caw_modules::*;
+use caw_player::PlayerConfig;
 
 fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32> + Send> {
     input
         .clone()
         .keyboard
-        .opinionated_key_events(Note::B2)
-        .poly_voices(12)
+        .opinionated_key_events(Note::B1)
+        .poly_voices(2)
         .into_iter()
         .map(
             move |MonoVoice {
@@ -60,13 +61,16 @@ fn main() -> anyhow::Result<()> {
     let window = Window::builder()
         .sane_default()
         .visualization(Visualization::StereoOscillographics)
-        .line_width(2)
+        .line_width(3)
         .scale(0.7)
         .stride(2)
         .build();
     let input = window.input();
     window.play_stereo(
         Stereo::new_fn_channel(|ch| sig(input.clone(), ch)),
-        Default::default(),
+        PlayerConfig {
+            system_latency_s: 0.05,
+            ..Default::default()
+        },
     )
 }

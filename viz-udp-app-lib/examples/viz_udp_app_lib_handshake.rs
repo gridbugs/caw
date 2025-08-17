@@ -1,8 +1,8 @@
-use caw_viz_udp_app_lib::{VizAppConfig, VizUdpServer};
+use caw_viz_udp_app_lib::oscilloscope;
 use std::time::Duration;
 
 fn main() -> anyhow::Result<()> {
-    let mut server = VizUdpServer::new(VizAppConfig {
+    let mut server = oscilloscope::Server::new(oscilloscope::Config {
         ..Default::default()
     })?;
     loop {

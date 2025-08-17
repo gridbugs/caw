@@ -1,5 +1,7 @@
+/// A udp client which receives visualization data from a corresponding udp server and renders
+/// visualizations in a graphical window.
 use anyhow::anyhow;
-use caw_viz_udp_app_lib::VizUdpClient;
+use caw_viz_udp_app_lib::oscilloscope;
 use clap::{Parser, Subcommand};
 use line_2d::Coord;
 use sdl2::{event::Event, pixels::Color, rect::Rect};
@@ -65,7 +67,7 @@ fn main() -> anyhow::Result<()> {
         .build()?;
     canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
     let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
-    let mut viz_udp_client = VizUdpClient::new(server)?;
+    let mut viz_udp_client = oscilloscope::Client::new(server)?;
     let mut scope_state = ScopeState::default();
     loop {
         for event in event_pump.poll_iter() {

@@ -3,7 +3,7 @@ mod sig;
 pub mod sig_ops;
 pub use sig::{
     Buf, Const, ConstBuf, Filter, GateToTrigRisingEdge, Sig, SigAbs, SigBoxed,
-    SigBoxedVar, SigCtx, SigSampleIntoBufT, SigShared, SigT, SigVar,
+    SigBoxedVar, SigConst, SigCtx, SigSampleIntoBufT, SigShared, SigT, SigVar,
     Triggerable, Zip, Zip3, Zip4, sig_boxed, sig_boxed_var,
     sig_option_first_some, sig_shared, sig_var,
 };
