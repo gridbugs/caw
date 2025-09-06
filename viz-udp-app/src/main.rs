@@ -4,7 +4,10 @@ use anyhow::anyhow;
 use caw_viz_udp_app_lib::oscilloscope;
 use clap::{Parser, Subcommand};
 use line_2d::Coord;
-use sdl2::{event::Event, pixels::Color, rect::Rect};
+use sdl2::{
+    EventPump, event::Event, pixels::Color, rect::Rect, render::Canvas,
+    video::Window,
+};
 use std::collections::VecDeque;
 
 #[derive(Parser)]
@@ -29,9 +32,43 @@ struct OscilloscopeCommand {
     blue: u8,
 }
 
+#[derive(Parser)]
+struct BlinkCommand {
+    #[arg(long, default_value_t = 100)]
+    width: u32,
+    #[arg(long, default_value_t = 100)]
+    height: u32,
+    #[arg(long, short, default_value_t = 0)]
+    red: u8,
+    #[arg(long, short, default_value_t = 255)]
+    green: u8,
+    #[arg(long, short, default_value_t = 0)]
+    blue: u8,
+}
+
 #[derive(Subcommand)]
 enum Command {
     Oscilloscope(OscilloscopeCommand),
+    Blink(BlinkCommand),
+}
+
+impl Command {
+    fn width(&self) -> u32 {
+        match self {
+            Self::Oscilloscope(oscilloscope_command) => {
+                oscilloscope_command.width
+            }
+            Self::Blink(blink_command) => blink_command.width,
+        }
+    }
+    fn height(&self) -> u32 {
+        match self {
+            Self::Oscilloscope(oscilloscope_command) => {
+                oscilloscope_command.height
+            }
+            Self::Blink(blink_command) => blink_command.height,
+        }
+    }
 }
 
 #[derive(Parser)]
@@ -53,17 +90,108 @@ struct ScopeState {
     samples: VecDeque<(f32, f32)>,
 }
 
+struct App {
+    server: String,
+    canvas: Canvas<Window>,
+    event_pump: EventPump,
+}
+
+impl App {
+    fn run_oscilloscope(
+        mut self,
+        mut args: OscilloscopeCommand,
+    ) -> anyhow::Result<()> {
+        let mut viz_udp_client = oscilloscope::Client::new(self.server)?;
+        let mut scope_state = ScopeState::default();
+        loop {
+            for event in self.event_pump.poll_iter() {
+                match event {
+                    Event::Quit { .. } => std::process::exit(0),
+                    Event::MouseWheel { y, .. } => {
+                        let ratio = 1.1;
+                        if y > 0 {
+                            args.scale *= ratio;
+                        } else {
+                            args.scale /= ratio;
+                        }
+                    }
+                    Event::MouseMotion {
+                        mousestate, xrel, ..
+                    } => {
+                        if mousestate.left() {
+                            args.line_width = ((args.line_width as i32) + xrel)
+                                .clamp(1, 20)
+                                as u32;
+                        }
+                        if mousestate.right() {
+                            args.alpha_scale = (args.alpha_scale as i32 + xrel)
+                                .clamp(1, 255)
+                                as u8;
+                        }
+                    }
+                    _ => (),
+                }
+            }
+            while let Ok(true) = viz_udp_client.recv_sample() {
+                for sample_pair in viz_udp_client.pairs() {
+                    scope_state.samples.push_back(sample_pair);
+                }
+                while scope_state.samples.len() > args.max_num_samples {
+                    scope_state.samples.pop_front();
+                }
+            }
+            self.canvas.set_draw_color(Color::RGB(0, 0, 0));
+            self.canvas.clear();
+            let screen_size = Coord {
+                x: args.width as i32,
+                y: args.height as i32,
+            };
+            let mut coord_iter =
+                scope_state.samples.iter().map(|(left, right)| {
+                    Coord {
+                        x: (left * args.scale) as i32,
+                        y: (right * args.scale) as i32,
+                    } + screen_size / 2
+                });
+            let mut prev = if let Some(first) = coord_iter.next() {
+                first
+            } else {
+                Coord::new(0, 0)
+            };
+            for (i, coord) in coord_iter.enumerate() {
+                let alpha = ((args.alpha_scale as usize * i)
+                    / args.max_num_samples)
+                    .min(255) as u8;
+                self.canvas.set_draw_color(Color::RGBA(
+                    args.red, args.green, args.blue, alpha,
+                ));
+                for Coord { x, y } in line_2d::coords_between(prev, coord) {
+                    let rect =
+                        Rect::new(x, y, args.line_width, args.line_width);
+                    let _ = self.canvas.fill_rect(rect);
+                }
+                prev = coord;
+            }
+            self.canvas.present();
+        }
+    }
+
+    fn run_blink(mut self, mut args: BlinkCommand) -> anyhow::Result<()> {
+        println!("xxxxxx");
+        loop {}
+    }
+}
+
 fn main() -> anyhow::Result<()> {
     let Cli {
         command,
         server,
         title,
     } = Cli::parse();
-    let Command::Oscilloscope(mut args) = command;
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
     let window = video_subsystem
-        .window(title.as_str(), args.width, args.height)
+        .window(title.as_str(), command.width(), command.height())
         .always_on_top()
         .build()?;
     let mut canvas = window
@@ -72,75 +200,16 @@ fn main() -> anyhow::Result<()> {
         .present_vsync()
         .build()?;
     canvas.set_blend_mode(sdl2::render::BlendMode::Blend);
-    let mut event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
-    let mut viz_udp_client = oscilloscope::Client::new(server)?;
-    let mut scope_state = ScopeState::default();
-    loop {
-        for event in event_pump.poll_iter() {
-            match event {
-                Event::Quit { .. } => std::process::exit(0),
-                Event::MouseWheel { y, .. } => {
-                    let ratio = 1.1;
-                    if y > 0 {
-                        args.scale *= ratio;
-                    } else {
-                        args.scale /= ratio;
-                    }
-                }
-                Event::MouseMotion {
-                    mousestate, xrel, ..
-                } => {
-                    if mousestate.left() {
-                        args.line_width = ((args.line_width as i32) + xrel)
-                            .clamp(1, 20)
-                            as u32;
-                    }
-                    if mousestate.right() {
-                        args.alpha_scale = (args.alpha_scale as i32 + xrel)
-                            .clamp(1, 255)
-                            as u8;
-                    }
-                }
-                _ => (),
-            }
+    let event_pump = sdl_context.event_pump().map_err(|e| anyhow!(e))?;
+    let app = App {
+        server,
+        event_pump,
+        canvas,
+    };
+    match command {
+        Command::Oscilloscope(oscilloscope_command) => {
+            app.run_oscilloscope(oscilloscope_command)
         }
-        while let Ok(true) = viz_udp_client.recv_sample() {
-            for sample_pair in viz_udp_client.pairs() {
-                scope_state.samples.push_back(sample_pair);
-            }
-            while scope_state.samples.len() > args.max_num_samples {
-                scope_state.samples.pop_front();
-            }
-        }
-        canvas.set_draw_color(Color::RGB(0, 0, 0));
-        canvas.clear();
-        let screen_size = Coord {
-            x: args.width as i32,
-            y: args.height as i32,
-        };
-        let mut coord_iter = scope_state.samples.iter().map(|(left, right)| {
-            Coord {
-                x: (left * args.scale) as i32,
-                y: (right * args.scale) as i32,
-            } + screen_size / 2
-        });
-        let mut prev = if let Some(first) = coord_iter.next() {
-            first
-        } else {
-            Coord::new(0, 0)
-        };
-        for (i, coord) in coord_iter.enumerate() {
-            let alpha = ((args.alpha_scale as usize * i) / args.max_num_samples)
-                .min(255) as u8;
-            canvas.set_draw_color(Color::RGBA(
-                args.red, args.green, args.blue, alpha,
-            ));
-            for Coord { x, y } in line_2d::coords_between(prev, coord) {
-                let rect = Rect::new(x, y, args.line_width, args.line_width);
-                let _ = canvas.fill_rect(rect);
-            }
-            prev = coord;
-        }
-        canvas.present();
+        Command::Blink(blink_command) => app.run_blink(blink_command),
     }
 }

@@ -1,14 +1,11 @@
-use crate::common::{PROGRAM_NAME, VizUdpClient, VizUdpServer};
-
+use crate::common::{
+    MAX_F32_SAMPLES_TO_SEND, PROGRAM_NAME, VizUdpClient, VizUdpServer,
+    samples_from_ne_bytes, samples_to_ne_bytes,
+};
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     process::{Child, Command},
 };
-
-// Based on the max number of bytes that can somewhat reliably be sent over UDP (508) divided by 4
-// as we'll be sending f32's. That gives us 127, but since we're actually sending pairs of f32's,
-// reduce this to an even number.
-const MAX_SAMPLES_TO_SEND: usize = 126;
 
 pub struct Config {
     pub width: u32,
@@ -35,28 +32,6 @@ impl Default for Config {
             green: 255,
             blue: 0,
         }
-    }
-}
-
-fn samples_to_ne_bytes(samples: &[f32], out: &mut Vec<u8>) {
-    out.clear();
-    for sample in samples {
-        out.extend_from_slice(&sample.to_ne_bytes());
-    }
-}
-
-fn samples_from_ne_bytes(bytes: &[u8], out: &mut Vec<f32>) {
-    if bytes.len() % 4 != 0 {
-        log::error!(
-            "Received a buffer of bytes that is not a multiple of 4 bytes in length (length is {}).",
-            bytes.len()
-        );
-    }
-    out.clear();
-    let mut buf = [0; 4];
-    for w in bytes.chunks_exact(4) {
-        buf.copy_from_slice(w);
-        out.push(f32::from_ne_bytes(buf));
     }
 }
 
@@ -93,7 +68,7 @@ fn send_samples(
     server: &mut VizUdpServer,
     samples: &[f32],
 ) -> anyhow::Result<()> {
-    for samples_chunk in samples.chunks(MAX_SAMPLES_TO_SEND) {
+    for samples_chunk in samples.chunks(MAX_F32_SAMPLES_TO_SEND) {
         samples_to_ne_bytes(samples_chunk, &mut server.buf);
         if !server.send_buf()? {
             break;
@@ -127,7 +102,7 @@ impl Server {
         samples: &[f32],
     ) -> anyhow::Result<()> {
         self.buf.extend_from_slice(samples);
-        if self.buf.len() >= MAX_SAMPLES_TO_SEND {
+        if self.buf.len() >= MAX_F32_SAMPLES_TO_SEND {
             send_samples(&mut self.raw, &self.buf)?;
             self.buf.clear();
         }

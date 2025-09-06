@@ -3,6 +3,33 @@ pub const HANDSHAKE: [u8; 4] = [0x43, 0x41, 0x57, 0x0];
 
 pub const PROGRAM_NAME: &str = "caw_viz_udp_app";
 
+// Based on the max number of bytes that can somewhat reliably be sent over UDP (508) divided by 4
+// as we'll be sending f32's. That gives us 127, but since we're actually sending pairs of f32's,
+// reduce this to an even number.
+pub const MAX_F32_SAMPLES_TO_SEND: usize = 126;
+
+pub fn samples_to_ne_bytes(samples: &[f32], out: &mut Vec<u8>) {
+    out.clear();
+    for sample in samples {
+        out.extend_from_slice(&sample.to_ne_bytes());
+    }
+}
+
+pub fn samples_from_ne_bytes(bytes: &[u8], out: &mut Vec<f32>) {
+    if bytes.len() % 4 != 0 {
+        log::error!(
+            "Received a buffer of bytes that is not a multiple of 4 bytes in length (length is {}).",
+            bytes.len()
+        );
+    }
+    out.clear();
+    let mut buf = [0; 4];
+    for w in bytes.chunks_exact(4) {
+        buf.copy_from_slice(w);
+        out.push(f32::from_ne_bytes(buf));
+    }
+}
+
 fn wait_for_handshake(socket: &UdpSocket) -> anyhow::Result<SocketAddr> {
     let mut buf = [0; 8];
     loop {
