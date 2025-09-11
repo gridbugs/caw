@@ -123,3 +123,8 @@ impl VizUdpClient {
         }
     }
 }
+
+pub enum SendStatus {
+    Success,
+    Disconnected,
+}

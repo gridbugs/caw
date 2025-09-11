@@ -8,3 +8,4 @@
 pub mod blink;
 mod common;
 pub mod oscilloscope;
+pub use common::SendStatus;

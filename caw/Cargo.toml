@@ -73,3 +73,7 @@ required-features = [ "interactive", "audio_file" ]
 [[example]]
 name = "udp_viz_demo"
 required-features = [ "viz", "player" ]
+
+[[example]]
+name = "live_example"
+required-features = [ "live", "widgets", "viz" ]

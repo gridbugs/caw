@@ -1,12 +1,31 @@
 use crate::common::{
-    MAX_F32_SAMPLES_TO_SEND, PROGRAM_NAME, VizUdpClient, VizUdpServer,
-    samples_from_ne_bytes, samples_to_ne_bytes,
+    MAX_F32_SAMPLES_TO_SEND, PROGRAM_NAME, SendStatus, VizUdpClient,
+    VizUdpServer, samples_from_ne_bytes, samples_to_ne_bytes,
 };
 use std::{
     net::{SocketAddr, ToSocketAddrs},
     process::{Child, Command},
 };
 
+#[derive(Clone, Copy, Debug)]
+pub enum OscilloscopeStyle {
+    Xy,
+    TimeDomain,
+    TimeDomainStereo,
+}
+impl ToString for OscilloscopeStyle {
+    fn to_string(&self) -> String {
+        match self {
+            OscilloscopeStyle::Xy => format!("xy"),
+            OscilloscopeStyle::TimeDomain => format!("time-domain"),
+            OscilloscopeStyle::TimeDomainStereo => {
+                format!("time-domain-stereo")
+            }
+        }
+    }
+}
+
+#[derive(Clone)]
 pub struct Config {
     pub width: u32,
     pub height: u32,
@@ -17,6 +36,7 @@ pub struct Config {
     pub red: u8,
     pub green: u8,
     pub blue: u8,
+    pub style: OscilloscopeStyle,
 }
 
 impl Default for Config {
@@ -31,6 +51,7 @@ impl Default for Config {
             red: 0,
             green: 255,
             blue: 0,
+            style: OscilloscopeStyle::Xy,
         }
     }
 }
@@ -67,14 +88,14 @@ pub struct Server {
 fn send_samples(
     server: &mut VizUdpServer,
     samples: &[f32],
-) -> anyhow::Result<()> {
+) -> anyhow::Result<SendStatus> {
     for samples_chunk in samples.chunks(MAX_F32_SAMPLES_TO_SEND) {
         samples_to_ne_bytes(samples_chunk, &mut server.buf);
         if !server.send_buf()? {
-            break;
+            return Ok(SendStatus::Disconnected);
         }
     }
-    Ok(())
+    Ok(SendStatus::Success)
 }
 
 impl Server {
@@ -93,7 +114,10 @@ impl Server {
         })
     }
 
-    pub fn send_samples(&mut self, samples: &[f32]) -> anyhow::Result<()> {
+    pub fn send_samples(
+        &mut self,
+        samples: &[f32],
+    ) -> anyhow::Result<SendStatus> {
         send_samples(&mut self.raw, samples)
     }
 

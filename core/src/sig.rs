@@ -19,6 +19,7 @@ where
 {
     fn iter(&self) -> impl Iterator<Item = T>;
 
+    /// Clears `out` and populates it with the contents of `self`.
     fn clone_to_vec(&self, out: &mut Vec<T>) {
         out.clear();
         for x in self.iter() {
@@ -586,6 +587,19 @@ where
         })
     }
 
+    /// Calls `f` once per frame on all the samples computed during that frame, returning the
+    /// original signal unchanged.
+    pub fn with_buf<F>(self, f: F) -> Sig<WithBuf<S, F>>
+    where
+        F: FnMut(&[S::Item]),
+    {
+        Sig(WithBuf {
+            sig: self.0,
+            f,
+            buf: Vec::new(),
+        })
+    }
+
     pub fn zip<O>(self, other: O) -> Sig<Zip<S, O>>
     where
         O: SigT,
@@ -999,6 +1013,31 @@ where
         O: SigT<Item = Option<T>>,
     {
         self.zip(other).map(|(s, o)| s.or(o))
+    }
+}
+
+pub struct WithBuf<S, F>
+where
+    S: SigT,
+    F: FnMut(&[S::Item]),
+{
+    sig: S,
+    f: F,
+    buf: Vec<S::Item>,
+}
+
+impl<S, F> SigT for WithBuf<S, F>
+where
+    S: SigT,
+    F: FnMut(&[S::Item]),
+{
+    type Item = S::Item;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let ret = self.sig.sample(ctx);
+        ret.clone_to_vec(&mut self.buf);
+        (self.f)(&self.buf);
+        ret
     }
 }
 

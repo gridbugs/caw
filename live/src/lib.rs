@@ -2,7 +2,7 @@ use caw_core::{Sig, SigBoxedVar, Stereo, StereoPair, svf32};
 use caw_player::{
     PlayerConfig, PlayerVisualizationData, VisualizationDataPolicy, play_stereo,
 };
-use caw_viz_udp_app_lib::oscilloscope;
+use caw_viz_udp_app_lib::{SendStatus, oscilloscope};
 use lazy_static::lazy_static;
 use std::{sync::Mutex, thread, time::Duration};
 
@@ -40,11 +40,20 @@ pub fn live_stereo_viz(
 
 pub fn live_stereo_viz_udp(config: oscilloscope::Config) -> LiveStereoOut {
     let (out, viz_data) = live_stereo_viz(VisualizationDataPolicy::All);
-    let mut viz = oscilloscope::Server::new("CAW Synthesizer", config).unwrap();
+    let make_viz = move || {
+        oscilloscope::Server::new("CAW Synthesizer", config.clone()).unwrap()
+    };
+    let mut viz = make_viz();
     thread::spawn(move || {
         loop {
-            // TODO: Is it ok to ignore errors here?
-            let _ = viz_data.with_and_clear(|buf| viz.send_samples(buf));
+            match viz_data.with_and_clear(|buf| viz.send_samples(buf)) {
+                Ok(SendStatus::Success) => (),
+                Ok(SendStatus::Disconnected) => {
+                    // re-open the visualization if it was closed
+                    viz = make_viz();
+                }
+                Err(e) => eprintln!("{}", e),
+            }
             thread::sleep(Duration::from_millis(16));
         }
     });
