@@ -21,10 +21,13 @@ fn main() {
                 let _ = scope.send_samples(buf);
             })
     });
+    let key_events = computer_keyboard("keys").build().key_events().shared();
     out.set(|| {
-        super_saw(60.)
+        let voice = key_events.clone().mono_voice();
+        super_saw(voice.note.freq_hz())
             .build()
             .filter(low_pass::default(100. + env.clone() * 4000.).q(0.5))
+            .filter(reverb())
     });
     thread::park();
 }

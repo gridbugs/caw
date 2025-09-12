@@ -12,7 +12,7 @@ edition = "2024"
 [features]
 web = ["caw_player/web", "caw_keyboard/web", "caw_modules/web", "caw_utils/web"]
 player = ["caw_player"]
-live = ["caw_live"]
+live = ["caw_live", "midi_live" ]
 widgets = ["caw_midi_udp_widgets_app_lib"]
 viz = ["caw_viz_udp_app_lib"]
 midi_live = ["caw_midi", "caw_midi_live"]

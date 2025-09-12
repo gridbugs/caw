@@ -1,6 +1,6 @@
 use caw_core::{Buf, Sig, SigShared, SigT, Zip, sig_shared};
 use caw_keyboard::Note;
-use caw_midi::{MidiController01, MidiKeyPress, MidiMessagesT};
+use caw_midi::{MidiController01, MidiKeyPress, MidiMessages, MidiMessagesT};
 use caw_midi_udp::{MidiLiveUdp, MidiLiveUdpChannel};
 use lazy_static::lazy_static;
 use std::{
@@ -28,6 +28,8 @@ lazy_static! {
     static ref KNOBS_BY_TITLE: Mutex<HashMap<String, Sig<SigShared<Knob>>>> =
         Mutex::new(HashMap::new());
     static ref XYS_BY_TITLE: Mutex<HashMap<String, Sig<SigShared<Xy>>>> =
+        Mutex::new(HashMap::new());
+    static ref COMPUTER_KEYBOARDS_BY_TITLE: Mutex<HashMap<String, Sig<SigShared<ComputerKeyboard>>>> =
         Mutex::new(HashMap::new());
 
     /// MIDI controller indices are allocated dynamically and this global tracks the value of the
@@ -339,3 +341,91 @@ mod xy_builder {
 }
 
 pub use xy_builder::xy;
+
+pub struct ComputerKeyboard {
+    widget: Widget,
+    start_note: Note,
+    sig: Sig<SigShared<MidiLiveUdpChannel>>,
+}
+
+impl ComputerKeyboard {
+    pub fn new(title: String, start_note: Note) -> Sig<SigShared<Self>> {
+        let mut computer_keyboads_by_title =
+            COMPUTER_KEYBOARDS_BY_TITLE.lock().unwrap();
+        if let Some(computer_keyboard) = computer_keyboads_by_title.get(&title)
+        {
+            computer_keyboard.clone()
+        } else {
+            let sig = SIG.clone();
+            let mut s = Self {
+                widget: Widget {
+                    title: title.clone(),
+                    process: None,
+                },
+                start_note,
+                sig,
+            };
+            let child = match s.command().spawn() {
+                Ok(child) => child,
+                Err(e) => panic!(
+                    "{} (make sure `{}` is in your PATH",
+                    e, PROGRAM_NAME
+                ),
+            };
+            s.widget.process = Some(child);
+            let s = sig_shared(s);
+            computer_keyboads_by_title.insert(title, s.clone());
+            s
+        }
+    }
+
+    fn command(&self) -> Command {
+        let mut command = Command::new(PROGRAM_NAME);
+        let args = vec![
+            format!(
+                "--server={}",
+                sig_server_local_socket_address().to_string()
+            ),
+            format!("--channel={}", CHANNEL),
+            format!("--title={}", self.widget.title.clone()),
+            "computer-keyboard".to_string(),
+            format!("--start-note={}", self.start_note),
+        ];
+        command.args(args);
+        command
+    }
+}
+
+impl SigT for ComputerKeyboard {
+    type Item = MidiMessages;
+
+    fn sample(&mut self, ctx: &caw_core::SigCtx) -> impl Buf<Self::Item> {
+        self.sig.sample(ctx)
+    }
+}
+
+mod computer_keyboard_builder {
+    use super::ComputerKeyboard;
+    use caw_builder_proc_macros::builder;
+    use caw_core::{Sig, SigShared};
+    use caw_keyboard::Note;
+
+    builder! {
+        #[constructor = "computer_keyboard_"]
+        #[constructor_doc = "Generate midi events with a computer keyboard when this widget is focused"]
+        #[generic_setter_type_name = "X"]
+        #[build_fn = "ComputerKeyboard::new"]
+        #[build_ty = "Sig<SigShared<ComputerKeyboard>>"]
+        pub struct Props {
+            title: String,
+            #[default = Note::B1]
+            start_note: Note,
+        }
+    }
+
+    pub fn computer_keyboard(title: impl Into<String>) -> Props {
+        computer_keyboard_(title.into())
+    }
+}
+
+pub use computer_keyboard_builder::computer_keyboard;

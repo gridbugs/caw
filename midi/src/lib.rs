@@ -106,6 +106,7 @@ where
     }
 }
 
+/// A signal representing the state of a single midi key
 pub struct MidiKeyPress<M>
 where
     M: SigT<Item = MidiMessages>,
@@ -192,6 +193,7 @@ where
 
     fn controllers(self) -> MidiControllers<M>;
 
+    /// Return a signal that reports the state of a given key over time.
     fn key_press(self, note: Note) -> MidiKeyPress<M>;
 }
 
