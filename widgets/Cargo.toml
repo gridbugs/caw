@@ -15,6 +15,9 @@ sdl2 = { version = "0.38", features = ["ttf"] }
 line_2d = "0.5"
 lazy_static = "1.5"
 midly = "0.5"
+caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
+caw_keyboard = { version = "0.4", path = "../keyboard" }
+caw_sdl2 = { version = "0.1", path = "../sdl2" }
 
 [dev-dependencies]
 env_logger = "0.11"

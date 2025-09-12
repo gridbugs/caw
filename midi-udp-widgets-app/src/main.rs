@@ -1,6 +1,10 @@
-use caw_keyboard::Note;
+//! An executable which displays a widget and runs a UDP client which sends MIDI messages over a
+//! UDP socket to a server (specified as a command-line argument). A caw synthesizer is expected to
+//! run a UDP server which receives MIDI over UDP.
+
+use caw_keyboard::{Note, note};
 use caw_midi_udp_client::*;
-use caw_widgets::{Button, Knob, Xy};
+use caw_widgets::{Button, ComputerKeyboard, Knob, Xy};
 use clap::{Parser, Subcommand};
 
 #[derive(Subcommand)]
@@ -19,6 +23,10 @@ enum Command {
         controller_x: u8,
         #[arg(long, default_value_t = 1)]
         controller_y: u8,
+    },
+    ComputerKeyboard {
+        #[arg(long, default_value_t = note::B2)]
+        start_note: Note,
     },
 }
 
@@ -103,6 +111,19 @@ fn main() {
                         },
                     })
                     .unwrap();
+            }
+        }
+        Command::ComputerKeyboard { start_note } => {
+            let mut buf = Vec::new();
+            let mut computer_keyboard =
+                ComputerKeyboard::new(cli.title.as_deref(), start_note)
+                    .unwrap();
+            loop {
+                computer_keyboard.tick(&mut buf).unwrap();
+                for message in buf.drain(..) {
+                    let midi_event = MidiEvent { channel, message };
+                    client.send(midi_event).unwrap();
+                }
             }
         }
     }

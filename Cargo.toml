@@ -23,6 +23,7 @@ members = [
     "modules",
     "patches",
     "player",
+    "sdl2",
     "utils",
     "viz-udp-app",
     "viz-udp-app-lib",

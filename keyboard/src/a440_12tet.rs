@@ -1,5 +1,6 @@
-/// 12-tone equal temperament following the A440Hz convention
+//! 12-tone equal temperament following the A440Hz convention
 use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
+use std::{fmt::Display, str::FromStr};
 
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Octave(u8);
@@ -7,9 +8,13 @@ pub struct Octave(u8);
 impl Octave {
     pub const MAX_OCTAVE: u8 = 8;
 
-    pub fn new(i: u8) -> Self {
+    pub const fn new(i: u8) -> Self {
         assert!(i <= Self::MAX_OCTAVE);
         Self(i)
+    }
+
+    pub const fn index(self) -> u8 {
+        self.0
     }
 
     pub const _0: Self = Self(0);
@@ -92,6 +97,48 @@ impl NoteName {
         self.relative_midi_index
     }
 
+    /// Returns a str representation of the note name where all accidentals are sharp, formatted
+    /// like "C" or "C_sharp"
+    pub const fn to_str_sharp(self) -> &'static str {
+        match self.relative_midi_index {
+            0 => "C",
+            1 => "C_sharp",
+            2 => "D",
+            3 => "D_sharp",
+            4 => "E",
+            5 => "F",
+            6 => "F_sharp",
+            7 => "G",
+            8 => "G_sharp",
+            9 => "A",
+            10 => "A_sharp",
+            11 => "B",
+            _ => unreachable!(),
+        }
+    }
+
+    /// Parses a str like "C" or "C_sharp"
+    pub fn from_str_sharp(s: &str) -> Option<Self> {
+        let relative_midi_index = match s {
+            "C" => 0,
+            "C_sharp" => 1,
+            "D" => 2,
+            "D_sharp" => 3,
+            "E" => 4,
+            "F" => 5,
+            "F_sharp" => 6,
+            "G" => 7,
+            "G_sharp" => 8,
+            "A" => 9,
+            "A_sharp" => 10,
+            "B" => 11,
+            _ => return None,
+        };
+        Some(Self {
+            relative_midi_index,
+        })
+    }
+
     const fn wrapping_add_semitones(self, num_semitones: i8) -> Self {
         Self::from_index(
             (self.to_index() as i8 + num_semitones)
@@ -160,7 +207,7 @@ impl Note {
         }
     }
 
-    pub fn to_midi_index(self) -> u8 {
+    pub const fn to_midi_index(self) -> u8 {
         self.midi_index
     }
 
@@ -174,11 +221,20 @@ impl Note {
         }
     }
 
-    pub fn octave(self) -> Octave {
-        Octave::new(self.midi_index / NOTES_PER_OCTAVE)
+    pub const fn octave(self) -> Octave {
+        Octave::new((self.midi_index - C0_MIDI_INDEX) / NOTES_PER_OCTAVE)
     }
 
-    pub fn add_semitones_checked(self, num_semitones: i16) -> Option<Self> {
+    pub const fn note_name(self) -> NoteName {
+        NoteName::from_index(
+            (self.midi_index - C0_MIDI_INDEX) % NOTES_PER_OCTAVE,
+        )
+    }
+
+    pub const fn add_semitones_checked(
+        self,
+        num_semitones: i16,
+    ) -> Option<Self> {
         let midi_index = self.midi_index as i16 + num_semitones;
         if midi_index < 0 || midi_index > MAX_MIDI_INDEX as i16 {
             None
@@ -189,18 +245,76 @@ impl Note {
         }
     }
 
-    pub fn add_octaves_checked(self, num_octaves: i8) -> Option<Self> {
+    pub const fn add_octaves_checked(self, num_octaves: i8) -> Option<Self> {
         self.add_semitones_checked(num_octaves as i16 * NOTES_PER_OCTAVE as i16)
     }
 
-    pub fn add_semitones(self, num_semitones: i16) -> Self {
+    pub const fn add_semitones(self, num_semitones: i16) -> Self {
         Self {
             midi_index: (self.midi_index as i16 + num_semitones) as u8,
         }
     }
 
-    pub fn add_octaves(self, num_octaves: i8) -> Self {
+    pub const fn add_octaves(self, num_octaves: i8) -> Self {
         self.add_semitones(num_octaves as i16 * NOTES_PER_OCTAVE as i16)
+    }
+}
+
+/// Example formats: "C_sharp-4", "C-4"
+impl Display for Note {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(
+            f,
+            "{}-{}",
+            self.note_name().to_str_sharp(),
+            self.octave().index()
+        )
+    }
+}
+
+/// Expected format: "C_sharp-4", "C-4"
+impl FromStr for Note {
+    type Err = String;
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        let mut split = s.split("-");
+        if let Some(name) = split.next() {
+            if let Some(name) = NoteName::from_str_sharp(name) {
+                if let Some(octave_index) = split.next() {
+                    match octave_index.parse::<u8>() {
+                        Ok(octave_index) => {
+                            if octave_index <= Octave::MAX_OCTAVE {
+                                if split.next().is_none() {
+                                    Ok(Note::new(
+                                        name,
+                                        Octave::new(octave_index),
+                                    ))
+                                } else {
+                                    Err(format!(
+                                        "Multiple dashes in note string."
+                                    ))
+                                }
+                            } else {
+                                Err(format!(
+                                    "Octave index {} too high (max is {}).",
+                                    octave_index,
+                                    Octave::MAX_OCTAVE
+                                ))
+                            }
+                        }
+                        Err(e) => {
+                            Err(format!("Failed to parse octave index: {}", e))
+                        }
+                    }
+                } else {
+                    Err(format!("No dash in note string."))
+                }
+            } else {
+                Err(format!("Failed to parse note name: {}", name))
+            }
+        } else {
+            Err(format!("Failed to parse note name."))
+        }
     }
 }
 
@@ -861,4 +975,28 @@ pub mod note {
     pub const B6: Note = Note::B6;
     pub const B7: Note = Note::B7;
     pub const B8: Note = Note::B8;
+}
+
+#[cfg(test)]
+mod test {
+    use super::*;
+
+    #[test]
+    fn octave_round_trip() {
+        assert_eq!(Note::new(note_name::C, OCTAVE_0).octave(), OCTAVE_0);
+    }
+
+    #[test]
+    fn note_name_round_trip() {
+        assert_eq!(Note::new(note_name::D, OCTAVE_3).note_name(), note_name::D);
+    }
+
+    #[test]
+    fn string_round_trip() {
+        assert_eq!(note::D6.to_string().parse::<Note>().unwrap(), note::D6);
+        assert_eq!(
+            note::A_SHARP5.to_string().parse::<Note>().unwrap(),
+            note::A_SHARP5
+        );
+    }
 }

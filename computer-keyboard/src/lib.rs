@@ -2,7 +2,7 @@ use caw_core::{Buf, Sig, SigT};
 use caw_keyboard::{KeyEvent, KeyEvents, Note};
 use itertools::izip;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 pub enum Key {
     A,
     B,
@@ -274,7 +274,7 @@ impl<K> Keyboard<K> {
 
 /// Maps the keys on a US keyboard to musical notes. The 4 rows from the number row to the ZXCV row
 /// are used, where the QWER and ZXCV are white notes and the number and ZXCV rows are black notes.
-fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
+pub fn opinionated_note_by_key(start_note: Note) -> Vec<(Key, Note)> {
     use Key::*;
     let top_row_base = start_note.add_octaves(1);
     let top_row = vec![

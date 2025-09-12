@@ -12,6 +12,3 @@ documentation = "https://docs.rs/viz_udp_app_lib"
 [dependencies]
 anyhow = "1.0"
 log = "0.4"
-
-[[example]]
-name = "viz_udp_app_lib_handshake"
