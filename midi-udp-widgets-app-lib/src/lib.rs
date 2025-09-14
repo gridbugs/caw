@@ -1,8 +1,12 @@
 use caw_core::{Buf, Sig, SigShared, SigT, Zip, sig_shared};
 use caw_keyboard::Note;
-use caw_midi::{MidiController01, MidiKeyPress, MidiMessages, MidiMessagesT};
-use caw_midi_udp::{MidiLiveUdp, MidiLiveUdpChannel};
+use caw_midi::{
+    MidiChannel, MidiController01, MidiEventsT, MidiKeyPress, MidiMessages,
+    MidiMessagesT,
+};
+use caw_midi_udp::MidiLiveUdp;
 use lazy_static::lazy_static;
+use midly::num::{u4, u7};
 use std::{
     collections::HashMap,
     net::SocketAddr,
@@ -10,13 +14,60 @@ use std::{
     sync::Mutex,
 };
 
-// For now this library only supports midi channel 0
-const CHANNEL: u8 = 0;
+struct ChannelAllocator {
+    next_channel: Option<u4>,
+    next_controller_index_by_channel: HashMap<u4, Option<u7>>,
+}
+
+impl ChannelAllocator {
+    fn new() -> Self {
+        Self {
+            next_channel: Some(0.into()),
+            next_controller_index_by_channel: HashMap::new(),
+        }
+    }
+
+    fn alloc_channel(&mut self) -> u4 {
+        let channel = self.next_channel.expect("Can't allocate MIDI channel because all MIDI channels are in use already.");
+        self.next_channel = if channel == u4::max_value() {
+            None
+        } else {
+            Some((u8::from(channel) + 1).into())
+        };
+        channel
+    }
+
+    fn alloc_controller(&mut self, channel: u4) -> u7 {
+        if let Some(next_channel) = self.next_channel {
+            assert!(
+                channel < next_channel,
+                "Attempted to allocate controller on unallocated channel."
+            );
+        }
+        let next_controller = self
+            .next_controller_index_by_channel
+            .entry(channel)
+            .or_insert_with(|| Some(0.into()));
+        if let Some(controller) = *next_controller {
+            *next_controller = if controller == u7::max_value() {
+                None
+            } else {
+                Some((u8::from(controller) + 1).into())
+            };
+            controller
+        } else {
+            panic!(
+                "Can't allocate MIDI controller because all MIDI controllers on channel {} are in use already.",
+                channel
+            );
+        }
+    }
+}
 
 lazy_static! {
     // A stream of MIDI events received by the UDP/IP server. It owns the UDP/IP server.
-    static ref SIG: Sig<SigShared<MidiLiveUdpChannel>> =
-        sig_shared(MidiLiveUdp::new_unspecified().unwrap().channel(CHANNEL).0);
+    static ref SIG: Sig<SigShared<MidiLiveUdp>> =
+        sig_shared(MidiLiveUdp::new_unspecified().unwrap());
 
     // Used to prevent multiple windows from opening at the same time with the same name. Note that
     // when using with evcxr this seems to get cleared when a cell is recomputed, but this is still
@@ -32,27 +83,19 @@ lazy_static! {
     static ref COMPUTER_KEYBOARDS_BY_TITLE: Mutex<HashMap<String, Sig<SigShared<ComputerKeyboard>>>> =
         Mutex::new(HashMap::new());
 
-    /// MIDI controller indices are allocated dynamically and this global tracks the value of the
-    /// next controller index to allocate.
-    static ref NEXT_CONTROLLER_INDEX: Mutex<u8> = Mutex::new(0);
+    static ref CHANNEL_ALLOCATOR: Mutex<ChannelAllocator> = Mutex::new(ChannelAllocator::new());
 }
 
 /// Returns the IP address of the server that will receive MIDI events.
 fn sig_server_local_socket_address() -> SocketAddr {
-    SIG.0.with_inner(|midi_live_udp_channel| {
-        midi_live_udp_channel.server.local_socket_address().unwrap()
+    SIG.0.with_inner(|midi_live_udp| {
+        midi_live_udp.local_socket_address().unwrap()
     })
 }
 
-/// Allocates and returns unique MIDI controller value.
-fn alloc_controller() -> u8 {
-    let mut next_controller_index = NEXT_CONTROLLER_INDEX.lock().unwrap();
-    let controller_index = *next_controller_index;
-    *next_controller_index += 1;
-    controller_index
-}
-
 const PROGRAM_NAME: &str = "caw_midi_udp_widgets_app";
+
+type MidiChannelUdp = MidiChannel<SigShared<MidiLiveUdp>>;
 
 struct Widget {
     title: String,
@@ -61,7 +104,8 @@ struct Widget {
 
 pub struct Button {
     widget: Widget,
-    sig: Sig<MidiKeyPress<SigShared<MidiLiveUdpChannel>>>,
+    sig: Sig<MidiKeyPress<MidiChannelUdp>>,
+    channel_index: u4,
 }
 
 impl Button {
@@ -70,14 +114,18 @@ impl Button {
         if let Some(button) = buttons_by_title.get(&title) {
             button.clone()
         } else {
+            let channel_index =
+                CHANNEL_ALLOCATOR.lock().unwrap().alloc_channel();
+            let channel = SIG.clone().channel(channel_index.into());
             // The choice of note here is arbitrary.
-            let sig = Sig(SIG.clone().key_press(Note::default()));
+            let sig = Sig(channel.key_press(Note::default()));
             let mut s = Self {
                 widget: Widget {
                     title: title.clone(),
                     process: None,
                 },
                 sig,
+                channel_index,
             };
             let child = match s.command().spawn() {
                 Ok(child) => child,
@@ -100,7 +148,7 @@ impl Button {
                 "--server={}",
                 sig_server_local_socket_address().to_string()
             ),
-            format!("--channel={}", CHANNEL),
+            format!("--channel={}", self.channel_index),
             format!("--title={}", self.widget.title.clone()),
             "button".to_string(),
         ];
@@ -145,7 +193,8 @@ pub struct Knob {
     controller: u8,
     initial_value_01: f32,
     sensitivity: f32,
-    sig: Sig<MidiController01<SigShared<MidiLiveUdpChannel>>>,
+    sig: Sig<MidiController01<MidiChannelUdp>>,
+    channel_index: u4,
 }
 
 impl Knob {
@@ -158,9 +207,11 @@ impl Knob {
         if let Some(knob) = knobs_by_title.get(&title) {
             knob.clone()
         } else {
-            let controller = alloc_controller();
-            let sig = SIG
-                .clone()
+            let mut allocator = CHANNEL_ALLOCATOR.lock().unwrap();
+            let channel_index = allocator.alloc_channel();
+            let controller = allocator.alloc_controller(channel_index).into();
+            let channel = SIG.clone().channel(channel_index.into());
+            let sig = channel
                 .controllers()
                 .get_with_initial_value_01(controller, initial_value_01);
             let mut s = Self {
@@ -172,6 +223,7 @@ impl Knob {
                 initial_value_01,
                 sensitivity,
                 sig,
+                channel_index,
             };
             let child = match s.command().spawn() {
                 Ok(child) => child,
@@ -194,7 +246,7 @@ impl Knob {
                 "--server={}",
                 sig_server_local_socket_address().to_string()
             ),
-            format!("--channel={}", CHANNEL),
+            format!("--channel={}", self.channel_index),
             format!("--title={}", self.widget.title.clone()),
             "knob".to_string(),
             format!("--controller={}", self.controller),
@@ -247,10 +299,11 @@ pub struct Xy {
     controller_y: u8,
     sig: Sig<
         Zip<
-            MidiController01<SigShared<MidiLiveUdpChannel>>,
-            MidiController01<SigShared<MidiLiveUdpChannel>>,
+            MidiController01<SigShared<MidiChannelUdp>>,
+            MidiController01<SigShared<MidiChannelUdp>>,
         >,
     >,
+    channel_index: u4,
 }
 
 impl Xy {
@@ -259,13 +312,16 @@ impl Xy {
         if let Some(xy) = xys_by_title.get(&title) {
             xy.clone()
         } else {
-            let controller_x = alloc_controller();
-            let controller_y = alloc_controller();
-            let sig_x = SIG
+            let mut allocator = CHANNEL_ALLOCATOR.lock().unwrap();
+            let channel_index = allocator.alloc_channel();
+            let controller_x = allocator.alloc_controller(channel_index).into();
+            let controller_y = allocator.alloc_controller(channel_index).into();
+            let channel = SIG.clone().channel(channel_index.into()).shared();
+            let sig_x = channel
                 .clone()
                 .controllers()
                 .get_with_initial_value_01(controller_x, 0.5);
-            let sig_y = SIG
+            let sig_y = channel
                 .clone()
                 .controllers()
                 .get_with_initial_value_01(controller_y, 0.5);
@@ -278,6 +334,7 @@ impl Xy {
                 controller_x,
                 controller_y,
                 sig,
+                channel_index,
             };
             let child = match s.command().spawn() {
                 Ok(child) => child,
@@ -300,7 +357,7 @@ impl Xy {
                 "--server={}",
                 sig_server_local_socket_address().to_string()
             ),
-            format!("--channel={}", CHANNEL),
+            format!("--channel={}", self.channel_index),
             format!("--title={}", self.widget.title.clone()),
             "xy".to_string(),
             format!("--controller-x={}", self.controller_x),
@@ -345,7 +402,8 @@ pub use xy_builder::xy;
 pub struct ComputerKeyboard {
     widget: Widget,
     start_note: Note,
-    sig: Sig<SigShared<MidiLiveUdpChannel>>,
+    sig: Sig<MidiChannelUdp>,
+    channel_index: u4,
 }
 
 impl ComputerKeyboard {
@@ -356,7 +414,9 @@ impl ComputerKeyboard {
         {
             computer_keyboard.clone()
         } else {
-            let sig = SIG.clone();
+            let mut allocator = CHANNEL_ALLOCATOR.lock().unwrap();
+            let channel_index = allocator.alloc_channel();
+            let sig = SIG.clone().channel(channel_index.into());
             let mut s = Self {
                 widget: Widget {
                     title: title.clone(),
@@ -364,6 +424,7 @@ impl ComputerKeyboard {
                 },
                 start_note,
                 sig,
+                channel_index,
             };
             let child = match s.command().spawn() {
                 Ok(child) => child,
@@ -386,7 +447,7 @@ impl ComputerKeyboard {
                 "--server={}",
                 sig_server_local_socket_address().to_string()
             ),
-            format!("--channel={}", CHANNEL),
+            format!("--channel={}", self.channel_index),
             format!("--title={}", self.widget.title.clone()),
             "computer-keyboard".to_string(),
             format!("--start-note={}", self.start_note),

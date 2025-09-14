@@ -22,6 +22,8 @@ pub struct ComputerKeyboard {
     key_mappings: KeyMappings,
 }
 
+const SPACEBAR_CONTROLLER: u7 = u7::from_int_lossy(0);
+
 impl ComputerKeyboard {
     pub fn new(title: Option<&str>, start_note: Note) -> anyhow::Result<Self> {
         let window = Window::new(title, WIDTH_PX, HEIGHT_PX)?;
@@ -41,6 +43,21 @@ impl ComputerKeyboard {
             use sdl2::event::Event;
             match event {
                 Event::Quit { .. } => std::process::exit(0),
+                Event::KeyDown {
+                    scancode: Some(Scancode::Space),
+                    ..
+                } => buf.push(MidiMessage::Controller {
+                    controller: SPACEBAR_CONTROLLER,
+                    value: u7::max_value(),
+                }),
+                Event::KeyUp {
+                    scancode: Some(Scancode::Space),
+                    ..
+                } => buf.push(MidiMessage::Controller {
+                    controller: SPACEBAR_CONTROLLER,
+                    value: 0.into(),
+                }),
+
                 Event::KeyDown {
                     scancode: Some(scancode),
                     ..

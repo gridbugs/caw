@@ -1,6 +1,6 @@
 use caw_core::*;
 use caw_interactive::{Visualization, window::Window};
-use caw_midi::MidiMessagesT;
+use caw_midi::{MidiEventsT, MidiMessagesT};
 use caw_midi_udp::MidiLiveUdp;
 use caw_modules::*;
 
@@ -22,7 +22,7 @@ fn main() -> anyhow::Result<()> {
         .visualization(Visualization::StereoOscillographics)
         .build();
     let midi_live = MidiLiveUdp::new("0.0.0.0:2000")?;
-    let controllers = midi_live.channel(0).controllers();
+    let controllers = Sig(midi_live).channel(0.into()).controllers();
     window.play_stereo(
         Stereo::new_fn(|| {
             sig(

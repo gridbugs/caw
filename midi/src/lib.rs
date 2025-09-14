@@ -1,6 +1,9 @@
 use caw_core::{Buf, Sig, SigCtx, SigShared, SigT, sig_shared};
 use caw_keyboard::{KeyEvent, KeyEvents, Note, TONE_RATIO};
-use midly::{MidiMessage, num::u7};
+use midly::{
+    MidiMessage,
+    num::{u4, u7},
+};
 use smallvec::{SmallVec, smallvec};
 
 fn u7_to_01(u7: u7) -> f32 {
@@ -27,8 +30,46 @@ fn midi_message_to_key_event(midi_message: MidiMessage) -> Option<KeyEvent> {
     }
 }
 
+/// A midi message on a channel.
+#[derive(Clone, Debug)]
+pub struct MidiEvent {
+    pub channel: u4,
+    pub message: MidiMessage,
+}
+
 /// A collection of simultaneous midi events. When dealing with streams of midi events it's
 /// necessary to group them into a collection because multiple midi events may occur during the
+/// same frame. This collection only uses the heap when more than one event occurred on the same
+/// sample which is very unlikely.
+#[derive(Clone, Debug, Default)]
+pub struct MidiEvents(SmallVec<[MidiEvent; 1]>);
+
+impl MidiEvents {
+    pub fn empty() -> Self {
+        Self(smallvec![])
+    }
+
+    pub fn push(&mut self, midi_event: MidiEvent) {
+        self.0.push(midi_event);
+    }
+
+    pub fn iter(&self) -> impl Iterator<Item = &MidiEvent> {
+        self.0.iter()
+    }
+}
+
+impl IntoIterator for MidiEvents {
+    type Item = MidiEvent;
+
+    type IntoIter = smallvec::IntoIter<[MidiEvent; 1]>;
+
+    fn into_iter(self) -> Self::IntoIter {
+        self.0.into_iter()
+    }
+}
+
+/// A collection of simultaneous midi messages. When dealing with streams of midi messages it's
+/// necessary to group them into a collection because multiple midi messages may arrive during the
 /// same frame. This collection only uses the heap when more than one event occurred on the same
 /// sample which is very unlikely.
 #[derive(Clone, Debug, Default)]
@@ -233,6 +274,62 @@ where
             state: false,
             note,
             buf: Vec::new(),
+        }
+    }
+}
+
+pub struct MidiChannel<E>
+where
+    E: SigT<Item = MidiEvents>,
+{
+    midi_events: E,
+    channel: u4,
+    buf: Vec<MidiMessages>,
+}
+
+impl<E> SigT for MidiChannel<E>
+where
+    E: SigT<Item = MidiEvents>,
+{
+    type Item = MidiMessages;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize_with(ctx.num_samples, Default::default);
+        let midi_events = self.midi_events.sample(ctx);
+        {
+            let midi_messages = &mut self.buf[0];
+            if let Some(midi_events) = midi_events.iter().next() {
+                for midi_event in midi_events {
+                    if midi_event.channel == self.channel {
+                        midi_messages.push(midi_event.message);
+                    }
+                }
+            }
+        }
+        &self.buf
+    }
+}
+
+pub trait MidiEventsT<E>
+where
+    E: SigT<Item = MidiEvents>,
+{
+    fn channel(self, channel: u8) -> Sig<MidiChannel<E>>;
+}
+
+impl<E> MidiEventsT<E> for Sig<E>
+where
+    E: SigT<Item = MidiEvents>,
+{
+    fn channel(self, channel: u8) -> Sig<MidiChannel<E>> {
+        if let Some(channel) = u4::try_from(channel) {
+            Sig(MidiChannel {
+                midi_events: self.0,
+                channel,
+                buf: Vec::new(),
+            })
+        } else {
+            panic!("Invalid midi channel: {}", channel)
         }
     }
 }

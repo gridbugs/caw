@@ -788,6 +788,14 @@ where
     pub fn abs(self) -> Sig<SigAbs<S>> {
         Sig(SigAbs(self.0))
     }
+
+    pub fn is_positive(self) -> Sig<impl SigT<Item = bool>> {
+        self.map(|x| x > 0.0)
+    }
+
+    pub fn is_negative(self) -> Sig<impl SigT<Item = bool>> {
+        self.map(|x| x < 0.0)
+    }
 }
 
 pub struct GateToTrigRisingEdge<S>

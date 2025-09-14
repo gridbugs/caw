@@ -21,12 +21,20 @@ fn main() {
                 let _ = scope.send_samples(buf);
             })
     });
-    let key_events = computer_keyboard("keys").build().key_events().shared();
+    let keys = computer_keyboard("keys").build().shared();
+    let space_button = keys.clone().controllers().get_01(0).is_positive();
+    let key_events = keys.clone().key_events().shared();
+    let env2 = adsr(space_button).build().shared();
     out.set(|| {
         let voice = key_events.clone().mono_voice();
         super_saw(voice.note.freq_hz())
             .build()
-            .filter(low_pass::default(100. + env.clone() * 4000.).q(0.5))
+            .filter(
+                low_pass::default(
+                    100. + env.clone() * 4000. + (env2.clone() * 5000.),
+                )
+                .q(0.5),
+            )
             .filter(reverb())
     });
     thread::park();
