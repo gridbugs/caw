@@ -15,7 +15,7 @@ fn sig(
 ) -> Sig<impl SigT<Item = f32>> {
     input
         .keyboard
-        .opinionated_key_events(Note::B0)
+        .opinionated_key_events(Note::B_0)
         .merge(Sig(key_events))
         .poly_voices(48)
         .into_iter()

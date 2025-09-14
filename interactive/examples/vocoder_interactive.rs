@@ -85,7 +85,7 @@ fn sig(input: Input, audio_file_buf: Vec<f32>) -> Sig<impl SigT<Item = f32>> {
     let width_ratio = 0.5 / n_bands_per_octave as f32;
     let carrier_freq_hz = input
         .keyboard
-        .opinionated_key_events(Note::B0)
+        .opinionated_key_events(Note::B_0)
         .mono_voice()
         .note
         .freq_hz();

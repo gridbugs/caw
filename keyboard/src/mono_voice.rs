@@ -1,5 +1,5 @@
 use crate::KeyEvents;
-use caw_core::{sig_shared, Buf, Sig, SigCtx, SigShared, SigT};
+use caw_core::{Buf, Sig, SigCtx, SigShared, SigT, sig_shared};
 use itertools::izip;
 
 /// A collection of signals associated with a monophonic keyboard voice
@@ -53,7 +53,7 @@ where
         Self {
             sig,
             held_notes: Vec::new(),
-            last_note: crate::Note::C4, // arbitrarily default to middle C
+            last_note: crate::Note::C_4, // arbitrarily default to middle C
             buf: Vec::new(),
         }
     }
@@ -66,7 +66,7 @@ where
     type Item = crate::Note;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.buf.resize(ctx.num_samples, crate::Note::C4);
+        self.buf.resize(ctx.num_samples, crate::Note::C_4);
         let events = self.sig.sample(ctx);
         for (out, events) in izip! {
             self.buf.iter_mut(),

@@ -25,7 +25,7 @@ enum Command {
         controller_y: u8,
     },
     ComputerKeyboard {
-        #[arg(long, default_value_t = note::B2)]
+        #[arg(long, default_value_t = note::B_2)]
         start_note: Note,
     },
 }
@@ -55,7 +55,7 @@ fn main() {
             let mut button = Button::new(cli.title.as_deref()).unwrap();
             loop {
                 button.tick().unwrap();
-                let key = Note::C4.to_midi_index().into();
+                let key = Note::default().to_midi_index().into();
                 let message = if button.pressed() {
                     MidiMessage::NoteOn { key, vel: 0.into() }
                 } else {

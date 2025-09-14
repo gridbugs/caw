@@ -8,7 +8,7 @@ fn sig(input: Input, ch: Channel) -> Sig<impl SigT<Item = f32> + Send> {
     input
         .clone()
         .keyboard
-        .opinionated_key_events(Note::B1)
+        .opinionated_key_events(Note::B_1)
         .poly_voices(2)
         .into_iter()
         .map(

@@ -1,15 +1,15 @@
-//! 12-tone equal temperament following the A440Hz convention. Only allows representation of MIDI
-//! notes. The frequency of A4 (the A above middle C) is 440Hz. C4 is considered to be middle C.
+//! 12-tone equal temperament following the A_440Hz convention. Only allows representation of MIDI
+//! notes. The frequency of A_4 (the A above middle C) is 440Hz. C_4 is considered to be middle C.
 //! The lowest note is C in the octave "-1". The entire "-1" octave and most of octave 0 is below
 //! the range of human hearing but might be useful for in-band custom control signals. The highest
-//! note is G9. Thus the 9th octave does not contain all notes. C is considered the first note in
+//! note is G_9. Thus the 9th octave does not contain all notes. C is considered the first note in
 //! each octave.
 use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use std::{fmt::Display, str::FromStr};
 
 /// Octaves go from -1 to 8. Some notes in the 9th octave can be constructed, however the regular
 /// `Note::new` function can't be passed the 9th octave since that would permit construction of
-/// non-MIDI notes (those in the 9th octave above G9).
+/// non-MIDI notes (those in the 9th octave above G_9).
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
 pub struct Octave {
     /// To make the math easier octaves are represented by the index of the first note of the
@@ -196,14 +196,14 @@ pub mod note_name {
     pub const B: NoteName = NoteName::B;
 }
 
-const A4_FREQ_HZ: f32 = 440.0;
-const A4_MIDI_INDEX: u8 = 69;
-const C9_MIDI_INDEX: u8 = 120;
+const A_4_FREQ_HZ: f32 = 440.0;
+const A_4_MIDI_INDEX: u8 = 69;
+const C_9_MIDI_INDEX: u8 = 120;
 
 pub fn freq_hz_of_midi_index(midi_index: u8) -> f32 {
-    A4_FREQ_HZ
+    A_4_FREQ_HZ
         * (2_f32.powf(
-            (midi_index as f32 - A4_MIDI_INDEX as f32)
+            (midi_index as f32 - A_4_MIDI_INDEX as f32)
                 / (NOTES_PER_OCTAVE as f32),
         ))
 }
@@ -214,7 +214,7 @@ pub fn semitone_ratio(num_semitones: f32) -> f32 {
 
 pub const TONE_RATIO: f32 = 1.122_462;
 
-/// Definition of notes based on MIDI tuned to A440
+/// Definition of notes based on MIDI tuned to A_440
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct Note {
     midi_index: u8,
@@ -228,7 +228,7 @@ impl Note {
     }
 
     const fn new_octave_9(name: NoteName) -> Self {
-        let midi_index = C9_MIDI_INDEX + name.relative_midi_index;
+        let midi_index = C_9_MIDI_INDEX + name.relative_midi_index;
         assert!(midi_index <= 127);
         Self { midi_index }
     }
@@ -374,10 +374,10 @@ impl SigT for Note {
 }
 
 /// Arbitrary default value to help when a temporary value must be set before updating a note by
-/// some other process, as signals cannot have undefined values. The default note is C4.
+/// some other process, as signals cannot have undefined values. The default note is C_4.
 impl Default for Note {
     fn default() -> Self {
-        note::C4
+        note::C_4
     }
 }
 
@@ -693,383 +693,383 @@ pub mod chord {
 
 impl Note {
     pub const C_MINUS_1: Self = Self::new(NoteName::C, OCTAVE_MINUS_1);
-    pub const C0: Self = Self::new(NoteName::C, OCTAVE_0);
-    pub const C1: Self = Self::new(NoteName::C, OCTAVE_1);
-    pub const C2: Self = Self::new(NoteName::C, OCTAVE_2);
-    pub const C3: Self = Self::new(NoteName::C, OCTAVE_3);
-    pub const C4: Self = Self::new(NoteName::C, OCTAVE_4);
-    pub const C5: Self = Self::new(NoteName::C, OCTAVE_5);
-    pub const C6: Self = Self::new(NoteName::C, OCTAVE_6);
-    pub const C7: Self = Self::new(NoteName::C, OCTAVE_7);
-    pub const C8: Self = Self::new(NoteName::C, OCTAVE_8);
-    pub const C9: Self = Self::new_octave_9(NoteName::C);
+    pub const C_0: Self = Self::new(NoteName::C, OCTAVE_0);
+    pub const C_1: Self = Self::new(NoteName::C, OCTAVE_1);
+    pub const C_2: Self = Self::new(NoteName::C, OCTAVE_2);
+    pub const C_3: Self = Self::new(NoteName::C, OCTAVE_3);
+    pub const C_4: Self = Self::new(NoteName::C, OCTAVE_4);
+    pub const C_5: Self = Self::new(NoteName::C, OCTAVE_5);
+    pub const C_6: Self = Self::new(NoteName::C, OCTAVE_6);
+    pub const C_7: Self = Self::new(NoteName::C, OCTAVE_7);
+    pub const C_8: Self = Self::new(NoteName::C, OCTAVE_8);
+    pub const C_9: Self = Self::new_octave_9(NoteName::C);
     pub const C_SHARP_MINUS_1: Self =
         Self::new(NoteName::C_SHARP, OCTAVE_MINUS_1);
-    pub const C_SHARP0: Self = Self::new(NoteName::C_SHARP, OCTAVE_0);
-    pub const C_SHARP1: Self = Self::new(NoteName::C_SHARP, OCTAVE_1);
-    pub const C_SHARP2: Self = Self::new(NoteName::C_SHARP, OCTAVE_2);
-    pub const C_SHARP3: Self = Self::new(NoteName::C_SHARP, OCTAVE_3);
-    pub const C_SHARP4: Self = Self::new(NoteName::C_SHARP, OCTAVE_4);
-    pub const C_SHARP5: Self = Self::new(NoteName::C_SHARP, OCTAVE_5);
-    pub const C_SHARP6: Self = Self::new(NoteName::C_SHARP, OCTAVE_6);
-    pub const C_SHARP7: Self = Self::new(NoteName::C_SHARP, OCTAVE_7);
-    pub const C_SHARP8: Self = Self::new(NoteName::C_SHARP, OCTAVE_8);
-    pub const C_SHARP9: Self = Self::new_octave_9(NoteName::C_SHARP);
+    pub const C_SHARP_0: Self = Self::new(NoteName::C_SHARP, OCTAVE_0);
+    pub const C_SHARP_1: Self = Self::new(NoteName::C_SHARP, OCTAVE_1);
+    pub const C_SHARP_2: Self = Self::new(NoteName::C_SHARP, OCTAVE_2);
+    pub const C_SHARP_3: Self = Self::new(NoteName::C_SHARP, OCTAVE_3);
+    pub const C_SHARP_4: Self = Self::new(NoteName::C_SHARP, OCTAVE_4);
+    pub const C_SHARP_5: Self = Self::new(NoteName::C_SHARP, OCTAVE_5);
+    pub const C_SHARP_6: Self = Self::new(NoteName::C_SHARP, OCTAVE_6);
+    pub const C_SHARP_7: Self = Self::new(NoteName::C_SHARP, OCTAVE_7);
+    pub const C_SHARP_8: Self = Self::new(NoteName::C_SHARP, OCTAVE_8);
+    pub const C_SHARP_9: Self = Self::new_octave_9(NoteName::C_SHARP);
     pub const D_FLAT_MINUS_1: Self =
         Self::new(NoteName::D_FLAT, OCTAVE_MINUS_1);
-    pub const D_FLAT0: Self = Self::new(NoteName::D_FLAT, OCTAVE_0);
-    pub const D_FLAT1: Self = Self::new(NoteName::D_FLAT, OCTAVE_1);
-    pub const D_FLAT2: Self = Self::new(NoteName::D_FLAT, OCTAVE_2);
-    pub const D_FLAT3: Self = Self::new(NoteName::D_FLAT, OCTAVE_3);
-    pub const D_FLAT4: Self = Self::new(NoteName::D_FLAT, OCTAVE_4);
-    pub const D_FLAT5: Self = Self::new(NoteName::D_FLAT, OCTAVE_5);
-    pub const D_FLAT6: Self = Self::new(NoteName::D_FLAT, OCTAVE_6);
-    pub const D_FLAT7: Self = Self::new(NoteName::D_FLAT, OCTAVE_7);
-    pub const D_FLAT8: Self = Self::new(NoteName::D_FLAT, OCTAVE_8);
-    pub const D_FLAT9: Self = Self::new_octave_9(NoteName::D_FLAT);
+    pub const D_FLAT_0: Self = Self::new(NoteName::D_FLAT, OCTAVE_0);
+    pub const D_FLAT_1: Self = Self::new(NoteName::D_FLAT, OCTAVE_1);
+    pub const D_FLAT_2: Self = Self::new(NoteName::D_FLAT, OCTAVE_2);
+    pub const D_FLAT_3: Self = Self::new(NoteName::D_FLAT, OCTAVE_3);
+    pub const D_FLAT_4: Self = Self::new(NoteName::D_FLAT, OCTAVE_4);
+    pub const D_FLAT_5: Self = Self::new(NoteName::D_FLAT, OCTAVE_5);
+    pub const D_FLAT_6: Self = Self::new(NoteName::D_FLAT, OCTAVE_6);
+    pub const D_FLAT_7: Self = Self::new(NoteName::D_FLAT, OCTAVE_7);
+    pub const D_FLAT_8: Self = Self::new(NoteName::D_FLAT, OCTAVE_8);
+    pub const D_FLAT_9: Self = Self::new_octave_9(NoteName::D_FLAT);
     pub const D_MINUS_1: Self = Self::new(NoteName::D, OCTAVE_MINUS_1);
-    pub const D0: Self = Self::new(NoteName::D, OCTAVE_0);
-    pub const D1: Self = Self::new(NoteName::D, OCTAVE_1);
-    pub const D2: Self = Self::new(NoteName::D, OCTAVE_2);
-    pub const D3: Self = Self::new(NoteName::D, OCTAVE_3);
-    pub const D4: Self = Self::new(NoteName::D, OCTAVE_4);
-    pub const D5: Self = Self::new(NoteName::D, OCTAVE_5);
-    pub const D6: Self = Self::new(NoteName::D, OCTAVE_6);
-    pub const D7: Self = Self::new(NoteName::D, OCTAVE_7);
-    pub const D8: Self = Self::new(NoteName::D, OCTAVE_8);
-    pub const D9: Self = Self::new_octave_9(NoteName::D);
+    pub const D_0: Self = Self::new(NoteName::D, OCTAVE_0);
+    pub const D_1: Self = Self::new(NoteName::D, OCTAVE_1);
+    pub const D_2: Self = Self::new(NoteName::D, OCTAVE_2);
+    pub const D_3: Self = Self::new(NoteName::D, OCTAVE_3);
+    pub const D_4: Self = Self::new(NoteName::D, OCTAVE_4);
+    pub const D_5: Self = Self::new(NoteName::D, OCTAVE_5);
+    pub const D_6: Self = Self::new(NoteName::D, OCTAVE_6);
+    pub const D_7: Self = Self::new(NoteName::D, OCTAVE_7);
+    pub const D_8: Self = Self::new(NoteName::D, OCTAVE_8);
+    pub const D_9: Self = Self::new_octave_9(NoteName::D);
     pub const D_SHARP_MINUS_1: Self =
         Self::new(NoteName::D_SHARP, OCTAVE_MINUS_1);
-    pub const D_SHARP0: Self = Self::new(NoteName::D_SHARP, OCTAVE_0);
-    pub const D_SHARP1: Self = Self::new(NoteName::D_SHARP, OCTAVE_1);
-    pub const D_SHARP2: Self = Self::new(NoteName::D_SHARP, OCTAVE_2);
-    pub const D_SHARP3: Self = Self::new(NoteName::D_SHARP, OCTAVE_3);
-    pub const D_SHARP4: Self = Self::new(NoteName::D_SHARP, OCTAVE_4);
-    pub const D_SHARP5: Self = Self::new(NoteName::D_SHARP, OCTAVE_5);
-    pub const D_SHARP6: Self = Self::new(NoteName::D_SHARP, OCTAVE_6);
-    pub const D_SHARP7: Self = Self::new(NoteName::D_SHARP, OCTAVE_7);
-    pub const D_SHARP8: Self = Self::new(NoteName::D_SHARP, OCTAVE_8);
-    pub const D_SHARP9: Self = Self::new_octave_9(NoteName::D_SHARP);
+    pub const D_SHARP_0: Self = Self::new(NoteName::D_SHARP, OCTAVE_0);
+    pub const D_SHARP_1: Self = Self::new(NoteName::D_SHARP, OCTAVE_1);
+    pub const D_SHARP_2: Self = Self::new(NoteName::D_SHARP, OCTAVE_2);
+    pub const D_SHARP_3: Self = Self::new(NoteName::D_SHARP, OCTAVE_3);
+    pub const D_SHARP_4: Self = Self::new(NoteName::D_SHARP, OCTAVE_4);
+    pub const D_SHARP_5: Self = Self::new(NoteName::D_SHARP, OCTAVE_5);
+    pub const D_SHARP_6: Self = Self::new(NoteName::D_SHARP, OCTAVE_6);
+    pub const D_SHARP_7: Self = Self::new(NoteName::D_SHARP, OCTAVE_7);
+    pub const D_SHARP_8: Self = Self::new(NoteName::D_SHARP, OCTAVE_8);
+    pub const D_SHARP_9: Self = Self::new_octave_9(NoteName::D_SHARP);
     pub const E_FLAT_MINUS_1: Self =
         Self::new(NoteName::E_FLAT, OCTAVE_MINUS_1);
-    pub const E_FLAT0: Self = Self::new(NoteName::E_FLAT, OCTAVE_0);
-    pub const E_FLAT1: Self = Self::new(NoteName::E_FLAT, OCTAVE_1);
-    pub const E_FLAT2: Self = Self::new(NoteName::E_FLAT, OCTAVE_2);
-    pub const E_FLAT3: Self = Self::new(NoteName::E_FLAT, OCTAVE_3);
-    pub const E_FLAT4: Self = Self::new(NoteName::E_FLAT, OCTAVE_4);
-    pub const E_FLAT5: Self = Self::new(NoteName::E_FLAT, OCTAVE_5);
-    pub const E_FLAT6: Self = Self::new(NoteName::E_FLAT, OCTAVE_6);
-    pub const E_FLAT7: Self = Self::new(NoteName::E_FLAT, OCTAVE_7);
-    pub const E_FLAT8: Self = Self::new(NoteName::E_FLAT, OCTAVE_8);
-    pub const E_FLAT9: Self = Self::new_octave_9(NoteName::E_FLAT);
+    pub const E_FLAT_0: Self = Self::new(NoteName::E_FLAT, OCTAVE_0);
+    pub const E_FLAT_1: Self = Self::new(NoteName::E_FLAT, OCTAVE_1);
+    pub const E_FLAT_2: Self = Self::new(NoteName::E_FLAT, OCTAVE_2);
+    pub const E_FLAT_3: Self = Self::new(NoteName::E_FLAT, OCTAVE_3);
+    pub const E_FLAT_4: Self = Self::new(NoteName::E_FLAT, OCTAVE_4);
+    pub const E_FLAT_5: Self = Self::new(NoteName::E_FLAT, OCTAVE_5);
+    pub const E_FLAT_6: Self = Self::new(NoteName::E_FLAT, OCTAVE_6);
+    pub const E_FLAT_7: Self = Self::new(NoteName::E_FLAT, OCTAVE_7);
+    pub const E_FLAT_8: Self = Self::new(NoteName::E_FLAT, OCTAVE_8);
+    pub const E_FLAT_9: Self = Self::new_octave_9(NoteName::E_FLAT);
     pub const E_MINUS_1: Self = Self::new(NoteName::E, OCTAVE_MINUS_1);
-    pub const E0: Self = Self::new(NoteName::E, OCTAVE_0);
-    pub const E1: Self = Self::new(NoteName::E, OCTAVE_1);
-    pub const E2: Self = Self::new(NoteName::E, OCTAVE_2);
-    pub const E3: Self = Self::new(NoteName::E, OCTAVE_3);
-    pub const E4: Self = Self::new(NoteName::E, OCTAVE_4);
-    pub const E5: Self = Self::new(NoteName::E, OCTAVE_5);
-    pub const E6: Self = Self::new(NoteName::E, OCTAVE_6);
-    pub const E7: Self = Self::new(NoteName::E, OCTAVE_7);
-    pub const E8: Self = Self::new(NoteName::E, OCTAVE_8);
-    pub const E9: Self = Self::new_octave_9(NoteName::E);
+    pub const E_0: Self = Self::new(NoteName::E, OCTAVE_0);
+    pub const E_1: Self = Self::new(NoteName::E, OCTAVE_1);
+    pub const E_2: Self = Self::new(NoteName::E, OCTAVE_2);
+    pub const E_3: Self = Self::new(NoteName::E, OCTAVE_3);
+    pub const E_4: Self = Self::new(NoteName::E, OCTAVE_4);
+    pub const E_5: Self = Self::new(NoteName::E, OCTAVE_5);
+    pub const E_6: Self = Self::new(NoteName::E, OCTAVE_6);
+    pub const E_7: Self = Self::new(NoteName::E, OCTAVE_7);
+    pub const E_8: Self = Self::new(NoteName::E, OCTAVE_8);
+    pub const E_9: Self = Self::new_octave_9(NoteName::E);
     pub const F_MINUS_1: Self = Self::new(NoteName::F, OCTAVE_MINUS_1);
-    pub const F0: Self = Self::new(NoteName::F, OCTAVE_0);
-    pub const F1: Self = Self::new(NoteName::F, OCTAVE_1);
-    pub const F2: Self = Self::new(NoteName::F, OCTAVE_2);
-    pub const F3: Self = Self::new(NoteName::F, OCTAVE_3);
-    pub const F4: Self = Self::new(NoteName::F, OCTAVE_4);
-    pub const F5: Self = Self::new(NoteName::F, OCTAVE_5);
-    pub const F6: Self = Self::new(NoteName::F, OCTAVE_6);
-    pub const F7: Self = Self::new(NoteName::F, OCTAVE_7);
-    pub const F8: Self = Self::new(NoteName::F, OCTAVE_8);
-    pub const F9: Self = Self::new_octave_9(NoteName::F);
+    pub const F_0: Self = Self::new(NoteName::F, OCTAVE_0);
+    pub const F_1: Self = Self::new(NoteName::F, OCTAVE_1);
+    pub const F_2: Self = Self::new(NoteName::F, OCTAVE_2);
+    pub const F_3: Self = Self::new(NoteName::F, OCTAVE_3);
+    pub const F_4: Self = Self::new(NoteName::F, OCTAVE_4);
+    pub const F_5: Self = Self::new(NoteName::F, OCTAVE_5);
+    pub const F_6: Self = Self::new(NoteName::F, OCTAVE_6);
+    pub const F_7: Self = Self::new(NoteName::F, OCTAVE_7);
+    pub const F_8: Self = Self::new(NoteName::F, OCTAVE_8);
+    pub const F_9: Self = Self::new_octave_9(NoteName::F);
     pub const F_SHARP_MINUS_1: Self =
         Self::new(NoteName::F_SHARP, OCTAVE_MINUS_1);
-    pub const F_SHARP0: Self = Self::new(NoteName::F_SHARP, OCTAVE_0);
-    pub const F_SHARP1: Self = Self::new(NoteName::F_SHARP, OCTAVE_1);
-    pub const F_SHARP2: Self = Self::new(NoteName::F_SHARP, OCTAVE_2);
-    pub const F_SHARP3: Self = Self::new(NoteName::F_SHARP, OCTAVE_3);
-    pub const F_SHARP4: Self = Self::new(NoteName::F_SHARP, OCTAVE_4);
-    pub const F_SHARP5: Self = Self::new(NoteName::F_SHARP, OCTAVE_5);
-    pub const F_SHARP6: Self = Self::new(NoteName::F_SHARP, OCTAVE_6);
-    pub const F_SHARP7: Self = Self::new(NoteName::F_SHARP, OCTAVE_7);
-    pub const F_SHARP8: Self = Self::new(NoteName::F_SHARP, OCTAVE_8);
-    pub const F_SHARP9: Self = Self::new_octave_9(NoteName::F_SHARP);
+    pub const F_SHARP_0: Self = Self::new(NoteName::F_SHARP, OCTAVE_0);
+    pub const F_SHARP_1: Self = Self::new(NoteName::F_SHARP, OCTAVE_1);
+    pub const F_SHARP_2: Self = Self::new(NoteName::F_SHARP, OCTAVE_2);
+    pub const F_SHARP_3: Self = Self::new(NoteName::F_SHARP, OCTAVE_3);
+    pub const F_SHARP_4: Self = Self::new(NoteName::F_SHARP, OCTAVE_4);
+    pub const F_SHARP_5: Self = Self::new(NoteName::F_SHARP, OCTAVE_5);
+    pub const F_SHARP_6: Self = Self::new(NoteName::F_SHARP, OCTAVE_6);
+    pub const F_SHARP_7: Self = Self::new(NoteName::F_SHARP, OCTAVE_7);
+    pub const F_SHARP_8: Self = Self::new(NoteName::F_SHARP, OCTAVE_8);
+    pub const F_SHARP_9: Self = Self::new_octave_9(NoteName::F_SHARP);
     pub const G_FLAT_MINUS_1: Self =
         Self::new(NoteName::G_FLAT, OCTAVE_MINUS_1);
-    pub const G_FLAT0: Self = Self::new(NoteName::G_FLAT, OCTAVE_0);
-    pub const G_FLAT1: Self = Self::new(NoteName::G_FLAT, OCTAVE_1);
-    pub const G_FLAT2: Self = Self::new(NoteName::G_FLAT, OCTAVE_2);
-    pub const G_FLAT3: Self = Self::new(NoteName::G_FLAT, OCTAVE_3);
-    pub const G_FLAT4: Self = Self::new(NoteName::G_FLAT, OCTAVE_4);
-    pub const G_FLAT5: Self = Self::new(NoteName::G_FLAT, OCTAVE_5);
-    pub const G_FLAT6: Self = Self::new(NoteName::G_FLAT, OCTAVE_6);
-    pub const G_FLAT7: Self = Self::new(NoteName::G_FLAT, OCTAVE_7);
-    pub const G_FLAT8: Self = Self::new(NoteName::G_FLAT, OCTAVE_8);
-    pub const G_FLAT9: Self = Self::new_octave_9(NoteName::G_FLAT);
+    pub const G_FLAT_0: Self = Self::new(NoteName::G_FLAT, OCTAVE_0);
+    pub const G_FLAT_1: Self = Self::new(NoteName::G_FLAT, OCTAVE_1);
+    pub const G_FLAT_2: Self = Self::new(NoteName::G_FLAT, OCTAVE_2);
+    pub const G_FLAT_3: Self = Self::new(NoteName::G_FLAT, OCTAVE_3);
+    pub const G_FLAT_4: Self = Self::new(NoteName::G_FLAT, OCTAVE_4);
+    pub const G_FLAT_5: Self = Self::new(NoteName::G_FLAT, OCTAVE_5);
+    pub const G_FLAT_6: Self = Self::new(NoteName::G_FLAT, OCTAVE_6);
+    pub const G_FLAT_7: Self = Self::new(NoteName::G_FLAT, OCTAVE_7);
+    pub const G_FLAT_8: Self = Self::new(NoteName::G_FLAT, OCTAVE_8);
+    pub const G_FLAT_9: Self = Self::new_octave_9(NoteName::G_FLAT);
     pub const G_MINUS_1: Self = Self::new(NoteName::G, OCTAVE_MINUS_1);
-    pub const G0: Self = Self::new(NoteName::G, OCTAVE_0);
-    pub const G1: Self = Self::new(NoteName::G, OCTAVE_1);
-    pub const G2: Self = Self::new(NoteName::G, OCTAVE_2);
-    pub const G3: Self = Self::new(NoteName::G, OCTAVE_3);
-    pub const G4: Self = Self::new(NoteName::G, OCTAVE_4);
-    pub const G5: Self = Self::new(NoteName::G, OCTAVE_5);
-    pub const G6: Self = Self::new(NoteName::G, OCTAVE_6);
-    pub const G7: Self = Self::new(NoteName::G, OCTAVE_7);
-    pub const G8: Self = Self::new(NoteName::G, OCTAVE_8);
-    pub const G9: Self = Self::new_octave_9(NoteName::G);
+    pub const G_0: Self = Self::new(NoteName::G, OCTAVE_0);
+    pub const G_1: Self = Self::new(NoteName::G, OCTAVE_1);
+    pub const G_2: Self = Self::new(NoteName::G, OCTAVE_2);
+    pub const G_3: Self = Self::new(NoteName::G, OCTAVE_3);
+    pub const G_4: Self = Self::new(NoteName::G, OCTAVE_4);
+    pub const G_5: Self = Self::new(NoteName::G, OCTAVE_5);
+    pub const G_6: Self = Self::new(NoteName::G, OCTAVE_6);
+    pub const G_7: Self = Self::new(NoteName::G, OCTAVE_7);
+    pub const G_8: Self = Self::new(NoteName::G, OCTAVE_8);
+    pub const G_9: Self = Self::new_octave_9(NoteName::G);
     pub const G_SHARP_MINUS_1: Self =
         Self::new(NoteName::G_SHARP, OCTAVE_MINUS_1);
-    pub const G_SHARP0: Self = Self::new(NoteName::G_SHARP, OCTAVE_0);
-    pub const G_SHARP1: Self = Self::new(NoteName::G_SHARP, OCTAVE_1);
-    pub const G_SHARP2: Self = Self::new(NoteName::G_SHARP, OCTAVE_2);
-    pub const G_SHARP3: Self = Self::new(NoteName::G_SHARP, OCTAVE_3);
-    pub const G_SHARP4: Self = Self::new(NoteName::G_SHARP, OCTAVE_4);
-    pub const G_SHARP5: Self = Self::new(NoteName::G_SHARP, OCTAVE_5);
-    pub const G_SHARP6: Self = Self::new(NoteName::G_SHARP, OCTAVE_6);
-    pub const G_SHARP7: Self = Self::new(NoteName::G_SHARP, OCTAVE_7);
-    pub const G_SHARP8: Self = Self::new(NoteName::G_SHARP, OCTAVE_8);
-    pub const G_SHARP9: Self = Self::new_octave_9(NoteName::G_SHARP);
+    pub const G_SHARP_0: Self = Self::new(NoteName::G_SHARP, OCTAVE_0);
+    pub const G_SHARP_1: Self = Self::new(NoteName::G_SHARP, OCTAVE_1);
+    pub const G_SHARP_2: Self = Self::new(NoteName::G_SHARP, OCTAVE_2);
+    pub const G_SHARP_3: Self = Self::new(NoteName::G_SHARP, OCTAVE_3);
+    pub const G_SHARP_4: Self = Self::new(NoteName::G_SHARP, OCTAVE_4);
+    pub const G_SHARP_5: Self = Self::new(NoteName::G_SHARP, OCTAVE_5);
+    pub const G_SHARP_6: Self = Self::new(NoteName::G_SHARP, OCTAVE_6);
+    pub const G_SHARP_7: Self = Self::new(NoteName::G_SHARP, OCTAVE_7);
+    pub const G_SHARP_8: Self = Self::new(NoteName::G_SHARP, OCTAVE_8);
+    pub const G_SHARP_9: Self = Self::new_octave_9(NoteName::G_SHARP);
     pub const A_FLAT_MINUS_1: Self =
         Self::new(NoteName::A_FLAT, OCTAVE_MINUS_1);
-    pub const A_FLAT0: Self = Self::new(NoteName::A_FLAT, OCTAVE_0);
-    pub const A_FLAT1: Self = Self::new(NoteName::A_FLAT, OCTAVE_1);
-    pub const A_FLAT2: Self = Self::new(NoteName::A_FLAT, OCTAVE_2);
-    pub const A_FLAT3: Self = Self::new(NoteName::A_FLAT, OCTAVE_3);
-    pub const A_FLAT4: Self = Self::new(NoteName::A_FLAT, OCTAVE_4);
-    pub const A_FLAT5: Self = Self::new(NoteName::A_FLAT, OCTAVE_5);
-    pub const A_FLAT6: Self = Self::new(NoteName::A_FLAT, OCTAVE_6);
-    pub const A_FLAT7: Self = Self::new(NoteName::A_FLAT, OCTAVE_7);
-    pub const A_FLAT8: Self = Self::new(NoteName::A_FLAT, OCTAVE_8);
+    pub const A_FLAT_0: Self = Self::new(NoteName::A_FLAT, OCTAVE_0);
+    pub const A_FLAT_1: Self = Self::new(NoteName::A_FLAT, OCTAVE_1);
+    pub const A_FLAT_2: Self = Self::new(NoteName::A_FLAT, OCTAVE_2);
+    pub const A_FLAT_3: Self = Self::new(NoteName::A_FLAT, OCTAVE_3);
+    pub const A_FLAT_4: Self = Self::new(NoteName::A_FLAT, OCTAVE_4);
+    pub const A_FLAT_5: Self = Self::new(NoteName::A_FLAT, OCTAVE_5);
+    pub const A_FLAT_6: Self = Self::new(NoteName::A_FLAT, OCTAVE_6);
+    pub const A_FLAT_7: Self = Self::new(NoteName::A_FLAT, OCTAVE_7);
+    pub const A_FLAT_8: Self = Self::new(NoteName::A_FLAT, OCTAVE_8);
     pub const A_MINUS_1: Self = Self::new(NoteName::A, OCTAVE_MINUS_1);
-    pub const A0: Self = Self::new(NoteName::A, OCTAVE_0);
-    pub const A1: Self = Self::new(NoteName::A, OCTAVE_1);
-    pub const A2: Self = Self::new(NoteName::A, OCTAVE_2);
-    pub const A3: Self = Self::new(NoteName::A, OCTAVE_3);
-    pub const A4: Self = Self::new(NoteName::A, OCTAVE_4);
-    pub const A5: Self = Self::new(NoteName::A, OCTAVE_5);
-    pub const A6: Self = Self::new(NoteName::A, OCTAVE_6);
-    pub const A7: Self = Self::new(NoteName::A, OCTAVE_7);
-    pub const A8: Self = Self::new(NoteName::A, OCTAVE_8);
+    pub const A_0: Self = Self::new(NoteName::A, OCTAVE_0);
+    pub const A_1: Self = Self::new(NoteName::A, OCTAVE_1);
+    pub const A_2: Self = Self::new(NoteName::A, OCTAVE_2);
+    pub const A_3: Self = Self::new(NoteName::A, OCTAVE_3);
+    pub const A_4: Self = Self::new(NoteName::A, OCTAVE_4);
+    pub const A_5: Self = Self::new(NoteName::A, OCTAVE_5);
+    pub const A_6: Self = Self::new(NoteName::A, OCTAVE_6);
+    pub const A_7: Self = Self::new(NoteName::A, OCTAVE_7);
+    pub const A_8: Self = Self::new(NoteName::A, OCTAVE_8);
     pub const A_SHARP_MINUS_1: Self =
         Self::new(NoteName::A_SHARP, OCTAVE_MINUS_1);
-    pub const A_SHARP0: Self = Self::new(NoteName::A_SHARP, OCTAVE_0);
-    pub const A_SHARP1: Self = Self::new(NoteName::A_SHARP, OCTAVE_1);
-    pub const A_SHARP2: Self = Self::new(NoteName::A_SHARP, OCTAVE_2);
-    pub const A_SHARP3: Self = Self::new(NoteName::A_SHARP, OCTAVE_3);
-    pub const A_SHARP4: Self = Self::new(NoteName::A_SHARP, OCTAVE_4);
-    pub const A_SHARP5: Self = Self::new(NoteName::A_SHARP, OCTAVE_5);
-    pub const A_SHARP6: Self = Self::new(NoteName::A_SHARP, OCTAVE_6);
-    pub const A_SHARP7: Self = Self::new(NoteName::A_SHARP, OCTAVE_7);
-    pub const A_SHARP8: Self = Self::new(NoteName::A_SHARP, OCTAVE_8);
+    pub const A_SHARP_0: Self = Self::new(NoteName::A_SHARP, OCTAVE_0);
+    pub const A_SHARP_1: Self = Self::new(NoteName::A_SHARP, OCTAVE_1);
+    pub const A_SHARP_2: Self = Self::new(NoteName::A_SHARP, OCTAVE_2);
+    pub const A_SHARP_3: Self = Self::new(NoteName::A_SHARP, OCTAVE_3);
+    pub const A_SHARP_4: Self = Self::new(NoteName::A_SHARP, OCTAVE_4);
+    pub const A_SHARP_5: Self = Self::new(NoteName::A_SHARP, OCTAVE_5);
+    pub const A_SHARP_6: Self = Self::new(NoteName::A_SHARP, OCTAVE_6);
+    pub const A_SHARP_7: Self = Self::new(NoteName::A_SHARP, OCTAVE_7);
+    pub const A_SHARP_8: Self = Self::new(NoteName::A_SHARP, OCTAVE_8);
     pub const B_FLAT_MINUS_1: Self =
         Self::new(NoteName::B_FLAT, OCTAVE_MINUS_1);
-    pub const B_FLAT0: Self = Self::new(NoteName::B_FLAT, OCTAVE_0);
-    pub const B_FLAT1: Self = Self::new(NoteName::B_FLAT, OCTAVE_1);
-    pub const B_FLAT2: Self = Self::new(NoteName::B_FLAT, OCTAVE_2);
-    pub const B_FLAT3: Self = Self::new(NoteName::B_FLAT, OCTAVE_3);
-    pub const B_FLAT4: Self = Self::new(NoteName::B_FLAT, OCTAVE_4);
-    pub const B_FLAT5: Self = Self::new(NoteName::B_FLAT, OCTAVE_5);
-    pub const B_FLAT6: Self = Self::new(NoteName::B_FLAT, OCTAVE_6);
-    pub const B_FLAT7: Self = Self::new(NoteName::B_FLAT, OCTAVE_7);
-    pub const B_FLAT8: Self = Self::new(NoteName::B_FLAT, OCTAVE_8);
+    pub const B_FLAT_0: Self = Self::new(NoteName::B_FLAT, OCTAVE_0);
+    pub const B_FLAT_1: Self = Self::new(NoteName::B_FLAT, OCTAVE_1);
+    pub const B_FLAT_2: Self = Self::new(NoteName::B_FLAT, OCTAVE_2);
+    pub const B_FLAT_3: Self = Self::new(NoteName::B_FLAT, OCTAVE_3);
+    pub const B_FLAT_4: Self = Self::new(NoteName::B_FLAT, OCTAVE_4);
+    pub const B_FLAT_5: Self = Self::new(NoteName::B_FLAT, OCTAVE_5);
+    pub const B_FLAT_6: Self = Self::new(NoteName::B_FLAT, OCTAVE_6);
+    pub const B_FLAT_7: Self = Self::new(NoteName::B_FLAT, OCTAVE_7);
+    pub const B_FLAT_8: Self = Self::new(NoteName::B_FLAT, OCTAVE_8);
     pub const B_MINUS_1: Self = Self::new(NoteName::B, OCTAVE_MINUS_1);
-    pub const B0: Self = Self::new(NoteName::B, OCTAVE_0);
-    pub const B1: Self = Self::new(NoteName::B, OCTAVE_1);
-    pub const B2: Self = Self::new(NoteName::B, OCTAVE_2);
-    pub const B3: Self = Self::new(NoteName::B, OCTAVE_3);
-    pub const B4: Self = Self::new(NoteName::B, OCTAVE_4);
-    pub const B5: Self = Self::new(NoteName::B, OCTAVE_5);
-    pub const B6: Self = Self::new(NoteName::B, OCTAVE_6);
-    pub const B7: Self = Self::new(NoteName::B, OCTAVE_7);
-    pub const B8: Self = Self::new(NoteName::B, OCTAVE_8);
+    pub const B_0: Self = Self::new(NoteName::B, OCTAVE_0);
+    pub const B_1: Self = Self::new(NoteName::B, OCTAVE_1);
+    pub const B_2: Self = Self::new(NoteName::B, OCTAVE_2);
+    pub const B_3: Self = Self::new(NoteName::B, OCTAVE_3);
+    pub const B_4: Self = Self::new(NoteName::B, OCTAVE_4);
+    pub const B_5: Self = Self::new(NoteName::B, OCTAVE_5);
+    pub const B_6: Self = Self::new(NoteName::B, OCTAVE_6);
+    pub const B_7: Self = Self::new(NoteName::B, OCTAVE_7);
+    pub const B_8: Self = Self::new(NoteName::B, OCTAVE_8);
 }
 
 /// Duplicated from `Note` so it's possible to bring all notes into scope by using this module.
 pub mod note {
     pub use super::Note;
     pub const C_MINUS_1: Note = Note::C_MINUS_1;
-    pub const C0: Note = Note::C0;
-    pub const C1: Note = Note::C1;
-    pub const C2: Note = Note::C2;
-    pub const C3: Note = Note::C3;
-    pub const C4: Note = Note::C4;
-    pub const C5: Note = Note::C5;
-    pub const C6: Note = Note::C6;
-    pub const C7: Note = Note::C7;
-    pub const C8: Note = Note::C8;
-    pub const C9: Note = Note::C9;
+    pub const C_0: Note = Note::C_0;
+    pub const C_1: Note = Note::C_1;
+    pub const C_2: Note = Note::C_2;
+    pub const C_3: Note = Note::C_3;
+    pub const C_4: Note = Note::C_4;
+    pub const C_5: Note = Note::C_5;
+    pub const C_6: Note = Note::C_6;
+    pub const C_7: Note = Note::C_7;
+    pub const C_8: Note = Note::C_8;
+    pub const C_9: Note = Note::C_9;
     pub const C_SHARP_MINUS_1: Note = Note::C_SHARP_MINUS_1;
-    pub const C_SHARP0: Note = Note::C_SHARP0;
-    pub const C_SHARP1: Note = Note::C_SHARP1;
-    pub const C_SHARP2: Note = Note::C_SHARP2;
-    pub const C_SHARP3: Note = Note::C_SHARP3;
-    pub const C_SHARP4: Note = Note::C_SHARP4;
-    pub const C_SHARP5: Note = Note::C_SHARP5;
-    pub const C_SHARP6: Note = Note::C_SHARP6;
-    pub const C_SHARP7: Note = Note::C_SHARP7;
-    pub const C_SHARP8: Note = Note::C_SHARP8;
-    pub const C_SHARP9: Note = Note::C_SHARP9;
+    pub const C_SHARP_0: Note = Note::C_SHARP_0;
+    pub const C_SHARP_1: Note = Note::C_SHARP_1;
+    pub const C_SHARP_2: Note = Note::C_SHARP_2;
+    pub const C_SHARP_3: Note = Note::C_SHARP_3;
+    pub const C_SHARP_4: Note = Note::C_SHARP_4;
+    pub const C_SHARP_5: Note = Note::C_SHARP_5;
+    pub const C_SHARP_6: Note = Note::C_SHARP_6;
+    pub const C_SHARP_7: Note = Note::C_SHARP_7;
+    pub const C_SHARP_8: Note = Note::C_SHARP_8;
+    pub const C_SHARP_9: Note = Note::C_SHARP_9;
     pub const D_FLAT_MINUS_1: Note = Note::D_FLAT_MINUS_1;
-    pub const D_FLAT0: Note = Note::D_FLAT0;
-    pub const D_FLAT1: Note = Note::D_FLAT1;
-    pub const D_FLAT2: Note = Note::D_FLAT2;
-    pub const D_FLAT3: Note = Note::D_FLAT3;
-    pub const D_FLAT4: Note = Note::D_FLAT4;
-    pub const D_FLAT5: Note = Note::D_FLAT5;
-    pub const D_FLAT6: Note = Note::D_FLAT6;
-    pub const D_FLAT7: Note = Note::D_FLAT7;
-    pub const D_FLAT8: Note = Note::D_FLAT8;
-    pub const D_FLAT9: Note = Note::D_FLAT9;
+    pub const D_FLAT_0: Note = Note::D_FLAT_0;
+    pub const D_FLAT_1: Note = Note::D_FLAT_1;
+    pub const D_FLAT_2: Note = Note::D_FLAT_2;
+    pub const D_FLAT_3: Note = Note::D_FLAT_3;
+    pub const D_FLAT_4: Note = Note::D_FLAT_4;
+    pub const D_FLAT_5: Note = Note::D_FLAT_5;
+    pub const D_FLAT_6: Note = Note::D_FLAT_6;
+    pub const D_FLAT_7: Note = Note::D_FLAT_7;
+    pub const D_FLAT_8: Note = Note::D_FLAT_8;
+    pub const D_FLAT_9: Note = Note::D_FLAT_9;
     pub const D_MINUS_1: Note = Note::D_MINUS_1;
-    pub const D0: Note = Note::D0;
-    pub const D1: Note = Note::D1;
-    pub const D2: Note = Note::D2;
-    pub const D3: Note = Note::D3;
-    pub const D4: Note = Note::D4;
-    pub const D5: Note = Note::D5;
-    pub const D6: Note = Note::D6;
-    pub const D7: Note = Note::D7;
-    pub const D8: Note = Note::D8;
-    pub const D9: Note = Note::D9;
+    pub const D_0: Note = Note::D_0;
+    pub const D_1: Note = Note::D_1;
+    pub const D_2: Note = Note::D_2;
+    pub const D_3: Note = Note::D_3;
+    pub const D_4: Note = Note::D_4;
+    pub const D_5: Note = Note::D_5;
+    pub const D_6: Note = Note::D_6;
+    pub const D_7: Note = Note::D_7;
+    pub const D_8: Note = Note::D_8;
+    pub const D_9: Note = Note::D_9;
     pub const D_SHARP_MINUS_1: Note = Note::D_SHARP_MINUS_1;
-    pub const D_SHARP0: Note = Note::D_SHARP0;
-    pub const D_SHARP1: Note = Note::D_SHARP1;
-    pub const D_SHARP2: Note = Note::D_SHARP2;
-    pub const D_SHARP3: Note = Note::D_SHARP3;
-    pub const D_SHARP4: Note = Note::D_SHARP4;
-    pub const D_SHARP5: Note = Note::D_SHARP5;
-    pub const D_SHARP6: Note = Note::D_SHARP6;
-    pub const D_SHARP7: Note = Note::D_SHARP7;
-    pub const D_SHARP8: Note = Note::D_SHARP8;
-    pub const D_SHARP9: Note = Note::D_SHARP9;
+    pub const D_SHARP_0: Note = Note::D_SHARP_0;
+    pub const D_SHARP_1: Note = Note::D_SHARP_1;
+    pub const D_SHARP_2: Note = Note::D_SHARP_2;
+    pub const D_SHARP_3: Note = Note::D_SHARP_3;
+    pub const D_SHARP_4: Note = Note::D_SHARP_4;
+    pub const D_SHARP_5: Note = Note::D_SHARP_5;
+    pub const D_SHARP_6: Note = Note::D_SHARP_6;
+    pub const D_SHARP_7: Note = Note::D_SHARP_7;
+    pub const D_SHARP_8: Note = Note::D_SHARP_8;
+    pub const D_SHARP_9: Note = Note::D_SHARP_9;
     pub const E_FLAT_MINUS_1: Note = Note::E_FLAT_MINUS_1;
-    pub const E_FLAT0: Note = Note::E_FLAT0;
-    pub const E_FLAT1: Note = Note::E_FLAT1;
-    pub const E_FLAT2: Note = Note::E_FLAT2;
-    pub const E_FLAT3: Note = Note::E_FLAT3;
-    pub const E_FLAT4: Note = Note::E_FLAT4;
-    pub const E_FLAT5: Note = Note::E_FLAT5;
-    pub const E_FLAT6: Note = Note::E_FLAT6;
-    pub const E_FLAT7: Note = Note::E_FLAT7;
-    pub const E_FLAT8: Note = Note::E_FLAT8;
-    pub const E_FLAT9: Note = Note::E_FLAT9;
+    pub const E_FLAT_0: Note = Note::E_FLAT_0;
+    pub const E_FLAT_1: Note = Note::E_FLAT_1;
+    pub const E_FLAT_2: Note = Note::E_FLAT_2;
+    pub const E_FLAT_3: Note = Note::E_FLAT_3;
+    pub const E_FLAT_4: Note = Note::E_FLAT_4;
+    pub const E_FLAT_5: Note = Note::E_FLAT_5;
+    pub const E_FLAT_6: Note = Note::E_FLAT_6;
+    pub const E_FLAT_7: Note = Note::E_FLAT_7;
+    pub const E_FLAT_8: Note = Note::E_FLAT_8;
+    pub const E_FLAT_9: Note = Note::E_FLAT_9;
     pub const E_MINUS_1: Note = Note::E_MINUS_1;
-    pub const E0: Note = Note::E0;
-    pub const E1: Note = Note::E1;
-    pub const E2: Note = Note::E2;
-    pub const E3: Note = Note::E3;
-    pub const E4: Note = Note::E4;
-    pub const E5: Note = Note::E5;
-    pub const E6: Note = Note::E6;
-    pub const E7: Note = Note::E7;
-    pub const E8: Note = Note::E8;
-    pub const E9: Note = Note::E9;
+    pub const E_0: Note = Note::E_0;
+    pub const E_1: Note = Note::E_1;
+    pub const E_2: Note = Note::E_2;
+    pub const E_3: Note = Note::E_3;
+    pub const E_4: Note = Note::E_4;
+    pub const E_5: Note = Note::E_5;
+    pub const E_6: Note = Note::E_6;
+    pub const E_7: Note = Note::E_7;
+    pub const E_8: Note = Note::E_8;
+    pub const E_9: Note = Note::E_9;
     pub const F_MINUS_1: Note = Note::F_MINUS_1;
-    pub const F0: Note = Note::F0;
-    pub const F1: Note = Note::F1;
-    pub const F2: Note = Note::F2;
-    pub const F3: Note = Note::F3;
-    pub const F4: Note = Note::F4;
-    pub const F5: Note = Note::F5;
-    pub const F6: Note = Note::F6;
-    pub const F7: Note = Note::F7;
-    pub const F8: Note = Note::F8;
-    pub const F9: Note = Note::F9;
+    pub const F_0: Note = Note::F_0;
+    pub const F_1: Note = Note::F_1;
+    pub const F_2: Note = Note::F_2;
+    pub const F_3: Note = Note::F_3;
+    pub const F_4: Note = Note::F_4;
+    pub const F_5: Note = Note::F_5;
+    pub const F_6: Note = Note::F_6;
+    pub const F_7: Note = Note::F_7;
+    pub const F_8: Note = Note::F_8;
+    pub const F_9: Note = Note::F_9;
     pub const F_SHARP_MINUS_1: Note = Note::F_SHARP_MINUS_1;
-    pub const F_SHARP0: Note = Note::F_SHARP0;
-    pub const F_SHARP1: Note = Note::F_SHARP1;
-    pub const F_SHARP2: Note = Note::F_SHARP2;
-    pub const F_SHARP3: Note = Note::F_SHARP3;
-    pub const F_SHARP4: Note = Note::F_SHARP4;
-    pub const F_SHARP5: Note = Note::F_SHARP5;
-    pub const F_SHARP6: Note = Note::F_SHARP6;
-    pub const F_SHARP7: Note = Note::F_SHARP7;
-    pub const F_SHARP8: Note = Note::F_SHARP8;
-    pub const F_SHARP9: Note = Note::F_SHARP9;
+    pub const F_SHARP_0: Note = Note::F_SHARP_0;
+    pub const F_SHARP_1: Note = Note::F_SHARP_1;
+    pub const F_SHARP_2: Note = Note::F_SHARP_2;
+    pub const F_SHARP_3: Note = Note::F_SHARP_3;
+    pub const F_SHARP_4: Note = Note::F_SHARP_4;
+    pub const F_SHARP_5: Note = Note::F_SHARP_5;
+    pub const F_SHARP_6: Note = Note::F_SHARP_6;
+    pub const F_SHARP_7: Note = Note::F_SHARP_7;
+    pub const F_SHARP_8: Note = Note::F_SHARP_8;
+    pub const F_SHARP_9: Note = Note::F_SHARP_9;
     pub const G_FLAT_MINUS_1: Note = Note::G_FLAT_MINUS_1;
-    pub const G_FLAT0: Note = Note::G_FLAT0;
-    pub const G_FLAT1: Note = Note::G_FLAT1;
-    pub const G_FLAT2: Note = Note::G_FLAT2;
-    pub const G_FLAT3: Note = Note::G_FLAT3;
-    pub const G_FLAT4: Note = Note::G_FLAT4;
-    pub const G_FLAT5: Note = Note::G_FLAT5;
-    pub const G_FLAT6: Note = Note::G_FLAT6;
-    pub const G_FLAT7: Note = Note::G_FLAT7;
-    pub const G_FLAT8: Note = Note::G_FLAT8;
-    pub const G_FLAT9: Note = Note::G_FLAT9;
+    pub const G_FLAT_0: Note = Note::G_FLAT_0;
+    pub const G_FLAT_1: Note = Note::G_FLAT_1;
+    pub const G_FLAT_2: Note = Note::G_FLAT_2;
+    pub const G_FLAT_3: Note = Note::G_FLAT_3;
+    pub const G_FLAT_4: Note = Note::G_FLAT_4;
+    pub const G_FLAT_5: Note = Note::G_FLAT_5;
+    pub const G_FLAT_6: Note = Note::G_FLAT_6;
+    pub const G_FLAT_7: Note = Note::G_FLAT_7;
+    pub const G_FLAT_8: Note = Note::G_FLAT_8;
+    pub const G_FLAT_9: Note = Note::G_FLAT_9;
     pub const G_MINUS_1: Note = Note::G_MINUS_1;
-    pub const G0: Note = Note::G0;
-    pub const G1: Note = Note::G1;
-    pub const G2: Note = Note::G2;
-    pub const G3: Note = Note::G3;
-    pub const G4: Note = Note::G4;
-    pub const G5: Note = Note::G5;
-    pub const G6: Note = Note::G6;
-    pub const G7: Note = Note::G7;
-    pub const G8: Note = Note::G8;
-    pub const G9: Note = Note::G9;
+    pub const G_0: Note = Note::G_0;
+    pub const G_1: Note = Note::G_1;
+    pub const G_2: Note = Note::G_2;
+    pub const G_3: Note = Note::G_3;
+    pub const G_4: Note = Note::G_4;
+    pub const G_5: Note = Note::G_5;
+    pub const G_6: Note = Note::G_6;
+    pub const G_7: Note = Note::G_7;
+    pub const G_8: Note = Note::G_8;
+    pub const G_9: Note = Note::G_9;
     pub const G_SHARP_MINUS_1: Note = Note::G_SHARP_MINUS_1;
-    pub const G_SHARP0: Note = Note::G_SHARP0;
-    pub const G_SHARP1: Note = Note::G_SHARP1;
-    pub const G_SHARP2: Note = Note::G_SHARP2;
-    pub const G_SHARP3: Note = Note::G_SHARP3;
-    pub const G_SHARP4: Note = Note::G_SHARP4;
-    pub const G_SHARP5: Note = Note::G_SHARP5;
-    pub const G_SHARP6: Note = Note::G_SHARP6;
-    pub const G_SHARP7: Note = Note::G_SHARP7;
-    pub const G_SHARP8: Note = Note::G_SHARP8;
+    pub const G_SHARP_0: Note = Note::G_SHARP_0;
+    pub const G_SHARP_1: Note = Note::G_SHARP_1;
+    pub const G_SHARP_2: Note = Note::G_SHARP_2;
+    pub const G_SHARP_3: Note = Note::G_SHARP_3;
+    pub const G_SHARP_4: Note = Note::G_SHARP_4;
+    pub const G_SHARP_5: Note = Note::G_SHARP_5;
+    pub const G_SHARP_6: Note = Note::G_SHARP_6;
+    pub const G_SHARP_7: Note = Note::G_SHARP_7;
+    pub const G_SHARP_8: Note = Note::G_SHARP_8;
     pub const A_FLAT_MINUS_1: Note = Note::A_FLAT_MINUS_1;
-    pub const A_FLAT0: Note = Note::A_FLAT0;
-    pub const A_FLAT1: Note = Note::A_FLAT1;
-    pub const A_FLAT2: Note = Note::A_FLAT2;
-    pub const A_FLAT3: Note = Note::A_FLAT3;
-    pub const A_FLAT4: Note = Note::A_FLAT4;
-    pub const A_FLAT5: Note = Note::A_FLAT5;
-    pub const A_FLAT6: Note = Note::A_FLAT6;
-    pub const A_FLAT7: Note = Note::A_FLAT7;
-    pub const A_FLAT8: Note = Note::A_FLAT8;
+    pub const A_FLAT_0: Note = Note::A_FLAT_0;
+    pub const A_FLAT_1: Note = Note::A_FLAT_1;
+    pub const A_FLAT_2: Note = Note::A_FLAT_2;
+    pub const A_FLAT_3: Note = Note::A_FLAT_3;
+    pub const A_FLAT_4: Note = Note::A_FLAT_4;
+    pub const A_FLAT_5: Note = Note::A_FLAT_5;
+    pub const A_FLAT_6: Note = Note::A_FLAT_6;
+    pub const A_FLAT_7: Note = Note::A_FLAT_7;
+    pub const A_FLAT_8: Note = Note::A_FLAT_8;
     pub const A_MINUS_1: Note = Note::A_MINUS_1;
-    pub const A0: Note = Note::A0;
-    pub const A1: Note = Note::A1;
-    pub const A2: Note = Note::A2;
-    pub const A3: Note = Note::A3;
-    pub const A4: Note = Note::A4;
-    pub const A5: Note = Note::A5;
-    pub const A6: Note = Note::A6;
-    pub const A7: Note = Note::A7;
-    pub const A8: Note = Note::A8;
+    pub const A_0: Note = Note::A_0;
+    pub const A_1: Note = Note::A_1;
+    pub const A_2: Note = Note::A_2;
+    pub const A_3: Note = Note::A_3;
+    pub const A_4: Note = Note::A_4;
+    pub const A_5: Note = Note::A_5;
+    pub const A_6: Note = Note::A_6;
+    pub const A_7: Note = Note::A_7;
+    pub const A_8: Note = Note::A_8;
     pub const A_SHARP_MINUS_1: Note = Note::A_SHARP_MINUS_1;
-    pub const A_SHARP0: Note = Note::A_SHARP0;
-    pub const A_SHARP1: Note = Note::A_SHARP1;
-    pub const A_SHARP2: Note = Note::A_SHARP2;
-    pub const A_SHARP3: Note = Note::A_SHARP3;
-    pub const A_SHARP4: Note = Note::A_SHARP4;
-    pub const A_SHARP5: Note = Note::A_SHARP5;
-    pub const A_SHARP6: Note = Note::A_SHARP6;
-    pub const A_SHARP7: Note = Note::A_SHARP7;
-    pub const A_SHARP8: Note = Note::A_SHARP8;
+    pub const A_SHARP_0: Note = Note::A_SHARP_0;
+    pub const A_SHARP_1: Note = Note::A_SHARP_1;
+    pub const A_SHARP_2: Note = Note::A_SHARP_2;
+    pub const A_SHARP_3: Note = Note::A_SHARP_3;
+    pub const A_SHARP_4: Note = Note::A_SHARP_4;
+    pub const A_SHARP_5: Note = Note::A_SHARP_5;
+    pub const A_SHARP_6: Note = Note::A_SHARP_6;
+    pub const A_SHARP_7: Note = Note::A_SHARP_7;
+    pub const A_SHARP_8: Note = Note::A_SHARP_8;
     pub const B_FLAT_MINUS_1: Note = Note::B_FLAT_MINUS_1;
-    pub const B_FLAT0: Note = Note::B_FLAT0;
-    pub const B_FLAT1: Note = Note::B_FLAT1;
-    pub const B_FLAT2: Note = Note::B_FLAT2;
-    pub const B_FLAT3: Note = Note::B_FLAT3;
-    pub const B_FLAT4: Note = Note::B_FLAT4;
-    pub const B_FLAT5: Note = Note::B_FLAT5;
-    pub const B_FLAT6: Note = Note::B_FLAT6;
-    pub const B_FLAT7: Note = Note::B_FLAT7;
-    pub const B_FLAT8: Note = Note::B_FLAT8;
+    pub const B_FLAT_0: Note = Note::B_FLAT_0;
+    pub const B_FLAT_1: Note = Note::B_FLAT_1;
+    pub const B_FLAT_2: Note = Note::B_FLAT_2;
+    pub const B_FLAT_3: Note = Note::B_FLAT_3;
+    pub const B_FLAT_4: Note = Note::B_FLAT_4;
+    pub const B_FLAT_5: Note = Note::B_FLAT_5;
+    pub const B_FLAT_6: Note = Note::B_FLAT_6;
+    pub const B_FLAT_7: Note = Note::B_FLAT_7;
+    pub const B_FLAT_8: Note = Note::B_FLAT_8;
     pub const B_MINUS_1: Note = Note::B_MINUS_1;
-    pub const B0: Note = Note::B0;
-    pub const B1: Note = Note::B1;
-    pub const B2: Note = Note::B2;
-    pub const B3: Note = Note::B3;
-    pub const B4: Note = Note::B4;
-    pub const B5: Note = Note::B5;
-    pub const B6: Note = Note::B6;
-    pub const B7: Note = Note::B7;
-    pub const B8: Note = Note::B8;
+    pub const B_0: Note = Note::B_0;
+    pub const B_1: Note = Note::B_1;
+    pub const B_2: Note = Note::B_2;
+    pub const B_3: Note = Note::B_3;
+    pub const B_4: Note = Note::B_4;
+    pub const B_5: Note = Note::B_5;
+    pub const B_6: Note = Note::B_6;
+    pub const B_7: Note = Note::B_7;
+    pub const B_8: Note = Note::B_8;
 }
 
 #[cfg(test)]
@@ -1088,10 +1088,10 @@ mod test {
 
     #[test]
     fn string_round_trip() {
-        assert_eq!(note::D6.to_string().parse::<Note>().unwrap(), note::D6);
+        assert_eq!(note::D_6.to_string().parse::<Note>().unwrap(), note::D_6);
         assert_eq!(
-            note::A_SHARP5.to_string().parse::<Note>().unwrap(),
-            note::A_SHARP5
+            note::A_SHARP_5.to_string().parse::<Note>().unwrap(),
+            note::A_SHARP_5
         );
     }
 
@@ -1102,6 +1102,6 @@ mod test {
 
     #[test]
     fn max_note_midi_index() {
-        assert_eq!(Note::G9.to_midi_index(), 127);
+        assert_eq!(Note::G_9.to_midi_index(), 127);
     }
 }

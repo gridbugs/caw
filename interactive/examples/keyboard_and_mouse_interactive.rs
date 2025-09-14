@@ -11,7 +11,7 @@ fn sig(input: Input, channel: Channel) -> Sig<impl SigT<Item = f32> + Send> {
         ..
     } = input
         .keyboard
-        .opinionated_key_events(Note::B0)
+        .opinionated_key_events(Note::B_0)
         .debug(|x| {
             if !x.is_empty() {
                 //println!("{:?}", x);

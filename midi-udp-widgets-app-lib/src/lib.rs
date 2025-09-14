@@ -71,7 +71,7 @@ impl Button {
             button.clone()
         } else {
             // The choice of note here is arbitrary.
-            let sig = Sig(SIG.clone().key_press(Note::C4));
+            let sig = Sig(SIG.clone().key_press(Note::default()));
             let mut s = Self {
                 widget: Widget {
                     title: title.clone(),
@@ -418,7 +418,7 @@ mod computer_keyboard_builder {
         #[build_ty = "Sig<SigShared<ComputerKeyboard>>"]
         pub struct Props {
             title: String,
-            #[default = Note::B1]
+            #[default = Note::B_1]
             start_note: Note,
         }
     }
