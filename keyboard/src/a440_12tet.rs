@@ -1,33 +1,57 @@
-//! 12-tone equal temperament following the A440Hz convention
+//! 12-tone equal temperament following the A440Hz convention. Only allows representation of MIDI
+//! notes. The frequency of A4 (the A above middle C) is 440Hz. C4 is considered to be middle C.
+//! The lowest note is C in the octave "-1". The entire "-1" octave and most of octave 0 is below
+//! the range of human hearing but might be useful for in-band custom control signals. The highest
+//! note is G9. Thus the 9th octave does not contain all notes. C is considered the first note in
+//! each octave.
 use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
 use std::{fmt::Display, str::FromStr};
 
+/// Octaves go from -1 to 8. Some notes in the 9th octave can be constructed, however the regular
+/// `Note::new` function can't be passed the 9th octave since that would permit construction of
+/// non-MIDI notes (those in the 9th octave above G9).
 #[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
-pub struct Octave(u8);
-
-impl Octave {
-    pub const MAX_OCTAVE: u8 = 8;
-
-    pub const fn new(i: u8) -> Self {
-        assert!(i <= Self::MAX_OCTAVE);
-        Self(i)
-    }
-
-    pub const fn index(self) -> u8 {
-        self.0
-    }
-
-    pub const _0: Self = Self(0);
-    pub const _1: Self = Self(1);
-    pub const _2: Self = Self(2);
-    pub const _3: Self = Self(3);
-    pub const _4: Self = Self(4);
-    pub const _5: Self = Self(5);
-    pub const _6: Self = Self(6);
-    pub const _7: Self = Self(7);
-    pub const _8: Self = Self(8);
+pub struct Octave {
+    /// To make the math easier octaves are represented by the index of the first note of the
+    /// octave (c) divided by 12. Unfortunately this means that the first octave, named octave "-1"
+    /// in MIDI parlance, has representation "0".
+    c_midi_index_dividied_by_notes_per_octave: u8,
 }
 
+impl Octave {
+    const MIN_OCTAVE: i8 = -1;
+    const MAX_OCTAVE: i8 = 8;
+
+    const fn from_index(i: i8) -> Self {
+        assert!(i >= Self::MIN_OCTAVE && i <= Self::MAX_OCTAVE);
+        Self {
+            c_midi_index_dividied_by_notes_per_octave: (i + 1) as u8,
+        }
+    }
+
+    const fn to_index(self) -> i8 {
+        self.c_midi_index_dividied_by_notes_per_octave as i8 - 1
+    }
+
+    /// Returns the index of the C note in this octave.
+    const fn c_midi_index(self) -> u8 {
+        self.c_midi_index_dividied_by_notes_per_octave * NOTES_PER_OCTAVE
+    }
+
+    pub const _MINUS_1: Self = Self::from_index(-1);
+    pub const _0: Self = Self::from_index(0);
+    pub const _1: Self = Self::from_index(1);
+    pub const _2: Self = Self::from_index(2);
+    pub const _3: Self = Self::from_index(3);
+    pub const _4: Self = Self::from_index(4);
+    pub const _5: Self = Self::from_index(5);
+    pub const _6: Self = Self::from_index(6);
+    pub const _7: Self = Self::from_index(7);
+    pub const _8: Self = Self::from_index(8);
+}
+
+/// Default to octave 4. This is fairly abitrary but needed to simplify code that derives
+/// `Default` when it involves an `Octave`.
 impl Default for Octave {
     fn default() -> Self {
         Octave::_4
@@ -37,6 +61,7 @@ impl Default for Octave {
 pub mod octave {
     use super::Octave;
 
+    pub const _MINUS_1: Octave = Octave::_MINUS_1;
     pub const _0: Octave = Octave::_0;
     pub const _1: Octave = Octave::_1;
     pub const _2: Octave = Octave::_2;
@@ -48,6 +73,7 @@ pub mod octave {
     pub const _8: Octave = Octave::_8;
 }
 
+pub const OCTAVE_MINUS_1: Octave = Octave::_MINUS_1;
 pub const OCTAVE_0: Octave = Octave::_0;
 pub const OCTAVE_1: Octave = Octave::_1;
 pub const OCTAVE_2: Octave = Octave::_2;
@@ -93,10 +119,6 @@ impl NoteName {
     pub const B_FLAT: Self = Self::A_SHARP;
     pub const B: Self = Self::from_index(11);
 
-    const fn to_index(self) -> u8 {
-        self.relative_midi_index
-    }
-
     /// Returns a str representation of the note name where all accidentals are sharp, formatted
     /// like "C" or "C_sharp"
     pub const fn to_str_sharp(self) -> &'static str {
@@ -141,7 +163,7 @@ impl NoteName {
 
     const fn wrapping_add_semitones(self, num_semitones: i8) -> Self {
         Self::from_index(
-            (self.to_index() as i8 + num_semitones)
+            (self.relative_midi_index as i8 + num_semitones)
                 .rem_euclid(NOTES_PER_OCTAVE as i8) as u8,
         )
     }
@@ -175,8 +197,8 @@ pub mod note_name {
 }
 
 const A4_FREQ_HZ: f32 = 440.0;
-const C0_MIDI_INDEX: u8 = 12;
-const A4_MIDI_INDEX: u8 = C0_MIDI_INDEX + 57;
+const A4_MIDI_INDEX: u8 = 69;
+const C9_MIDI_INDEX: u8 = 120;
 
 pub fn freq_hz_of_midi_index(midi_index: u8) -> f32 {
     A4_FREQ_HZ
@@ -201,10 +223,14 @@ pub struct Note {
 impl Note {
     pub const fn new(name: NoteName, octave: Octave) -> Self {
         Self {
-            midi_index: C0_MIDI_INDEX
-                + (octave.0 * NOTES_PER_OCTAVE)
-                + name.to_index(),
+            midi_index: octave.c_midi_index() + name.relative_midi_index,
         }
+    }
+
+    const fn new_octave_9(name: NoteName) -> Self {
+        let midi_index = C9_MIDI_INDEX + name.relative_midi_index;
+        assert!(midi_index <= 127);
+        Self { midi_index }
     }
 
     pub const fn to_midi_index(self) -> u8 {
@@ -216,19 +242,20 @@ impl Note {
     }
 
     pub fn from_midi_index(midi_index: impl Into<u8>) -> Self {
-        Self {
-            midi_index: midi_index.into(),
-        }
+        let midi_index = midi_index.into();
+        assert!(midi_index <= 127);
+        Self { midi_index }
     }
 
     pub const fn octave(self) -> Octave {
-        Octave::new((self.midi_index - C0_MIDI_INDEX) / NOTES_PER_OCTAVE)
+        Octave {
+            c_midi_index_dividied_by_notes_per_octave: self.midi_index
+                / NOTES_PER_OCTAVE,
+        }
     }
 
     pub const fn note_name(self) -> NoteName {
-        NoteName::from_index(
-            (self.midi_index - C0_MIDI_INDEX) % NOTES_PER_OCTAVE,
-        )
+        NoteName::from_index(self.midi_index % NOTES_PER_OCTAVE)
     }
 
     pub const fn add_semitones_checked(
@@ -260,14 +287,15 @@ impl Note {
     }
 }
 
-/// Example formats: "C_sharp-4", "C-4"
+/// Example formats: "C_sharp:4", "C:4". Notes in octave "-1" are written like "C_sharp:-1" or
+/// "C:-1".
 impl Display for Note {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "{}-{}",
+            "{}:{}",
             self.note_name().to_str_sharp(),
-            self.octave().index()
+            self.octave().to_index()
         )
     }
 }
@@ -277,21 +305,21 @@ impl FromStr for Note {
     type Err = String;
 
     fn from_str(s: &str) -> Result<Self, Self::Err> {
-        let mut split = s.split("-");
+        let mut split = s.split(":");
         if let Some(name) = split.next() {
             if let Some(name) = NoteName::from_str_sharp(name) {
                 if let Some(octave_index) = split.next() {
-                    match octave_index.parse::<u8>() {
+                    match octave_index.parse::<i8>() {
                         Ok(octave_index) => {
                             if octave_index <= Octave::MAX_OCTAVE {
                                 if split.next().is_none() {
                                     Ok(Note::new(
                                         name,
-                                        Octave::new(octave_index),
+                                        Octave::from_index(octave_index),
                                     ))
                                 } else {
                                     Err(format!(
-                                        "Multiple dashes in note string."
+                                        "Multiple colons in note string."
                                     ))
                                 }
                             } else {
@@ -307,7 +335,7 @@ impl FromStr for Note {
                         }
                     }
                 } else {
-                    Err(format!("No dash in note string."))
+                    Err(format!("No colons in note string."))
                 }
             } else {
                 Err(format!("Failed to parse note name: {}", name))
@@ -526,7 +554,7 @@ pub mod chord {
             octave_base_index
                 + note_name
                     .wrapping_add_semitones(multiple_of_12_gte_base_index_delta)
-                    .to_index(),
+                    .relative_midi_index,
         )
     }
 
@@ -664,6 +692,7 @@ pub mod chord {
 }
 
 impl Note {
+    pub const C_MINUS_1: Self = Self::new(NoteName::C, OCTAVE_MINUS_1);
     pub const C0: Self = Self::new(NoteName::C, OCTAVE_0);
     pub const C1: Self = Self::new(NoteName::C, OCTAVE_1);
     pub const C2: Self = Self::new(NoteName::C, OCTAVE_2);
@@ -673,6 +702,9 @@ impl Note {
     pub const C6: Self = Self::new(NoteName::C, OCTAVE_6);
     pub const C7: Self = Self::new(NoteName::C, OCTAVE_7);
     pub const C8: Self = Self::new(NoteName::C, OCTAVE_8);
+    pub const C9: Self = Self::new_octave_9(NoteName::C);
+    pub const C_SHARP_MINUS_1: Self =
+        Self::new(NoteName::C_SHARP, OCTAVE_MINUS_1);
     pub const C_SHARP0: Self = Self::new(NoteName::C_SHARP, OCTAVE_0);
     pub const C_SHARP1: Self = Self::new(NoteName::C_SHARP, OCTAVE_1);
     pub const C_SHARP2: Self = Self::new(NoteName::C_SHARP, OCTAVE_2);
@@ -682,6 +714,9 @@ impl Note {
     pub const C_SHARP6: Self = Self::new(NoteName::C_SHARP, OCTAVE_6);
     pub const C_SHARP7: Self = Self::new(NoteName::C_SHARP, OCTAVE_7);
     pub const C_SHARP8: Self = Self::new(NoteName::C_SHARP, OCTAVE_8);
+    pub const C_SHARP9: Self = Self::new_octave_9(NoteName::C_SHARP);
+    pub const D_FLAT_MINUS_1: Self =
+        Self::new(NoteName::D_FLAT, OCTAVE_MINUS_1);
     pub const D_FLAT0: Self = Self::new(NoteName::D_FLAT, OCTAVE_0);
     pub const D_FLAT1: Self = Self::new(NoteName::D_FLAT, OCTAVE_1);
     pub const D_FLAT2: Self = Self::new(NoteName::D_FLAT, OCTAVE_2);
@@ -691,6 +726,8 @@ impl Note {
     pub const D_FLAT6: Self = Self::new(NoteName::D_FLAT, OCTAVE_6);
     pub const D_FLAT7: Self = Self::new(NoteName::D_FLAT, OCTAVE_7);
     pub const D_FLAT8: Self = Self::new(NoteName::D_FLAT, OCTAVE_8);
+    pub const D_FLAT9: Self = Self::new_octave_9(NoteName::D_FLAT);
+    pub const D_MINUS_1: Self = Self::new(NoteName::D, OCTAVE_MINUS_1);
     pub const D0: Self = Self::new(NoteName::D, OCTAVE_0);
     pub const D1: Self = Self::new(NoteName::D, OCTAVE_1);
     pub const D2: Self = Self::new(NoteName::D, OCTAVE_2);
@@ -700,6 +737,9 @@ impl Note {
     pub const D6: Self = Self::new(NoteName::D, OCTAVE_6);
     pub const D7: Self = Self::new(NoteName::D, OCTAVE_7);
     pub const D8: Self = Self::new(NoteName::D, OCTAVE_8);
+    pub const D9: Self = Self::new_octave_9(NoteName::D);
+    pub const D_SHARP_MINUS_1: Self =
+        Self::new(NoteName::D_SHARP, OCTAVE_MINUS_1);
     pub const D_SHARP0: Self = Self::new(NoteName::D_SHARP, OCTAVE_0);
     pub const D_SHARP1: Self = Self::new(NoteName::D_SHARP, OCTAVE_1);
     pub const D_SHARP2: Self = Self::new(NoteName::D_SHARP, OCTAVE_2);
@@ -709,6 +749,9 @@ impl Note {
     pub const D_SHARP6: Self = Self::new(NoteName::D_SHARP, OCTAVE_6);
     pub const D_SHARP7: Self = Self::new(NoteName::D_SHARP, OCTAVE_7);
     pub const D_SHARP8: Self = Self::new(NoteName::D_SHARP, OCTAVE_8);
+    pub const D_SHARP9: Self = Self::new_octave_9(NoteName::D_SHARP);
+    pub const E_FLAT_MINUS_1: Self =
+        Self::new(NoteName::E_FLAT, OCTAVE_MINUS_1);
     pub const E_FLAT0: Self = Self::new(NoteName::E_FLAT, OCTAVE_0);
     pub const E_FLAT1: Self = Self::new(NoteName::E_FLAT, OCTAVE_1);
     pub const E_FLAT2: Self = Self::new(NoteName::E_FLAT, OCTAVE_2);
@@ -718,6 +761,8 @@ impl Note {
     pub const E_FLAT6: Self = Self::new(NoteName::E_FLAT, OCTAVE_6);
     pub const E_FLAT7: Self = Self::new(NoteName::E_FLAT, OCTAVE_7);
     pub const E_FLAT8: Self = Self::new(NoteName::E_FLAT, OCTAVE_8);
+    pub const E_FLAT9: Self = Self::new_octave_9(NoteName::E_FLAT);
+    pub const E_MINUS_1: Self = Self::new(NoteName::E, OCTAVE_MINUS_1);
     pub const E0: Self = Self::new(NoteName::E, OCTAVE_0);
     pub const E1: Self = Self::new(NoteName::E, OCTAVE_1);
     pub const E2: Self = Self::new(NoteName::E, OCTAVE_2);
@@ -727,6 +772,8 @@ impl Note {
     pub const E6: Self = Self::new(NoteName::E, OCTAVE_6);
     pub const E7: Self = Self::new(NoteName::E, OCTAVE_7);
     pub const E8: Self = Self::new(NoteName::E, OCTAVE_8);
+    pub const E9: Self = Self::new_octave_9(NoteName::E);
+    pub const F_MINUS_1: Self = Self::new(NoteName::F, OCTAVE_MINUS_1);
     pub const F0: Self = Self::new(NoteName::F, OCTAVE_0);
     pub const F1: Self = Self::new(NoteName::F, OCTAVE_1);
     pub const F2: Self = Self::new(NoteName::F, OCTAVE_2);
@@ -736,6 +783,9 @@ impl Note {
     pub const F6: Self = Self::new(NoteName::F, OCTAVE_6);
     pub const F7: Self = Self::new(NoteName::F, OCTAVE_7);
     pub const F8: Self = Self::new(NoteName::F, OCTAVE_8);
+    pub const F9: Self = Self::new_octave_9(NoteName::F);
+    pub const F_SHARP_MINUS_1: Self =
+        Self::new(NoteName::F_SHARP, OCTAVE_MINUS_1);
     pub const F_SHARP0: Self = Self::new(NoteName::F_SHARP, OCTAVE_0);
     pub const F_SHARP1: Self = Self::new(NoteName::F_SHARP, OCTAVE_1);
     pub const F_SHARP2: Self = Self::new(NoteName::F_SHARP, OCTAVE_2);
@@ -745,6 +795,9 @@ impl Note {
     pub const F_SHARP6: Self = Self::new(NoteName::F_SHARP, OCTAVE_6);
     pub const F_SHARP7: Self = Self::new(NoteName::F_SHARP, OCTAVE_7);
     pub const F_SHARP8: Self = Self::new(NoteName::F_SHARP, OCTAVE_8);
+    pub const F_SHARP9: Self = Self::new_octave_9(NoteName::F_SHARP);
+    pub const G_FLAT_MINUS_1: Self =
+        Self::new(NoteName::G_FLAT, OCTAVE_MINUS_1);
     pub const G_FLAT0: Self = Self::new(NoteName::G_FLAT, OCTAVE_0);
     pub const G_FLAT1: Self = Self::new(NoteName::G_FLAT, OCTAVE_1);
     pub const G_FLAT2: Self = Self::new(NoteName::G_FLAT, OCTAVE_2);
@@ -754,6 +807,8 @@ impl Note {
     pub const G_FLAT6: Self = Self::new(NoteName::G_FLAT, OCTAVE_6);
     pub const G_FLAT7: Self = Self::new(NoteName::G_FLAT, OCTAVE_7);
     pub const G_FLAT8: Self = Self::new(NoteName::G_FLAT, OCTAVE_8);
+    pub const G_FLAT9: Self = Self::new_octave_9(NoteName::G_FLAT);
+    pub const G_MINUS_1: Self = Self::new(NoteName::G, OCTAVE_MINUS_1);
     pub const G0: Self = Self::new(NoteName::G, OCTAVE_0);
     pub const G1: Self = Self::new(NoteName::G, OCTAVE_1);
     pub const G2: Self = Self::new(NoteName::G, OCTAVE_2);
@@ -763,6 +818,9 @@ impl Note {
     pub const G6: Self = Self::new(NoteName::G, OCTAVE_6);
     pub const G7: Self = Self::new(NoteName::G, OCTAVE_7);
     pub const G8: Self = Self::new(NoteName::G, OCTAVE_8);
+    pub const G9: Self = Self::new_octave_9(NoteName::G);
+    pub const G_SHARP_MINUS_1: Self =
+        Self::new(NoteName::G_SHARP, OCTAVE_MINUS_1);
     pub const G_SHARP0: Self = Self::new(NoteName::G_SHARP, OCTAVE_0);
     pub const G_SHARP1: Self = Self::new(NoteName::G_SHARP, OCTAVE_1);
     pub const G_SHARP2: Self = Self::new(NoteName::G_SHARP, OCTAVE_2);
@@ -772,6 +830,9 @@ impl Note {
     pub const G_SHARP6: Self = Self::new(NoteName::G_SHARP, OCTAVE_6);
     pub const G_SHARP7: Self = Self::new(NoteName::G_SHARP, OCTAVE_7);
     pub const G_SHARP8: Self = Self::new(NoteName::G_SHARP, OCTAVE_8);
+    pub const G_SHARP9: Self = Self::new_octave_9(NoteName::G_SHARP);
+    pub const A_FLAT_MINUS_1: Self =
+        Self::new(NoteName::A_FLAT, OCTAVE_MINUS_1);
     pub const A_FLAT0: Self = Self::new(NoteName::A_FLAT, OCTAVE_0);
     pub const A_FLAT1: Self = Self::new(NoteName::A_FLAT, OCTAVE_1);
     pub const A_FLAT2: Self = Self::new(NoteName::A_FLAT, OCTAVE_2);
@@ -781,6 +842,7 @@ impl Note {
     pub const A_FLAT6: Self = Self::new(NoteName::A_FLAT, OCTAVE_6);
     pub const A_FLAT7: Self = Self::new(NoteName::A_FLAT, OCTAVE_7);
     pub const A_FLAT8: Self = Self::new(NoteName::A_FLAT, OCTAVE_8);
+    pub const A_MINUS_1: Self = Self::new(NoteName::A, OCTAVE_MINUS_1);
     pub const A0: Self = Self::new(NoteName::A, OCTAVE_0);
     pub const A1: Self = Self::new(NoteName::A, OCTAVE_1);
     pub const A2: Self = Self::new(NoteName::A, OCTAVE_2);
@@ -790,6 +852,8 @@ impl Note {
     pub const A6: Self = Self::new(NoteName::A, OCTAVE_6);
     pub const A7: Self = Self::new(NoteName::A, OCTAVE_7);
     pub const A8: Self = Self::new(NoteName::A, OCTAVE_8);
+    pub const A_SHARP_MINUS_1: Self =
+        Self::new(NoteName::A_SHARP, OCTAVE_MINUS_1);
     pub const A_SHARP0: Self = Self::new(NoteName::A_SHARP, OCTAVE_0);
     pub const A_SHARP1: Self = Self::new(NoteName::A_SHARP, OCTAVE_1);
     pub const A_SHARP2: Self = Self::new(NoteName::A_SHARP, OCTAVE_2);
@@ -799,6 +863,8 @@ impl Note {
     pub const A_SHARP6: Self = Self::new(NoteName::A_SHARP, OCTAVE_6);
     pub const A_SHARP7: Self = Self::new(NoteName::A_SHARP, OCTAVE_7);
     pub const A_SHARP8: Self = Self::new(NoteName::A_SHARP, OCTAVE_8);
+    pub const B_FLAT_MINUS_1: Self =
+        Self::new(NoteName::B_FLAT, OCTAVE_MINUS_1);
     pub const B_FLAT0: Self = Self::new(NoteName::B_FLAT, OCTAVE_0);
     pub const B_FLAT1: Self = Self::new(NoteName::B_FLAT, OCTAVE_1);
     pub const B_FLAT2: Self = Self::new(NoteName::B_FLAT, OCTAVE_2);
@@ -808,6 +874,7 @@ impl Note {
     pub const B_FLAT6: Self = Self::new(NoteName::B_FLAT, OCTAVE_6);
     pub const B_FLAT7: Self = Self::new(NoteName::B_FLAT, OCTAVE_7);
     pub const B_FLAT8: Self = Self::new(NoteName::B_FLAT, OCTAVE_8);
+    pub const B_MINUS_1: Self = Self::new(NoteName::B, OCTAVE_MINUS_1);
     pub const B0: Self = Self::new(NoteName::B, OCTAVE_0);
     pub const B1: Self = Self::new(NoteName::B, OCTAVE_1);
     pub const B2: Self = Self::new(NoteName::B, OCTAVE_2);
@@ -822,6 +889,7 @@ impl Note {
 /// Duplicated from `Note` so it's possible to bring all notes into scope by using this module.
 pub mod note {
     pub use super::Note;
+    pub const C_MINUS_1: Note = Note::C_MINUS_1;
     pub const C0: Note = Note::C0;
     pub const C1: Note = Note::C1;
     pub const C2: Note = Note::C2;
@@ -831,6 +899,8 @@ pub mod note {
     pub const C6: Note = Note::C6;
     pub const C7: Note = Note::C7;
     pub const C8: Note = Note::C8;
+    pub const C9: Note = Note::C9;
+    pub const C_SHARP_MINUS_1: Note = Note::C_SHARP_MINUS_1;
     pub const C_SHARP0: Note = Note::C_SHARP0;
     pub const C_SHARP1: Note = Note::C_SHARP1;
     pub const C_SHARP2: Note = Note::C_SHARP2;
@@ -840,6 +910,8 @@ pub mod note {
     pub const C_SHARP6: Note = Note::C_SHARP6;
     pub const C_SHARP7: Note = Note::C_SHARP7;
     pub const C_SHARP8: Note = Note::C_SHARP8;
+    pub const C_SHARP9: Note = Note::C_SHARP9;
+    pub const D_FLAT_MINUS_1: Note = Note::D_FLAT_MINUS_1;
     pub const D_FLAT0: Note = Note::D_FLAT0;
     pub const D_FLAT1: Note = Note::D_FLAT1;
     pub const D_FLAT2: Note = Note::D_FLAT2;
@@ -849,6 +921,8 @@ pub mod note {
     pub const D_FLAT6: Note = Note::D_FLAT6;
     pub const D_FLAT7: Note = Note::D_FLAT7;
     pub const D_FLAT8: Note = Note::D_FLAT8;
+    pub const D_FLAT9: Note = Note::D_FLAT9;
+    pub const D_MINUS_1: Note = Note::D_MINUS_1;
     pub const D0: Note = Note::D0;
     pub const D1: Note = Note::D1;
     pub const D2: Note = Note::D2;
@@ -858,6 +932,8 @@ pub mod note {
     pub const D6: Note = Note::D6;
     pub const D7: Note = Note::D7;
     pub const D8: Note = Note::D8;
+    pub const D9: Note = Note::D9;
+    pub const D_SHARP_MINUS_1: Note = Note::D_SHARP_MINUS_1;
     pub const D_SHARP0: Note = Note::D_SHARP0;
     pub const D_SHARP1: Note = Note::D_SHARP1;
     pub const D_SHARP2: Note = Note::D_SHARP2;
@@ -867,6 +943,8 @@ pub mod note {
     pub const D_SHARP6: Note = Note::D_SHARP6;
     pub const D_SHARP7: Note = Note::D_SHARP7;
     pub const D_SHARP8: Note = Note::D_SHARP8;
+    pub const D_SHARP9: Note = Note::D_SHARP9;
+    pub const E_FLAT_MINUS_1: Note = Note::E_FLAT_MINUS_1;
     pub const E_FLAT0: Note = Note::E_FLAT0;
     pub const E_FLAT1: Note = Note::E_FLAT1;
     pub const E_FLAT2: Note = Note::E_FLAT2;
@@ -876,6 +954,8 @@ pub mod note {
     pub const E_FLAT6: Note = Note::E_FLAT6;
     pub const E_FLAT7: Note = Note::E_FLAT7;
     pub const E_FLAT8: Note = Note::E_FLAT8;
+    pub const E_FLAT9: Note = Note::E_FLAT9;
+    pub const E_MINUS_1: Note = Note::E_MINUS_1;
     pub const E0: Note = Note::E0;
     pub const E1: Note = Note::E1;
     pub const E2: Note = Note::E2;
@@ -885,6 +965,8 @@ pub mod note {
     pub const E6: Note = Note::E6;
     pub const E7: Note = Note::E7;
     pub const E8: Note = Note::E8;
+    pub const E9: Note = Note::E9;
+    pub const F_MINUS_1: Note = Note::F_MINUS_1;
     pub const F0: Note = Note::F0;
     pub const F1: Note = Note::F1;
     pub const F2: Note = Note::F2;
@@ -894,6 +976,8 @@ pub mod note {
     pub const F6: Note = Note::F6;
     pub const F7: Note = Note::F7;
     pub const F8: Note = Note::F8;
+    pub const F9: Note = Note::F9;
+    pub const F_SHARP_MINUS_1: Note = Note::F_SHARP_MINUS_1;
     pub const F_SHARP0: Note = Note::F_SHARP0;
     pub const F_SHARP1: Note = Note::F_SHARP1;
     pub const F_SHARP2: Note = Note::F_SHARP2;
@@ -903,6 +987,8 @@ pub mod note {
     pub const F_SHARP6: Note = Note::F_SHARP6;
     pub const F_SHARP7: Note = Note::F_SHARP7;
     pub const F_SHARP8: Note = Note::F_SHARP8;
+    pub const F_SHARP9: Note = Note::F_SHARP9;
+    pub const G_FLAT_MINUS_1: Note = Note::G_FLAT_MINUS_1;
     pub const G_FLAT0: Note = Note::G_FLAT0;
     pub const G_FLAT1: Note = Note::G_FLAT1;
     pub const G_FLAT2: Note = Note::G_FLAT2;
@@ -912,6 +998,8 @@ pub mod note {
     pub const G_FLAT6: Note = Note::G_FLAT6;
     pub const G_FLAT7: Note = Note::G_FLAT7;
     pub const G_FLAT8: Note = Note::G_FLAT8;
+    pub const G_FLAT9: Note = Note::G_FLAT9;
+    pub const G_MINUS_1: Note = Note::G_MINUS_1;
     pub const G0: Note = Note::G0;
     pub const G1: Note = Note::G1;
     pub const G2: Note = Note::G2;
@@ -921,6 +1009,8 @@ pub mod note {
     pub const G6: Note = Note::G6;
     pub const G7: Note = Note::G7;
     pub const G8: Note = Note::G8;
+    pub const G9: Note = Note::G9;
+    pub const G_SHARP_MINUS_1: Note = Note::G_SHARP_MINUS_1;
     pub const G_SHARP0: Note = Note::G_SHARP0;
     pub const G_SHARP1: Note = Note::G_SHARP1;
     pub const G_SHARP2: Note = Note::G_SHARP2;
@@ -930,6 +1020,7 @@ pub mod note {
     pub const G_SHARP6: Note = Note::G_SHARP6;
     pub const G_SHARP7: Note = Note::G_SHARP7;
     pub const G_SHARP8: Note = Note::G_SHARP8;
+    pub const A_FLAT_MINUS_1: Note = Note::A_FLAT_MINUS_1;
     pub const A_FLAT0: Note = Note::A_FLAT0;
     pub const A_FLAT1: Note = Note::A_FLAT1;
     pub const A_FLAT2: Note = Note::A_FLAT2;
@@ -939,6 +1030,7 @@ pub mod note {
     pub const A_FLAT6: Note = Note::A_FLAT6;
     pub const A_FLAT7: Note = Note::A_FLAT7;
     pub const A_FLAT8: Note = Note::A_FLAT8;
+    pub const A_MINUS_1: Note = Note::A_MINUS_1;
     pub const A0: Note = Note::A0;
     pub const A1: Note = Note::A1;
     pub const A2: Note = Note::A2;
@@ -948,6 +1040,7 @@ pub mod note {
     pub const A6: Note = Note::A6;
     pub const A7: Note = Note::A7;
     pub const A8: Note = Note::A8;
+    pub const A_SHARP_MINUS_1: Note = Note::A_SHARP_MINUS_1;
     pub const A_SHARP0: Note = Note::A_SHARP0;
     pub const A_SHARP1: Note = Note::A_SHARP1;
     pub const A_SHARP2: Note = Note::A_SHARP2;
@@ -957,6 +1050,7 @@ pub mod note {
     pub const A_SHARP6: Note = Note::A_SHARP6;
     pub const A_SHARP7: Note = Note::A_SHARP7;
     pub const A_SHARP8: Note = Note::A_SHARP8;
+    pub const B_FLAT_MINUS_1: Note = Note::B_FLAT_MINUS_1;
     pub const B_FLAT0: Note = Note::B_FLAT0;
     pub const B_FLAT1: Note = Note::B_FLAT1;
     pub const B_FLAT2: Note = Note::B_FLAT2;
@@ -966,6 +1060,7 @@ pub mod note {
     pub const B_FLAT6: Note = Note::B_FLAT6;
     pub const B_FLAT7: Note = Note::B_FLAT7;
     pub const B_FLAT8: Note = Note::B_FLAT8;
+    pub const B_MINUS_1: Note = Note::B_MINUS_1;
     pub const B0: Note = Note::B0;
     pub const B1: Note = Note::B1;
     pub const B2: Note = Note::B2;
@@ -998,5 +1093,15 @@ mod test {
             note::A_SHARP5.to_string().parse::<Note>().unwrap(),
             note::A_SHARP5
         );
+    }
+
+    #[test]
+    fn min_note_midi_index() {
+        assert_eq!(Note::C_MINUS_1.to_midi_index(), 0);
+    }
+
+    #[test]
+    fn max_note_midi_index() {
+        assert_eq!(Note::G9.to_midi_index(), 127);
     }
 }
