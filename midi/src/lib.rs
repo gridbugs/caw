@@ -297,6 +297,7 @@ where
         self.buf.resize_with(ctx.num_samples, Default::default);
         let midi_events = self.midi_events.sample(ctx);
         {
+            // Only copy messages from the first sample worth of events.
             let midi_messages = &mut self.buf[0];
             if let Some(midi_events) = midi_events.iter().next() {
                 for midi_event in midi_events {

@@ -10,6 +10,7 @@ repository = "https://github.com/gridbugs/caw.git"
 
 [dependencies]
 caw_widgets = { version = "0.4", path = "../widgets" }
+caw_midi = { version = "0.4", path = "../midi" }
 caw_midi_udp_client = { version = "0.1", path = "../midi-udp-client" }
 caw_keyboard = { version = "0.4", path = "../keyboard" }
 clap = { version = "4", features = ["derive"] }

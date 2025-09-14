@@ -12,6 +12,7 @@ documentation = "https://docs.rs/caw_widgets"
 [dependencies]
 anyhow = "1.0"
 midly = "0.5"
+caw_midi = { version = "0.4", path = "../midi" }
 
 [dev-dependencies]
 env_logger = "0.11"

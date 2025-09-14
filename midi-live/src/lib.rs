@@ -1,14 +1,8 @@
 use caw_core::{Sig, SigT};
-use caw_midi::MidiMessages;
+use caw_midi::{MidiEvent, MidiMessages};
 use midir::{MidiInput, MidiInputConnection, MidiInputPort};
 use midly::live::LiveEvent;
-use midly::{num::u4, MidiMessage};
 use std::{cell::RefCell, mem, rc::Rc, sync::mpsc};
-
-struct MidiEvent {
-    pub channel: u4,
-    pub message: MidiMessage,
-}
 
 pub struct MidiLive {
     midi_input: MidiInput,
@@ -122,7 +116,10 @@ impl MidiLiveConnection {
             let mut message_buffers = self.message_buffers.borrow_mut();
             let buffer = &mut message_buffers.buffers[channel as usize];
             if buffer.subscribed {
-                panic!("Midi channel {} subscribed to multiple times. Each midi channel may be subscribed to only once.", channel);
+                panic!(
+                    "Midi channel {} subscribed to multiple times. Each midi channel may be subscribed to only once.",
+                    channel
+                );
             }
             buffer.subscribed = true;
         }

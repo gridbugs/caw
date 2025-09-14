@@ -1,16 +1,9 @@
 use caw_core::*;
-pub use caw_midi::{MidiMessages, MidiMessagesT};
+pub use caw_midi::{MidiEvent, MidiMessages, MidiMessagesT};
 use midly::{
-    num::u4, Format, MetaMessage, MidiMessage, Smf, Timing, TrackEvent,
-    TrackEventKind,
+    Format, MetaMessage, Smf, Timing, TrackEvent, TrackEventKind, num::u4,
 };
 use std::{fs, path::Path};
-
-#[derive(Debug, Clone, Copy)]
-pub struct MidiEvent {
-    pub channel: u4,
-    pub message: MidiMessage,
-}
 
 pub struct MidiFile {
     smf: Smf<'static>,

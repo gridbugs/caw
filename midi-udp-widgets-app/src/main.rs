@@ -3,6 +3,7 @@
 //! run a UDP server which receives MIDI over UDP.
 
 use caw_keyboard::{Note, note};
+use caw_midi::MidiEvent;
 use caw_midi_udp_client::*;
 use caw_widgets::{Button, ComputerKeyboard, Knob, Xy};
 use clap::{Parser, Subcommand};

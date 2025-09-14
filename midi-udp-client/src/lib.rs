@@ -1,14 +1,10 @@
+use caw_midi::MidiEvent;
 use midly::live::LiveEvent;
 pub use midly::{MidiMessage, num::u4};
 use std::net::{Ipv4Addr, ToSocketAddrs, UdpSocket};
 
 pub struct MidiUdpClient {
     socket: UdpSocket,
-}
-
-pub struct MidiEvent {
-    pub channel: u4,
-    pub message: MidiMessage,
 }
 
 impl MidiUdpClient {
