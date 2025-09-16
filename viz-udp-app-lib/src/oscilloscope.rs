@@ -3,6 +3,7 @@ use crate::common::{
     VizUdpServer, samples_from_ne_bytes, samples_to_ne_bytes,
 };
 use std::{
+    fmt::Display,
     net::{SocketAddr, ToSocketAddrs},
     process::{Child, Command},
 };
@@ -13,13 +14,14 @@ pub enum OscilloscopeStyle {
     TimeDomain,
     TimeDomainStereo,
 }
-impl ToString for OscilloscopeStyle {
-    fn to_string(&self) -> String {
+
+impl Display for OscilloscopeStyle {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            OscilloscopeStyle::Xy => format!("xy"),
-            OscilloscopeStyle::TimeDomain => format!("time-domain"),
+            OscilloscopeStyle::Xy => write!(f, "xy"),
+            OscilloscopeStyle::TimeDomain => write!(f, "time-domain"),
             OscilloscopeStyle::TimeDomainStereo => {
-                format!("time-domain-stereo")
+                write!(f, "time-domain-stereo")
             }
         }
     }
