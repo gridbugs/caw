@@ -34,6 +34,20 @@ where
     }
 }
 
+impl<K> MonoVoice<K>
+where
+    K: SigT<Item = KeyEvents>,
+{
+    pub fn gated_note(self) -> Sig<impl SigT<Item = Option<crate::Note>>> {
+        let Self {
+            note,
+            key_down_gate,
+            ..
+        } = self;
+        note.gated(key_down_gate)
+    }
+}
+
 /// Extracts a sequence of notes from a sequence of key events.
 pub struct Note<K>
 where

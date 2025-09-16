@@ -3,7 +3,10 @@ use caw_computer_keyboard::Key;
 use caw_keyboard::Note;
 use midly::{MidiMessage, num::u7};
 use sdl2::{keyboard::Scancode, pixels::Color};
-use std::{collections::HashMap, time::Instant};
+use std::{
+    collections::{HashMap, HashSet},
+    time::Instant,
+};
 
 const WIDTH_PX: u32 = 128;
 const HEIGHT_PX: u32 = 128;
@@ -20,6 +23,7 @@ impl KeyMappings {
 pub struct ComputerKeyboard {
     window: Window,
     key_mappings: KeyMappings,
+    pressed_keys: HashSet<Note>,
 }
 
 const SPACEBAR_CONTROLLER: u7 = u7::from_int_lossy(0);
@@ -35,6 +39,7 @@ impl ComputerKeyboard {
         Ok(Self {
             window,
             key_mappings,
+            pressed_keys: HashSet::new(),
         })
     }
 
@@ -57,7 +62,6 @@ impl ComputerKeyboard {
                     controller: SPACEBAR_CONTROLLER,
                     value: 0.into(),
                 }),
-
                 Event::KeyDown {
                     scancode: Some(scancode),
                     ..
@@ -65,10 +69,12 @@ impl ComputerKeyboard {
                     if let Some(note) =
                         self.key_mappings.note_from_scancode(scancode)
                     {
-                        buf.push(MidiMessage::NoteOn {
-                            key: note.to_midi_index().into(),
-                            vel: u7::max_value(),
-                        });
+                        if self.pressed_keys.insert(note) {
+                            buf.push(MidiMessage::NoteOn {
+                                key: note.to_midi_index().into(),
+                                vel: u7::max_value(),
+                            });
+                        }
                     }
                 }
                 Event::KeyUp {
@@ -78,9 +84,10 @@ impl ComputerKeyboard {
                     if let Some(note) =
                         self.key_mappings.note_from_scancode(scancode)
                     {
+                        self.pressed_keys.remove(&note);
                         buf.push(MidiMessage::NoteOff {
                             key: note.to_midi_index().into(),
-                            vel: u7::max_value(),
+                            vel: 0.into(),
                         });
                     }
                 }

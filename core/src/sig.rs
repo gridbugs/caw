@@ -641,6 +641,18 @@ where
         })
     }
 
+    /// A signal whose items are None if the gate is down and the input signal if the gate is up.
+    pub fn gated<G>(self, gate: G) -> Sig<impl SigT<Item = Option<S::Item>>>
+    where
+        G: SigT<Item = bool>,
+    {
+        self.zip(gate).map(
+            |(self_, gate)| {
+                if gate { Some(self_) } else { None }
+            },
+        )
+    }
+
     pub fn shared(self) -> Sig<SigShared<S>> {
         sig_shared(self.0)
     }
@@ -1021,6 +1033,30 @@ where
         O: SigT<Item = Option<T>>,
     {
         self.zip(other).map(|(s, o)| s.or(o))
+    }
+}
+
+impl<T, S> Sig<S>
+where
+    T: Clone + Default,
+    S: SigT<Item = Option<T>>,
+{
+    /// Reverses the `gated` function. Given a sequence of optional values, produces a sequence of
+    /// values and a gate sequence. When the input signal is `None`, the output value sequence uses
+    /// the previous `Some` value of the input, or `Default::default()` if no `Some` value has been
+    /// produced yet.
+    pub fn ungated(
+        self,
+    ) -> (Sig<impl SigT<Item = T>>, Sig<impl SigT<Item = bool>>) {
+        let mut prev_value = T::default();
+        self.map_mut(move |value_opt| match value_opt {
+            Some(value) => {
+                prev_value = value.clone();
+                (value, true)
+            }
+            None => (prev_value.clone(), false),
+        })
+        .unzip()
     }
 }
 

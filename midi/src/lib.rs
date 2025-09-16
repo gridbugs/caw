@@ -49,6 +49,10 @@ impl MidiEvents {
         Self(smallvec![])
     }
 
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
     pub fn push(&mut self, midi_event: MidiEvent) {
         self.0.push(midi_event);
     }
@@ -78,6 +82,14 @@ pub struct MidiMessages(SmallVec<[MidiMessage; 1]>);
 impl MidiMessages {
     pub fn empty() -> Self {
         Self(smallvec![])
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.0.is_empty()
+    }
+
+    pub fn clear(&mut self) {
+        self.0.clear()
     }
 
     pub fn push(&mut self, midi_event: MidiMessage) {
@@ -299,6 +311,7 @@ where
         {
             // Only copy messages from the first sample worth of events.
             let midi_messages = &mut self.buf[0];
+            midi_messages.clear();
             if let Some(midi_events) = midi_events.iter().next() {
                 for midi_event in midi_events {
                     if midi_event.channel == self.channel {
