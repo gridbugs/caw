@@ -120,39 +120,39 @@ impl NoteName {
     pub const B: Self = Self::from_index(11);
 
     /// Returns a str representation of the note name where all accidentals are sharp, formatted
-    /// like "C" or "C_sharp"
+    /// like "C" or "C#"
     pub const fn to_str_sharp(self) -> &'static str {
         match self.relative_midi_index {
             0 => "C",
-            1 => "C_sharp",
+            1 => "C#",
             2 => "D",
-            3 => "D_sharp",
+            3 => "D#",
             4 => "E",
             5 => "F",
-            6 => "F_sharp",
+            6 => "F#",
             7 => "G",
-            8 => "G_sharp",
+            8 => "G#",
             9 => "A",
-            10 => "A_sharp",
+            10 => "A#",
             11 => "B",
             _ => unreachable!(),
         }
     }
 
-    /// Parses a str like "C" or "C_sharp"
+    /// Parses a str like "C" or "C#"
     pub fn from_str_sharp(s: &str) -> Option<Self> {
         let relative_midi_index = match s {
             "C" => 0,
-            "C_sharp" => 1,
+            "C#" => 1,
             "D" => 2,
-            "D_sharp" => 3,
+            "D#" => 3,
             "E" => 4,
             "F" => 5,
-            "F_sharp" => 6,
+            "F#" => 6,
             "G" => 7,
-            "G_sharp" => 8,
+            "G#" => 8,
             "A" => 9,
-            "A_sharp" => 10,
+            "A#" => 10,
             "B" => 11,
             _ => return None,
         };
@@ -287,7 +287,7 @@ impl Note {
     }
 }
 
-/// Example formats: "C_sharp:4", "C:4". Notes in octave "-1" are written like "C_sharp:-1" or
+/// Example formats: "C#:4", "C:4". Notes in octave "-1" are written like "C#:-1" or
 /// "C:-1".
 impl Display for Note {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -300,7 +300,7 @@ impl Display for Note {
     }
 }
 
-/// Expected format: "C_sharp-4", "C-4"
+/// Expected format: "C#-4", "C-4"
 impl FromStr for Note {
     type Err = String;
 

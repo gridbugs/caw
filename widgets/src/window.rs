@@ -20,9 +20,8 @@ lazy_static! {
     static ref TTF_CONTEXT: Result<Sdl2TtfContext, String> = sdl2::ttf::init();
 }
 
-fn load_font() -> anyhow::Result<Font<'static, 'static>> {
+pub fn load_font(pt_size: u16) -> anyhow::Result<Font<'static, 'static>> {
     let font_data = include_bytes!("inconsolata.regular.ttf");
-    let pt_size = 16;
     let rwops = RWops::from_bytes(font_data).map_err(|e| anyhow!("{e}"))?;
     let ttf_context = TTF_CONTEXT.as_ref().map_err(|e| anyhow!("{e}"))?;
     ttf_context
@@ -63,7 +62,7 @@ impl Window {
         Ok(Self {
             canvas,
             event_pump,
-            font: load_font()?,
+            font: load_font(16)?,
             texture_creator,
             title: title.map(|t| t.to_string()),
             prev_tick_complete: Instant::now(),

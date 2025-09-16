@@ -4,4 +4,4 @@ pub mod noise;
 pub mod sequencer;
 pub use sequencer::value_sequencer;
 pub mod looper;
-pub use looper::sequence_looper;
+pub use looper::{key_looper, value_looper};

@@ -2,7 +2,7 @@ use crate::window::Window;
 use anyhow::anyhow;
 use line_2d::Coord;
 use midly::num::u7;
-use sdl2::{mouse::MouseButton, pixels::Color, rect::Rect};
+use sdl2::{keyboard::Scancode, mouse::MouseButton, pixels::Color, rect::Rect};
 use std::time::Instant;
 
 const WIDTH_PX: u32 = 128;
@@ -35,6 +35,23 @@ impl Knob {
             use sdl2::event::Event;
             match event {
                 Event::Quit { .. } => std::process::exit(0),
+                Event::KeyDown { scancode, .. } => {
+                    let value_01 = match scancode {
+                        Some(Scancode::Grave) => 0.0,
+                        Some(Scancode::Num1) => 0.1,
+                        Some(Scancode::Num2) => 0.2,
+                        Some(Scancode::Num3) => 0.3,
+                        Some(Scancode::Num4) => 0.4,
+                        Some(Scancode::Num5) => 0.5,
+                        Some(Scancode::Num6) => 0.6,
+                        Some(Scancode::Num7) => 0.7,
+                        Some(Scancode::Num8) => 0.8,
+                        Some(Scancode::Num9) => 0.9,
+                        Some(Scancode::Num0) => 1.0,
+                        _ => continue,
+                    };
+                    self.value_01 = value_01;
+                }
                 Event::MouseWheel { precise_y, .. } => {
                     let multiplier = 0.1;
                     self.value_01 = (self.value_01

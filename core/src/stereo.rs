@@ -1,9 +1,20 @@
+use std::fmt::Display;
+
 use crate::{Buf, Sig, SigCtx, SigSampleIntoBufT, SigT, sig_ops::sig_add};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Channel {
     Left,
     Right,
+}
+
+impl Display for Channel {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::Left => write!(f, "left"),
+            Self::Right => write!(f, "right"),
+        }
+    }
 }
 
 impl Channel {

@@ -1,12 +1,10 @@
 use crate::window::Window;
+use anyhow::anyhow;
 use caw_computer_keyboard::Key;
 use caw_keyboard::Note;
 use midly::{MidiMessage, num::u7};
-use sdl2::{keyboard::Scancode, pixels::Color};
-use std::{
-    collections::{HashMap, HashSet},
-    time::Instant,
-};
+use sdl2::{keyboard::Scancode, pixels::Color, rect::Rect, ttf::Font};
+use std::{collections::HashMap, time::Instant};
 
 const WIDTH_PX: u32 = 128;
 const HEIGHT_PX: u32 = 128;
@@ -20,10 +18,37 @@ impl KeyMappings {
     }
 }
 
+#[derive(Default)]
+struct PressedKeys {
+    keys: Vec<Note>,
+}
+
+impl PressedKeys {
+    fn insert(&mut self, note: Note) -> bool {
+        if self.keys.contains(&note) {
+            false
+        } else {
+            self.keys.push(note);
+            true
+        }
+    }
+
+    fn remove(&mut self, note: Note) {
+        let removed = self
+            .keys
+            .iter()
+            .cloned()
+            .filter(|&n| n != note)
+            .collect::<Vec<_>>();
+        self.keys = removed;
+    }
+}
+
 pub struct ComputerKeyboard {
     window: Window,
     key_mappings: KeyMappings,
-    pressed_keys: HashSet<Note>,
+    pressed_keys: PressedKeys,
+    font: Font<'static, 'static>,
 }
 
 const SPACEBAR_CONTROLLER: u7 = u7::from_int_lossy(0);
@@ -39,7 +64,8 @@ impl ComputerKeyboard {
         Ok(Self {
             window,
             key_mappings,
-            pressed_keys: HashSet::new(),
+            pressed_keys: Default::default(),
+            font: crate::window::load_font(48)?,
         })
     }
 
@@ -84,7 +110,7 @@ impl ComputerKeyboard {
                     if let Some(note) =
                         self.key_mappings.note_from_scancode(scancode)
                     {
-                        self.pressed_keys.remove(&note);
+                        self.pressed_keys.remove(note);
                         buf.push(MidiMessage::NoteOff {
                             key: note.to_midi_index().into(),
                             vel: 0.into(),
@@ -96,10 +122,45 @@ impl ComputerKeyboard {
         }
     }
 
+    pub fn render_note(&mut self) -> anyhow::Result<()> {
+        let text = if let Some(last) = self.pressed_keys.keys.last() {
+            last.to_string()
+        } else {
+            return Ok(());
+        };
+        let text_surface = self
+            .font
+            .render(text.as_str())
+            .blended(Color::WHITE)
+            .map_err(|e| anyhow!("{e}"))?;
+        let text_texture =
+            text_surface.as_texture(&self.window.texture_creator)?;
+        let (canvas_width, _canvas_height) = self
+            .window
+            .canvas
+            .output_size()
+            .map_err(|e| anyhow!("{e}"))?;
+        let text_texture_query = text_texture.query();
+        let value_space_px = 20;
+        // Render the title centred at the bottom of the window.
+        let text_rect = Rect::new(
+            (canvas_width as i32 - text_texture_query.width as i32) / 2,
+            value_space_px,
+            text_texture_query.width,
+            text_texture_query.height,
+        );
+        self.window
+            .canvas
+            .copy(&text_texture, None, Some(text_rect))
+            .map_err(|e| anyhow!("{e}"))?;
+        Ok(())
+    }
+
     fn render(&mut self) -> anyhow::Result<()> {
         self.window.canvas.set_draw_color(Color::BLACK);
         self.window.canvas.clear();
         self.window.render_title()?;
+        self.render_note()?;
         self.window.canvas.present();
         Ok(())
     }

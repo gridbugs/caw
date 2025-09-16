@@ -666,6 +666,16 @@ where
             x
         })
     }
+
+    /// Force the evaluation of some other signal when this signal is evaluated but ignore the
+    /// result. Use this when computing a signal has side effects (e.g. rendering a visualization)
+    /// but the effectful signal's value is unnecessary.
+    pub fn force<O>(self, other: O) -> Sig<impl SigT<Item = S::Item>>
+    where
+        O: SigT,
+    {
+        self.zip(other).map(|(x, _)| x)
+    }
 }
 
 impl<S, A, B> Sig<S>

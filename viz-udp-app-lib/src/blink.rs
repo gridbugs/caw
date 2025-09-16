@@ -7,6 +7,7 @@ use std::{
     process::{Child, Command},
 };
 
+#[derive(Clone, Debug)]
 pub struct Config {
     pub width: u32,
     pub height: u32,
