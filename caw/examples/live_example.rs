@@ -38,10 +38,12 @@ fn main() {
             .build()
             .exp_01(1.)
             .shared();
-        let voice = (super_saw(note.freq_hz()).build() * env.clone()).filter(
-            low_pass::default(10. + (env.clone() * lpf.clone() * 15000.))
-                .q(0.2),
-        );
+        let voice = (super_saw(note.freq_hz()).build() * env.clone())
+            .filter(
+                low_pass::default(10. + (env.clone() * lpf.clone() * 15000.))
+                    .q(0.2),
+            )
+            .viz_oscilloscope_stereo("voice", channel, Default::default());
         voice
             .filter(
                 chorus()

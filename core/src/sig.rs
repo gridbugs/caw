@@ -600,6 +600,19 @@ where
         })
     }
 
+    /// Calls `f` once per frame on all the samples computed during that frame and the current
+    /// frame's context, returning the original signal unchanged.
+    pub fn with_buf_ctx<F>(self, f: F) -> Sig<WithBufCtx<S, F>>
+    where
+        F: FnMut(&[S::Item], &SigCtx),
+    {
+        Sig(WithBufCtx {
+            sig: self.0,
+            f,
+            buf: Vec::new(),
+        })
+    }
+
     pub fn zip<O>(self, other: O) -> Sig<Zip<S, O>>
     where
         O: SigT,
@@ -1091,6 +1104,31 @@ where
         let ret = self.sig.sample(ctx);
         ret.clone_to_vec(&mut self.buf);
         (self.f)(&self.buf);
+        ret
+    }
+}
+
+pub struct WithBufCtx<S, F>
+where
+    S: SigT,
+    F: FnMut(&[S::Item], &SigCtx),
+{
+    sig: S,
+    f: F,
+    buf: Vec<S::Item>,
+}
+
+impl<S, F> SigT for WithBufCtx<S, F>
+where
+    S: SigT,
+    F: FnMut(&[S::Item], &SigCtx),
+{
+    type Item = S::Item;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        let ret = self.sig.sample(ctx);
+        ret.clone_to_vec(&mut self.buf);
+        (self.f)(&self.buf, ctx);
         ret
     }
 }
