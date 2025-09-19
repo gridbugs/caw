@@ -1,0 +1,17 @@
+[package]
+name = "caw_window_utils"
+version = "0.1.0"
+edition = "2024"
+description = "Helpers for working with windows within the CAW synthesizer framework"
+authors = ["Stephen Sherratt <stephen@sherra.tt>"]
+license = "MIT"
+homepage = "https://github.com/gridbugs/caw.git"
+repository = "https://github.com/gridbugs/caw.git"
+documentation = "https://docs.rs/caw_window_utils"
+
+
+[dependencies]
+serde_json = "1.0"
+serde = { version = "1.0", features = ["serde_derive"] }
+hex = "0.4"
+anyhow = "1"

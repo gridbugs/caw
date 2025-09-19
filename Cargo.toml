@@ -28,4 +28,5 @@ members = [
     "viz-udp-app",
     "viz-udp-app-lib",
     "widgets",
+    "window-utils",
 ]

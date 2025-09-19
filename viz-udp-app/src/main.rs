@@ -5,6 +5,7 @@ use caw_viz_udp_app_lib::{
     blink,
     oscilloscope::{self, OscilloscopeStyle},
 };
+use caw_window_utils::persisten_window_position;
 use clap::{Parser, Subcommand, ValueEnum};
 use lazy_static::lazy_static;
 use line_2d::Coord;
@@ -85,11 +86,11 @@ struct BlinkCommand {
     width: u32,
     #[arg(long, default_value_t = 100)]
     height: u32,
-    #[arg(long, short, default_value_t = 0)]
+    #[arg(long, short, default_value_t = 127)]
     red: u8,
     #[arg(long, short, default_value_t = 127)]
     green: u8,
-    #[arg(long, short, default_value_t = 0)]
+    #[arg(long, short, default_value_t = 127)]
     blue: u8,
 }
 
@@ -141,9 +142,25 @@ struct App {
     server: String,
     canvas: Canvas<Window>,
     event_pump: EventPump,
+    title: String,
 }
 
 impl App {
+    fn handle_event_common(event: Event, title: &str) {
+        match event {
+            Event::Quit { .. } => std::process::exit(0),
+            Event::Window {
+                win_event: WindowEvent::Moved(x, y),
+                ..
+            } => {
+                if let Err(e) = persisten_window_position::save(title, x, y) {
+                    log::warn!("{}", e);
+                }
+            }
+            _ => (),
+        }
+    }
+
     fn run_oscilloscope(
         mut self,
         mut args: OscilloscopeCommand,
@@ -152,8 +169,8 @@ impl App {
         let mut scope_state = ScopeState::default();
         loop {
             for event in self.event_pump.poll_iter() {
+                Self::handle_event_common(event.clone(), self.title.as_str());
                 match event {
-                    Event::Quit { .. } => std::process::exit(0),
                     Event::MouseWheel { y, .. } => {
                         let ratio = 1.1;
                         if y > 0 {
@@ -381,10 +398,7 @@ impl App {
         let mut prev_mean = 0.0;
         loop {
             for event in self.event_pump.poll_iter() {
-                match event {
-                    Event::Quit { .. } => std::process::exit(0),
-                    _ => (),
-                }
+                Self::handle_event_common(event.clone(), self.title.as_str());
             }
             let mut total = 0.0;
             let mut count = 0;
@@ -433,17 +447,30 @@ fn main() -> anyhow::Result<()> {
     } = Cli::parse();
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
-    let window = match command {
-        Command::Oscilloscope(_) => video_subsystem
-            .window(title.as_str(), command.width(), command.height())
-            .always_on_top()
-            .resizable()
-            .build()?,
-        Command::Blink(_) => video_subsystem
-            .window("", command.width(), command.height())
-            .always_on_top()
-            .build()?,
+    let mut window_builder = match command {
+        Command::Oscilloscope(_) => {
+            let mut wb = video_subsystem.window(
+                title.as_str(),
+                command.width(),
+                command.height(),
+            );
+            wb.resizable();
+            wb
+        }
+        Command::Blink(_) => {
+            let mut wb =
+                video_subsystem.window("", command.width(), command.height());
+            wb.always_on_top();
+            wb
+        }
     };
+    match persisten_window_position::load(&title) {
+        Err(e) => log::warn!("{}", e),
+        Ok((x, y)) => {
+            window_builder.position(x, y);
+        }
+    }
+    let window = window_builder.build()?;
     let mut canvas = window
         .into_canvas()
         .target_texture()
@@ -455,6 +482,7 @@ fn main() -> anyhow::Result<()> {
         server,
         event_pump,
         canvas,
+        title: title.clone(),
     };
     match command {
         Command::Oscilloscope(oscilloscope_command) => {

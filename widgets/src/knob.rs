@@ -2,7 +2,10 @@ use crate::window::Window;
 use anyhow::anyhow;
 use line_2d::Coord;
 use midly::num::u7;
-use sdl2::{keyboard::Scancode, mouse::MouseButton, pixels::Color, rect::Rect};
+use sdl2::{
+    event::Event, keyboard::Scancode, mouse::MouseButton, pixels::Color,
+    rect::Rect,
+};
 use std::time::Instant;
 
 const WIDTH_PX: u32 = 128;
@@ -32,9 +35,11 @@ impl Knob {
 
     fn handle_events(&mut self) {
         for event in self.window.event_pump.poll_iter() {
-            use sdl2::event::Event;
+            Window::handle_event_common(
+                event.clone(),
+                self.window.title.as_ref(),
+            );
             match event {
-                Event::Quit { .. } => std::process::exit(0),
                 Event::KeyDown { scancode, .. } => {
                     let value_01 = match scancode {
                         Some(Scancode::Grave) => 0.0,

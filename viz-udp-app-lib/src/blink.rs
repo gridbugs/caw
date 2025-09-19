@@ -22,8 +22,8 @@ impl Default for Config {
             width: 100,
             height: 100,
             red: 127,
-            green: 0,
-            blue: 0,
+            green: 127,
+            blue: 127,
         }
     }
 }

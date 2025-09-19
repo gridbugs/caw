@@ -23,8 +23,11 @@ impl Button {
     fn handle_events(&mut self) {
         for event in self.window.event_pump.poll_iter() {
             use sdl2::event::Event;
+            Window::handle_event_common(
+                event.clone(),
+                self.window.title.as_ref(),
+            );
             match event {
-                Event::Quit { .. } => std::process::exit(0),
                 Event::MouseButtonDown { .. } => {
                     self.pressed = true;
                 }

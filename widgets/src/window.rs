@@ -1,7 +1,9 @@
 use anyhow::anyhow;
+use caw_window_utils::persisten_window_position;
 use lazy_static::lazy_static;
 use sdl2::{
     EventPump,
+    event::{Event, WindowEvent},
     pixels::Color,
     rect::Rect,
     render::{Canvas, TextureCreator},
@@ -48,10 +50,18 @@ impl Window {
     ) -> anyhow::Result<Self> {
         let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
         let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
-        let window = video_subsystem
-            .window("", width_px, height_px)
-            .always_on_top()
-            .build()?;
+        let mut window_builder =
+            video_subsystem.window("", width_px, height_px);
+        window_builder.always_on_top();
+        if let Some(title) = title {
+            match persisten_window_position::load(title) {
+                Err(e) => log::warn!("{}", e),
+                Ok((x, y)) => {
+                    window_builder.position(x, y);
+                }
+            }
+        }
+        let window = window_builder.build()?;
         let canvas = window
             .into_canvas()
             .target_texture()
@@ -112,7 +122,26 @@ impl Window {
     pub fn width_px(&self) -> u32 {
         self.width_px
     }
+
     pub fn height_px(&self) -> u32 {
         self.height_px
+    }
+
+    pub fn handle_event_common(event: Event, title: Option<&String>) {
+        match event {
+            Event::Quit { .. } => std::process::exit(0),
+            Event::Window {
+                win_event: WindowEvent::Moved(x, y),
+                ..
+            } => {
+                if let Some(title) = title {
+                    if let Err(e) = persisten_window_position::save(title, x, y)
+                    {
+                        log::warn!("{}", e);
+                    }
+                }
+            }
+            _ => (),
+        }
     }
 }

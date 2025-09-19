@@ -18,7 +18,9 @@ midly = "0.5"
 caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
 caw_keyboard = { version = "0.4", path = "../keyboard" }
 caw_sdl2 = { version = "0.1", path = "../sdl2" }
+caw_window_utils = { version = "0.1", path = "../window-utils" }
 itertools = "0.14"
+log = "0.4"
 
 [dev-dependencies]
 env_logger = "0.11"

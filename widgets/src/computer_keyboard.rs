@@ -72,8 +72,11 @@ impl ComputerKeyboard {
     fn handle_events(&mut self, buf: &mut Vec<MidiMessage>) {
         for event in self.window.event_pump.poll_iter() {
             use sdl2::event::Event;
+            Window::handle_event_common(
+                event.clone(),
+                self.window.title.as_ref(),
+            );
             match event {
-                Event::Quit { .. } => std::process::exit(0),
                 Event::KeyDown {
                     scancode: Some(Scancode::Space),
                     ..
