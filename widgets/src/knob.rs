@@ -1,11 +1,13 @@
 use crate::window::Window;
 use anyhow::anyhow;
+use caw_window_utils::persistent::PersistentData;
 use line_2d::Coord;
 use midly::num::u7;
 use sdl2::{
     event::Event, keyboard::Scancode, mouse::MouseButton, pixels::Color,
     rect::Rect,
 };
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
 const WIDTH_PX: u32 = 128;
@@ -13,9 +15,19 @@ const HEIGHT_PX: u32 = 128;
 
 const RANGE_RADS: f32 = (std::f32::consts::PI * 3.0) / 2.0;
 
-pub struct Knob {
-    window: Window,
+#[derive(Serialize, Deserialize)]
+struct State {
     value_01: f32,
+}
+
+impl PersistentData for State {
+    const NAME: &'static str = "knob_state";
+}
+
+pub struct Knob {
+    title: Option<String>,
+    window: Window,
+    state: State,
     sensitivity: f32,
 }
 
@@ -26,9 +38,17 @@ impl Knob {
         sensitivity: f32,
     ) -> anyhow::Result<Self> {
         let window = Window::new(title, WIDTH_PX, HEIGHT_PX)?;
+        let state = if let Some(state) = title.and_then(|t| State::load_(t)) {
+            state
+        } else {
+            State {
+                value_01: initial_value_01.clamp(0., 1.),
+            }
+        };
         Ok(Self {
+            title: title.map(|s| s.to_string()),
             window,
-            value_01: initial_value_01.clamp(0., 1.),
+            state,
             sensitivity,
         })
     }
@@ -55,11 +75,11 @@ impl Knob {
                         Some(Scancode::Num0) => 1.0,
                         _ => continue,
                     };
-                    self.value_01 = value_01;
+                    self.state.value_01 = value_01;
                 }
                 Event::MouseWheel { precise_y, .. } => {
                     let multiplier = 0.1;
-                    self.value_01 = (self.value_01
+                    self.state.value_01 = (self.state.value_01
                         + (precise_y * multiplier * self.sensitivity))
                         .clamp(0., 1.);
                 }
@@ -68,7 +88,7 @@ impl Knob {
                 } => {
                     if mousestate.is_mouse_button_pressed(MouseButton::Left) {
                         let multiplier = -0.05;
-                        self.value_01 = (self.value_01
+                        self.state.value_01 = (self.state.value_01
                             + (yrel as f32 * multiplier * self.sensitivity))
                             .clamp(0., 1.);
                     }
@@ -76,13 +96,16 @@ impl Knob {
                 _ => (),
             }
         }
+        if let Some(title) = self.title.as_ref() {
+            self.state.save_(title);
+        }
     }
 
     fn render_value(&mut self) -> anyhow::Result<()> {
         let text_surface = self
             .window
             .font
-            .render(format!("{}", self.value_01).as_str())
+            .render(format!("{}", self.state.value_01).as_str())
             .blended(Color::WHITE)
             .map_err(|e| anyhow!("{e}"))?;
         let text_texture =
@@ -122,7 +145,7 @@ impl Knob {
         let absolute_rotation_rads =
             (((std::f32::consts::PI * 2.0) - RANGE_RADS) / 2.0)
                 + std::f32::consts::FRAC_PI_2;
-        let relative_angle_rads = RANGE_RADS * self.value_01;
+        let relative_angle_rads = RANGE_RADS * self.state.value_01;
         let line_length_px =
             ((available_width.min(available_height) / 2) - 10) as f32;
         let angle_rads = absolute_rotation_rads + relative_angle_rads;
@@ -175,7 +198,7 @@ impl Knob {
     }
 
     pub fn value_01(&self) -> f32 {
-        self.value_01
+        self.state.value_01
     }
 
     pub fn value_midi(&self) -> u7 {

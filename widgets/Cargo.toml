@@ -11,9 +11,8 @@ documentation = "https://docs.rs/caw_widgets"
 
 [dependencies]
 anyhow = "1.0"
-sdl2 = { version = "0.38", features = ["ttf"] }
+sdl2 = { version = "0.38" }
 line_2d = "0.5"
-lazy_static = "1.5"
 midly = "0.5"
 caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
 caw_keyboard = { version = "0.4", path = "../keyboard" }
@@ -21,6 +20,7 @@ caw_sdl2 = { version = "0.1", path = "../sdl2" }
 caw_window_utils = { version = "0.1", path = "../window-utils" }
 itertools = "0.14"
 log = "0.4"
+serde = { version = "1.0", features = ["serde_derive"] }
 
 [dev-dependencies]
 env_logger = "0.11"

@@ -1,13 +1,12 @@
 /// A udp client which receives visualization data from a corresponding udp server and renders
 /// visualizations in a graphical window.
 use anyhow::anyhow;
-use caw_viz_udp_app_lib::{
-    blink,
-    oscilloscope::{self, OscilloscopeStyle},
+use caw_viz_udp_app_lib::{blink, oscilloscope};
+use caw_window_utils::{
+    font::load_font,
+    persistent::{PersistentData, WindowPosition, WindowSize},
 };
-use caw_window_utils::persisten_window_position;
 use clap::{Parser, Subcommand, ValueEnum};
-use lazy_static::lazy_static;
 use line_2d::Coord;
 use sdl2::{
     EventPump,
@@ -16,44 +15,20 @@ use sdl2::{
     pixels::Color,
     rect::Rect,
     render::Canvas,
-    rwops::RWops,
-    ttf::{Font, Sdl2TtfContext},
     video::Window,
 };
+use serde::{Deserialize, Serialize};
 use std::collections::VecDeque;
 
-lazy_static! {
-    static ref TTF_CONTEXT: Result<Sdl2TtfContext, String> = sdl2::ttf::init();
-}
-
-// TODO: unify font loading across libraries
-fn load_font() -> anyhow::Result<Font<'static, 'static>> {
-    let font_data = include_bytes!("inconsolata.regular.ttf");
-    let pt_size = 16;
-    let rwops = RWops::from_bytes(font_data).map_err(|e| anyhow!("{e}"))?;
-    let ttf_context = TTF_CONTEXT.as_ref().map_err(|e| anyhow!("{e}"))?;
-    ttf_context
-        .load_font_from_rwops(rwops, pt_size)
-        .map_err(|e| anyhow!(e))
-}
-
-#[derive(ValueEnum, Clone, Copy)]
-enum OscilloscopeStyle_ {
+#[derive(Serialize, Deserialize, ValueEnum, Clone, Copy, Debug)]
+pub enum OscilloscopeStyle {
     Xy,
     TimeDomain,
     TimeDomainStereo,
 }
 
-impl From<OscilloscopeStyle_> for OscilloscopeStyle {
-    fn from(value: OscilloscopeStyle_) -> Self {
-        match value {
-            OscilloscopeStyle_::Xy => OscilloscopeStyle::Xy,
-            OscilloscopeStyle_::TimeDomain => OscilloscopeStyle::TimeDomain,
-            OscilloscopeStyle_::TimeDomainStereo => {
-                OscilloscopeStyle::TimeDomainStereo
-            }
-        }
-    }
+impl PersistentData for OscilloscopeStyle {
+    const NAME: &'static str = "oscilloscope_style";
 }
 
 #[derive(Parser)]
@@ -77,7 +52,7 @@ struct OscilloscopeCommand {
     #[arg(long, short, default_value_t = 0)]
     blue: u8,
     #[arg(long, default_value = "time-domain")]
-    style: OscilloscopeStyle_,
+    style: OscilloscopeStyle,
 }
 
 #[derive(Parser)]
@@ -153,9 +128,7 @@ impl App {
                 win_event: WindowEvent::Moved(x, y),
                 ..
             } => {
-                if let Err(e) = persisten_window_position::save(title, x, y) {
-                    log::warn!("{}", e);
-                }
+                (WindowPosition { x, y }).save_(title);
             }
             _ => (),
         }
@@ -165,8 +138,12 @@ impl App {
         mut self,
         mut args: OscilloscopeCommand,
     ) -> anyhow::Result<()> {
+        self.canvas.window_mut().set_resizable(true);
         let mut viz_udp_client = oscilloscope::Client::new(self.server)?;
         let mut scope_state = ScopeState::default();
+        if let Some(style) = OscilloscopeStyle::load_(&self.title) {
+            args.style = style;
+        }
         loop {
             for event in self.event_pump.poll_iter() {
                 Self::handle_event_common(event.clone(), self.title.as_str());
@@ -190,16 +167,19 @@ impl App {
                                 Scancode::Left => (-1, 0),
                                 Scancode::Right => (1, 0),
                                 Scancode::Num1 => {
-                                    args.style = OscilloscopeStyle_::TimeDomain;
+                                    args.style = OscilloscopeStyle::TimeDomain;
+                                    args.style.save_(&self.title);
                                     continue;
                                 }
                                 Scancode::Num2 => {
                                     args.style =
-                                        OscilloscopeStyle_::TimeDomainStereo;
+                                        OscilloscopeStyle::TimeDomainStereo;
+                                    args.style.save_(&self.title);
                                     continue;
                                 }
                                 Scancode::Num3 => {
-                                    args.style = OscilloscopeStyle_::Xy;
+                                    args.style = OscilloscopeStyle::Xy;
+                                    args.style.save_(&self.title);
                                     continue;
                                 }
                                 _ => (0, 0),
@@ -219,6 +199,11 @@ impl App {
                     } => {
                         args.width = width as u32;
                         args.height = height as u32;
+                        (WindowSize {
+                            width: args.width,
+                            height: args.height,
+                        })
+                        .save_(&self.title);
                     }
                     _ => (),
                 }
@@ -238,7 +223,7 @@ impl App {
                 y: args.height as i32,
             };
             match args.style {
-                OscilloscopeStyle_::TimeDomain => {
+                OscilloscopeStyle::TimeDomain => {
                     let num_samples_to_draw = screen_size.x as usize;
                     let sample_mean_iter = scope_state
                         .samples
@@ -273,7 +258,7 @@ impl App {
                         prev = Some(coord);
                     }
                 }
-                OscilloscopeStyle_::TimeDomainStereo => {
+                OscilloscopeStyle::TimeDomainStereo => {
                     let num_samples_to_draw = screen_size.x as usize;
                     let make_sample_pair_iter = || {
                         scope_state
@@ -335,7 +320,7 @@ impl App {
                         prev = Some(coord);
                     }
                 }
-                OscilloscopeStyle_::Xy => {
+                OscilloscopeStyle::Xy => {
                     let mut coord_iter =
                         scope_state.samples.iter().map(|(left, right)| {
                             Coord {
@@ -380,7 +365,7 @@ impl App {
         title: String,
     ) -> anyhow::Result<()> {
         let mut viz_udp_client = blink::Client::new(self.server)?;
-        let font = load_font()?;
+        let font = load_font(16)?;
         let text_surface = font
             .render(title.as_str())
             .blended(Color::WHITE)
@@ -447,28 +432,28 @@ fn main() -> anyhow::Result<()> {
     } = Cli::parse();
     let sdl_context = sdl2::init().map_err(|e| anyhow!(e))?;
     let video_subsystem = sdl_context.video().map_err(|e| anyhow!(e))?;
+    let (width, height) = match WindowSize::load(&title) {
+        Err(_) => (command.width(), command.height()),
+        Ok(WindowSize { width, height }) => (width, height),
+    };
+    let window_position = match WindowPosition::load(&title) {
+        Err(_) => None,
+        Ok(window_position) => Some(window_position),
+    };
+
     let mut window_builder = match command {
         Command::Oscilloscope(_) => {
-            let mut wb = video_subsystem.window(
-                title.as_str(),
-                command.width(),
-                command.height(),
-            );
-            wb.resizable();
+            let wb = video_subsystem.window(title.as_str(), width, height);
             wb
         }
         Command::Blink(_) => {
-            let mut wb =
-                video_subsystem.window("", command.width(), command.height());
+            let mut wb = video_subsystem.window("", width, height);
             wb.always_on_top();
             wb
         }
     };
-    match persisten_window_position::load(&title) {
-        Err(e) => log::warn!("{}", e),
-        Ok((x, y)) => {
-            window_builder.position(x, y);
-        }
+    if let Some(WindowPosition { x, y }) = window_position {
+        window_builder.position(x, y);
     }
     let window = window_builder.build()?;
     let mut canvas = window
@@ -485,7 +470,9 @@ fn main() -> anyhow::Result<()> {
         title: title.clone(),
     };
     match command {
-        Command::Oscilloscope(oscilloscope_command) => {
+        Command::Oscilloscope(mut oscilloscope_command) => {
+            oscilloscope_command.width = width;
+            oscilloscope_command.height = height;
             app.run_oscilloscope(oscilloscope_command)
         }
         Command::Blink(blink_command) => app.run_blink(blink_command, title),

@@ -11,10 +11,10 @@ documentation = "https://docs.rs/caw_viz_udp_app"
 
 [dependencies]
 anyhow = "1.0"
-sdl2 = { version = "0.38", features = ["ttf"] }
+sdl2 = { version = "0.38" }
 line_2d = "0.5"
 clap = { version = "4", features = ["derive"] }
 caw_viz_udp_app_lib = { version = "0.1", path = "../viz-udp-app-lib" }
-lazy_static = "1.5"
 log = "0.4"
 caw_window_utils = { version = "0.1", path = "../window-utils" }
+serde = { version = "1.0", features = ["serde_derive"] }

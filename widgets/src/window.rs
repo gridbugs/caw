@@ -1,14 +1,14 @@
 use anyhow::anyhow;
-use caw_window_utils::persisten_window_position;
-use lazy_static::lazy_static;
+use caw_window_utils::{
+    font::{Font, load_font},
+    persistent::{PersistentData, WindowPosition},
+};
 use sdl2::{
     EventPump,
     event::{Event, WindowEvent},
     pixels::Color,
     rect::Rect,
     render::{Canvas, TextureCreator},
-    rwops::RWops,
-    ttf::{Font, Sdl2TtfContext},
     video::{Window as SdlWindow, WindowContext},
 };
 use std::{
@@ -17,19 +17,6 @@ use std::{
 };
 
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
-
-lazy_static! {
-    static ref TTF_CONTEXT: Result<Sdl2TtfContext, String> = sdl2::ttf::init();
-}
-
-pub fn load_font(pt_size: u16) -> anyhow::Result<Font<'static, 'static>> {
-    let font_data = include_bytes!("inconsolata.regular.ttf");
-    let rwops = RWops::from_bytes(font_data).map_err(|e| anyhow!("{e}"))?;
-    let ttf_context = TTF_CONTEXT.as_ref().map_err(|e| anyhow!("{e}"))?;
-    ttf_context
-        .load_font_from_rwops(rwops, pt_size)
-        .map_err(|e| anyhow!(e))
-}
 
 pub struct Window {
     pub canvas: Canvas<SdlWindow>,
@@ -54,11 +41,9 @@ impl Window {
             video_subsystem.window("", width_px, height_px);
         window_builder.always_on_top();
         if let Some(title) = title {
-            match persisten_window_position::load(title) {
-                Err(e) => log::warn!("{}", e),
-                Ok((x, y)) => {
-                    window_builder.position(x, y);
-                }
+            if let Some(WindowPosition { x, y }) = WindowPosition::load_(title)
+            {
+                window_builder.position(x, y);
             }
         }
         let window = window_builder.build()?;
@@ -135,10 +120,7 @@ impl Window {
                 ..
             } => {
                 if let Some(title) = title {
-                    if let Err(e) = persisten_window_position::save(title, x, y)
-                    {
-                        log::warn!("{}", e);
-                    }
+                    (WindowPosition { x, y }).save_(title);
                 }
             }
             _ => (),
