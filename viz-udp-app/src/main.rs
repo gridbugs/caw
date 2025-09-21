@@ -1,11 +1,9 @@
 /// A udp client which receives visualization data from a corresponding udp server and renders
 /// visualizations in a graphical window.
 use anyhow::anyhow;
+use caw_persistent::{PersistentData, WindowPosition, WindowSize};
 use caw_viz_udp_app_lib::{blink, oscilloscope};
-use caw_window_utils::{
-    font::load_font,
-    persistent::{PersistentData, WindowPosition, WindowSize},
-};
+use caw_window_utils::font::load_font;
 use clap::{Parser, Subcommand, ValueEnum};
 use line_2d::Coord;
 use rgb_int::Rgb24;

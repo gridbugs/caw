@@ -1,6 +1,6 @@
 use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
-use caw_window_utils::persistent::PersistentData;
+use caw_persistent::PersistentData;
 use line_2d::Coord;
 use midly::num::u7;
 use sdl2::{

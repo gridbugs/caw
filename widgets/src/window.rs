@@ -1,8 +1,6 @@
 use anyhow::anyhow;
-use caw_window_utils::{
-    font::{Font, load_font},
-    persistent::{PersistentData, WindowPosition},
-};
+use caw_persistent::{PersistentData, WindowPosition};
+use caw_window_utils::font::{Font, load_font};
 use sdl2::{
     EventPump,
     event::{Event, WindowEvent},

@@ -1,6 +1,6 @@
 use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
-use caw_window_utils::persistent::PersistentData;
+use caw_persistent::PersistentData;
 use midly::num::u7;
 use sdl2::{
     gfx::rotozoom::RotozoomSurface, mouse::MouseButton, pixels::Color,
@@ -48,7 +48,6 @@ impl Xy {
                 y_px: HEIGHT_PX / 2,
             }
         };
-        println!("{:?}", axis_labels);
         Ok(Self {
             window,
             state,
