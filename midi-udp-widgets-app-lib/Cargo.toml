@@ -18,6 +18,7 @@ caw_keyboard = { version = "0.4", path = "../keyboard" }
 lazy_static = "1.5"
 anyhow = "1.0"
 midly = "0.5"
+log = "0.4"
 
 [dev-dependencies]
 env_logger = "0.11"

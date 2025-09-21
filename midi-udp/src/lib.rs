@@ -19,6 +19,7 @@ impl MidiLiveUdp {
         let socket = UdpSocket::bind(addrs)?;
         socket.set_nonblocking(true)?;
         let buf_raw = vec![0; BUF_SIZE];
+        log::info!("Started MIDI UDP server at: {:?}", socket.local_addr()?);
         Ok(Self {
             socket,
             buf_raw,

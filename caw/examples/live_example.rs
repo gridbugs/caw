@@ -2,6 +2,7 @@ use caw::prelude::*;
 use std::thread;
 
 fn main() {
+    env_logger::init();
     let volume = sv_default();
     let out: LiveStereoOut = live_stereo_viz_udp(oscilloscope::Config {
         ..Default::default()
