@@ -77,17 +77,26 @@ fn main() {
             let mut knob =
                 Knob::new(cli.title.as_deref(), initial_value, sensitivity)
                     .unwrap();
-            loop {
-                knob.tick().unwrap();
+            let send = |value| {
                 client
                     .send(MidiEvent {
                         channel,
                         message: MidiMessage::Controller {
                             controller: controller.into(),
-                            value: knob.value_midi(),
+                            value,
                         },
                     })
                     .unwrap();
+            };
+            let mut prev_value = knob.value_midi();
+            send(prev_value);
+            loop {
+                knob.tick().unwrap();
+                let value = knob.value_midi();
+                if value != prev_value {
+                    send(value);
+                    prev_value = value;
+                }
             }
         }
         Command::Xy {

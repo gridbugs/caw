@@ -13,20 +13,15 @@ fn main() {
     let (cutoff_hz, res) = xy("lpf")
         .axis_label_x("cutoff_hz")
         .axis_label_y("resonance")
-        .build()
-        .unzip();
+        .build();
     let cutoff_hz = sv(cutoff_hz);
     let res = sv(res * 2.);
     let clock = sv(periodic_trig_s(tempo_s.clone())
         .build()
         .viz_blink("clock".to_string(), Default::default()));
-    let keys = computer_keyboard("keys")
-        .start_note(note::B_0)
-        .build()
-        .shared();
-    let space_button =
-        keys.clone().controllers().get_01(0).is_positive().shared();
-    let key_events = keys.clone().key_events().shared();
+    let ck = computer_keyboard("keys").start_note(note::B_0).build_();
+    let space_button = ck.space_button().shared();
+    let key_events = ck.key_events().shared();
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
         let (note, gate) = key_looper(

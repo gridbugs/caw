@@ -1,5 +1,6 @@
 use crate::server::{self, MidiChannelUdp};
-use caw_core::{Sig, SigShared, SigT, sig_shared};
+use caw_core::Sig;
+use caw_midi::MidiController01;
 use midly::num::u4;
 use std::{collections::HashMap, process::Command, sync::Mutex};
 
@@ -45,28 +46,30 @@ impl Widget {
     }
 }
 
-pub struct ByTitle<T: SigT>(Mutex<HashMap<String, Sig<SigShared<T>>>>);
+pub struct ByTitle<T: Clone>(Mutex<HashMap<String, T>>);
 
-impl<T: SigT> Default for ByTitle<T> {
+impl<T: Clone> Default for ByTitle<T> {
     fn default() -> Self {
         Self(Default::default())
     }
 }
 
-impl<T: SigT> ByTitle<T> {
+impl<T: Clone> ByTitle<T> {
     pub fn get_or_insert<F: FnOnce() -> T>(
         &self,
         title: impl AsRef<str>,
         f: F,
-    ) -> Sig<SigShared<T>> {
+    ) -> T {
         let title = title.as_ref().to_string();
         let mut table = self.0.lock().unwrap();
-        if let Some(t_shared) = table.get(&title) {
-            t_shared.clone()
+        if let Some(t) = table.get(&title) {
+            t.clone()
         } else {
-            let t_shared = sig_shared(f());
-            table.insert(title, t_shared.clone());
-            t_shared
+            let t = f();
+            table.insert(title, t.clone());
+            t
         }
     }
 }
+
+pub type MidiController01Udp = MidiController01<MidiChannelUdp>;
