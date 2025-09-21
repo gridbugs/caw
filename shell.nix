@@ -25,6 +25,7 @@ pkgs.mkShell rec {
     openssl
     SDL2
     SDL2_ttf
+    SDL2_gfx
   ];
 
   # Allows rust-analyzer to find the rust source

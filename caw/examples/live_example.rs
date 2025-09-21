@@ -9,12 +9,14 @@ fn main() {
     .with_volume(volume.clone());
     volume.set(knob("volume").initial_value_01(0.5).build());
     let tempo_s = sv(knob("tempo s").build() * 0.5);
-    let lpf = sv(knob("lpf").build() * 0.5);
+    let (cutoff_hz, res) = xy("lpf").build().unzip();
+    let cutoff_hz = sv(cutoff_hz);
+    let res = sv(res * 2.);
     let clock = sv(periodic_trig_s(tempo_s.clone())
         .build()
         .viz_blink("clock".to_string(), Default::default()));
     let keys = computer_keyboard("keys")
-        .start_note(note::B_1)
+        .start_note(note::B_0)
         .build()
         .shared();
     let space_button =
@@ -40,8 +42,10 @@ fn main() {
             .shared();
         let voice = (super_saw(note.freq_hz()).build() * env.clone())
             .filter(
-                low_pass::default(10. + (env.clone() * lpf.clone() * 15000.))
-                    .q(0.2),
+                low_pass::default(
+                    10. + (env.clone() * cutoff_hz.clone() * 15000.),
+                )
+                .q(res.clone()),
             )
             .viz_oscilloscope_stereo("voice", channel, Default::default());
         voice

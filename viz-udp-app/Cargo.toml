@@ -18,3 +18,4 @@ caw_viz_udp_app_lib = { version = "0.1", path = "../viz-udp-app-lib" }
 log = "0.4"
 caw_window_utils = { version = "0.1", path = "../window-utils" }
 serde = { version = "1.0", features = ["serde_derive"] }
+rgb_int = "0.1"

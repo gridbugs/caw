@@ -8,6 +8,7 @@ use caw_window_utils::{
 };
 use clap::{Parser, Subcommand, ValueEnum};
 use line_2d::Coord;
+use rgb_int::Rgb24;
 use sdl2::{
     EventPump,
     event::{Event, WindowEvent},
@@ -25,10 +26,6 @@ pub enum OscilloscopeStyle {
     Xy,
     TimeDomain,
     TimeDomainStereo,
-}
-
-impl PersistentData for OscilloscopeStyle {
-    const NAME: &'static str = "oscilloscope_style";
 }
 
 #[derive(Parser)]
@@ -108,6 +105,18 @@ struct Cli {
     title: String,
 }
 
+#[derive(Serialize, Deserialize, Clone, Copy, Debug)]
+struct OscilloscopeUiState {
+    style: OscilloscopeStyle,
+    scale: f32,
+    line_width: u32,
+    alpha_scale: u8,
+}
+
+impl PersistentData for OscilloscopeUiState {
+    const NAME: &'static str = "oscilloscope_ui";
+}
+
 #[derive(Default)]
 struct ScopeState {
     samples: VecDeque<(f32, f32)>,
@@ -136,14 +145,30 @@ impl App {
 
     fn run_oscilloscope(
         mut self,
-        mut args: OscilloscopeCommand,
+        args: OscilloscopeCommand,
     ) -> anyhow::Result<()> {
         self.canvas.window_mut().set_resizable(true);
         let mut viz_udp_client = oscilloscope::Client::new(self.server)?;
         let mut scope_state = ScopeState::default();
-        if let Some(style) = OscilloscopeStyle::load_(&self.title) {
-            args.style = style;
-        }
+        let rgb = Rgb24::new(args.red, args.green, args.blue);
+        let mut window_size = WindowSize {
+            width: args.width,
+            height: args.height,
+        };
+        let max_num_samples = args.max_num_samples;
+        let mut ui_state = {
+            let args = args;
+            if let Some(ui_state) = OscilloscopeUiState::load_(&self.title) {
+                ui_state
+            } else {
+                OscilloscopeUiState {
+                    style: args.style,
+                    scale: args.scale,
+                    line_width: args.line_width,
+                    alpha_scale: args.alpha_scale,
+                }
+            }
+        };
         loop {
             for event in self.event_pump.poll_iter() {
                 Self::handle_event_common(event.clone(), self.title.as_str());
@@ -151,10 +176,11 @@ impl App {
                     Event::MouseWheel { y, .. } => {
                         let ratio = 1.1;
                         if y > 0 {
-                            args.scale *= ratio;
+                            ui_state.scale *= ratio;
                         } else if y < 0 {
-                            args.scale /= ratio;
+                            ui_state.scale /= ratio;
                         }
+                        ui_state.save_(&self.title);
                     }
                     Event::KeyDown {
                         scancode: Some(scancode),
@@ -167,43 +193,41 @@ impl App {
                                 Scancode::Left => (-1, 0),
                                 Scancode::Right => (1, 0),
                                 Scancode::Num1 => {
-                                    args.style = OscilloscopeStyle::TimeDomain;
-                                    args.style.save_(&self.title);
+                                    ui_state.style =
+                                        OscilloscopeStyle::TimeDomain;
+                                    ui_state.save_(&self.title);
                                     continue;
                                 }
                                 Scancode::Num2 => {
-                                    args.style =
+                                    ui_state.style =
                                         OscilloscopeStyle::TimeDomainStereo;
-                                    args.style.save_(&self.title);
+                                    ui_state.save_(&self.title);
                                     continue;
                                 }
                                 Scancode::Num3 => {
-                                    args.style = OscilloscopeStyle::Xy;
-                                    args.style.save_(&self.title);
+                                    ui_state.style = OscilloscopeStyle::Xy;
+                                    ui_state.save_(&self.title);
                                     continue;
                                 }
                                 _ => (0, 0),
                             };
-                        args.line_width = ((args.line_width as i32)
+                        ui_state.line_width = ((ui_state.line_width as i32)
                             + line_width_delta)
                             .clamp(1, 20)
                             as u32;
-                        args.alpha_scale = (args.alpha_scale as i32
+                        ui_state.alpha_scale = (ui_state.alpha_scale as i32
                             + alpha_scale_delta)
                             .clamp(1, 255)
                             as u8;
+                        ui_state.save_(&self.title);
                     }
                     Event::Window {
-                        win_event: WindowEvent::Resized(width, height),
+                        win_event: WindowEvent::Resized(new_width, new_height),
                         ..
                     } => {
-                        args.width = width as u32;
-                        args.height = height as u32;
-                        (WindowSize {
-                            width: args.width,
-                            height: args.height,
-                        })
-                        .save_(&self.title);
+                        window_size.width = new_width as u32;
+                        window_size.height = new_height as u32;
+                        window_size.save_(&self.title);
                     }
                     _ => (),
                 }
@@ -212,17 +236,17 @@ impl App {
                 for sample_pair in viz_udp_client.pairs() {
                     scope_state.samples.push_back(sample_pair);
                 }
-                while scope_state.samples.len() > args.max_num_samples {
+                while scope_state.samples.len() > max_num_samples {
                     scope_state.samples.pop_front();
                 }
             }
             self.canvas.set_draw_color(Color::RGB(0, 0, 0));
             self.canvas.clear();
             let screen_size = Coord {
-                x: args.width as i32,
-                y: args.height as i32,
+                x: window_size.width as i32,
+                y: window_size.height as i32,
             };
-            match args.style {
+            match ui_state.style {
                 OscilloscopeStyle::TimeDomain => {
                     let num_samples_to_draw = screen_size.x as usize;
                     let sample_mean_iter = scope_state
@@ -232,14 +256,13 @@ impl App {
                         .take(num_samples_to_draw)
                         .rev()
                         .map(|(left, right)| (left + right) / 2.0);
-                    self.canvas.set_draw_color(Color::RGBA(
-                        args.red, args.green, args.blue, 255,
-                    ));
+                    self.canvas
+                        .set_draw_color(Color::RGBA(rgb.r, rgb.g, rgb.b, 255));
                     let mut prev = None;
                     for (x, sample) in sample_mean_iter.enumerate() {
                         let x = x as i32;
                         let y = screen_size.y
-                            - ((sample * args.scale) as i32
+                            - ((sample * ui_state.scale) as i32
                                 + (screen_size.y / 2));
                         let coord = Coord { x, y };
                         if let Some(prev) = prev {
@@ -249,8 +272,8 @@ impl App {
                                 let rect = Rect::new(
                                     x,
                                     y,
-                                    args.line_width,
-                                    args.line_width,
+                                    ui_state.line_width,
+                                    ui_state.line_width,
                                 );
                                 let _ = self.canvas.fill_rect(rect);
                             }
@@ -272,14 +295,13 @@ impl App {
                         make_sample_pair_iter().map(|(x, _)| x);
                     let sample_right_iter =
                         make_sample_pair_iter().map(|(_, x)| x);
-                    self.canvas.set_draw_color(Color::RGBA(
-                        args.red, args.green, args.blue, 255,
-                    ));
+                    self.canvas
+                        .set_draw_color(Color::RGBA(rgb.r, rgb.g, rgb.b, 255));
                     let mut prev = None;
                     for (x, sample) in sample_left_iter.enumerate() {
                         let x = x as i32;
                         let y = screen_size.y
-                            - ((sample * args.scale) as i32
+                            - ((sample * ui_state.scale) as i32
                                 + (screen_size.y / 3));
                         let coord = Coord { x, y };
                         if let Some(prev) = prev {
@@ -289,8 +311,8 @@ impl App {
                                 let rect = Rect::new(
                                     x,
                                     y,
-                                    args.line_width,
-                                    args.line_width,
+                                    ui_state.line_width,
+                                    ui_state.line_width,
                                 );
                                 let _ = self.canvas.fill_rect(rect);
                             }
@@ -301,7 +323,7 @@ impl App {
                     for (x, sample) in sample_right_iter.enumerate() {
                         let x = x as i32;
                         let y = screen_size.y
-                            - ((sample * args.scale) as i32
+                            - ((sample * ui_state.scale) as i32
                                 + ((2 * screen_size.y) / 3));
                         let coord = Coord { x, y };
                         if let Some(prev) = prev {
@@ -311,8 +333,8 @@ impl App {
                                 let rect = Rect::new(
                                     x,
                                     y,
-                                    args.line_width,
-                                    args.line_width,
+                                    ui_state.line_width,
+                                    ui_state.line_width,
                                 );
                                 let _ = self.canvas.fill_rect(rect);
                             }
@@ -324,8 +346,8 @@ impl App {
                     let mut coord_iter =
                         scope_state.samples.iter().map(|(left, right)| {
                             Coord {
-                                x: (left * args.scale) as i32,
-                                y: (right * args.scale) as i32,
+                                x: (left * ui_state.scale) as i32,
+                                y: (right * ui_state.scale) as i32,
                             } + screen_size / 2
                         });
                     let mut prev = if let Some(first) = coord_iter.next() {
@@ -334,11 +356,11 @@ impl App {
                         Coord::new(0, 0)
                     };
                     for (i, coord) in coord_iter.enumerate() {
-                        let alpha = ((args.alpha_scale as usize * i)
-                            / args.max_num_samples)
+                        let alpha = ((ui_state.alpha_scale as usize * i)
+                            / max_num_samples)
                             .min(255) as u8;
                         self.canvas.set_draw_color(Color::RGBA(
-                            args.red, args.green, args.blue, alpha,
+                            rgb.r, rgb.g, rgb.b, alpha,
                         ));
                         for Coord { x, y } in
                             line_2d::coords_between(prev, coord)
@@ -346,8 +368,8 @@ impl App {
                             let rect = Rect::new(
                                 x,
                                 y,
-                                args.line_width,
-                                args.line_width,
+                                ui_state.line_width,
+                                ui_state.line_width,
                             );
                             let _ = self.canvas.fill_rect(rect);
                         }
@@ -440,18 +462,13 @@ fn main() -> anyhow::Result<()> {
         Err(_) => None,
         Ok(window_position) => Some(window_position),
     };
-
     let mut window_builder = match command {
         Command::Oscilloscope(_) => {
-            let wb = video_subsystem.window(title.as_str(), width, height);
-            wb
+            video_subsystem.window(title.as_str(), width, height)
         }
-        Command::Blink(_) => {
-            let mut wb = video_subsystem.window("", width, height);
-            wb.always_on_top();
-            wb
-        }
+        Command::Blink(_) => video_subsystem.window("", width, height),
     };
+    window_builder.always_on_top();
     if let Some(WindowPosition { x, y }) = window_position {
         window_builder.position(x, y);
     }

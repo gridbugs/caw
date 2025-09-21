@@ -6,6 +6,7 @@ use caw_window_utils::{
 use sdl2::{
     EventPump,
     event::{Event, WindowEvent},
+    gfx::rotozoom::RotozoomSurface,
     pixels::Color,
     rect::Rect,
     render::{Canvas, TextureCreator},
@@ -82,8 +83,9 @@ impl Window {
                 .render(title.as_str())
                 .blended(Color::WHITE)
                 .map_err(|e| anyhow!("{e}"))?;
+            let text_surface_rot = text_surface.rotate_90deg(1).unwrap();
             let text_texture =
-                text_surface.as_texture(&self.texture_creator)?;
+                text_surface_rot.as_texture(&self.texture_creator)?;
             let (canvas_width, canvas_height) =
                 self.canvas.output_size().map_err(|e| anyhow!("{e}"))?;
             let text_texture_query = text_texture.query();

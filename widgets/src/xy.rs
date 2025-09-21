@@ -1,26 +1,41 @@
 use crate::window::Window;
 use anyhow::anyhow;
+use caw_window_utils::persistent::PersistentData;
 use midly::num::u7;
 use sdl2::{mouse::MouseButton, pixels::Color, rect::Rect};
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
 const WIDTH_PX: u32 = 128;
 const HEIGHT_PX: u32 = 128;
 
-pub struct Xy {
-    window: Window,
+#[derive(Serialize, Deserialize)]
+struct State {
     x_px: u32,
     y_px: u32,
+}
+
+impl PersistentData for State {
+    const NAME: &'static str = "xy_state";
+}
+
+pub struct Xy {
+    window: Window,
+    state: State,
 }
 
 impl Xy {
     pub fn new(title: Option<&str>) -> anyhow::Result<Self> {
         let window = Window::new(title, WIDTH_PX, HEIGHT_PX)?;
-        Ok(Self {
-            window,
-            x_px: WIDTH_PX / 2,
-            y_px: HEIGHT_PX / 2,
-        })
+        let state = if let Some(state) = title.and_then(|t| State::load_(t)) {
+            state
+        } else {
+            State {
+                x_px: WIDTH_PX / 2,
+                y_px: HEIGHT_PX / 2,
+            }
+        };
+        Ok(Self { window, state })
     }
 
     fn handle_events(&mut self) {
@@ -32,19 +47,22 @@ impl Xy {
             );
             match event {
                 Event::MouseButtonDown { x, y, .. } => {
-                    self.x_px = x.clamp(0, WIDTH_PX as i32) as u32;
-                    self.y_px = y.clamp(0, HEIGHT_PX as i32) as u32;
+                    self.state.x_px = x.clamp(0, WIDTH_PX as i32) as u32;
+                    self.state.y_px = y.clamp(0, HEIGHT_PX as i32) as u32;
                 }
                 Event::MouseMotion {
                     mousestate, x, y, ..
                 } => {
                     if mousestate.is_mouse_button_pressed(MouseButton::Left) {
-                        self.x_px = x.clamp(0, WIDTH_PX as i32) as u32;
-                        self.y_px = y.clamp(0, HEIGHT_PX as i32) as u32;
+                        self.state.x_px = x.clamp(0, WIDTH_PX as i32) as u32;
+                        self.state.y_px = y.clamp(0, HEIGHT_PX as i32) as u32;
                     }
                 }
                 _ => (),
             }
+        }
+        if let Some(title) = self.window.title.as_ref() {
+            self.state.save_(title);
         }
     }
 
@@ -53,12 +71,12 @@ impl Xy {
         let line_width = 2;
         let rect_horizontal = Rect::new(
             0,
-            self.y_px as i32 - line_width as i32 / 2,
+            self.state.y_px as i32 - line_width as i32 / 2,
             self.window.width_px(),
             line_width,
         );
         let rect_vertical = Rect::new(
-            self.x_px as i32 - line_width as i32 / 2,
+            self.state.x_px as i32 - line_width as i32 / 2,
             0,
             line_width,
             self.window.height_px(),
@@ -99,8 +117,8 @@ impl Xy {
 
     pub fn value_01(&self) -> (f32, f32) {
         (
-            self.x_px as f32 / WIDTH_PX as f32,
-            self.y_px as f32 / HEIGHT_PX as f32,
+            self.state.x_px as f32 / WIDTH_PX as f32,
+            self.state.y_px as f32 / HEIGHT_PX as f32,
         )
     }
 
