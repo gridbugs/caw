@@ -1,4 +1,4 @@
-use crate::window::Window;
+use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
 use caw_window_utils::persistent::PersistentData;
 use line_2d::Coord;
@@ -176,7 +176,7 @@ impl Knob {
     fn render(&mut self) -> anyhow::Result<()> {
         self.window.canvas.set_draw_color(Color::BLACK);
         self.window.canvas.clear();
-        self.window.render_title()?;
+        self.window.render_title(TitlePosition::CenterBottom)?;
         self.render_value()?;
         self.render_knob()?;
         self.window.canvas.present();

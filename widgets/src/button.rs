@@ -1,4 +1,4 @@
-use crate::window::Window;
+use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
 use sdl2::{pixels::Color, rect::Rect};
 use std::time::Instant;
@@ -65,7 +65,7 @@ impl Button {
     fn render(&mut self) -> anyhow::Result<()> {
         self.window.canvas.set_draw_color(Color::BLACK);
         self.window.canvas.clear();
-        self.window.render_title()?;
+        self.window.render_title(TitlePosition::CenterBottom)?;
         self.render_button()?;
         self.window.canvas.present();
         Ok(())

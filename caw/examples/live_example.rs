@@ -9,7 +9,11 @@ fn main() {
     .with_volume(volume.clone());
     volume.set(knob("volume").initial_value_01(0.5).build());
     let tempo_s = sv(knob("tempo s").build() * 0.5);
-    let (cutoff_hz, res) = xy("lpf").build().unzip();
+    let (cutoff_hz, res) = xy("lpf")
+        .axis_label_x("cutoff_hz")
+        .axis_label_y("resonance")
+        .build()
+        .unzip();
     let cutoff_hz = sv(cutoff_hz);
     let res = sv(res * 2.);
     let clock = sv(periodic_trig_s(tempo_s.clone())

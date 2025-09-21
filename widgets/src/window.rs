@@ -6,7 +6,6 @@ use caw_window_utils::{
 use sdl2::{
     EventPump,
     event::{Event, WindowEvent},
-    gfx::rotozoom::RotozoomSurface,
     pixels::Color,
     rect::Rect,
     render::{Canvas, TextureCreator},
@@ -18,6 +17,11 @@ use std::{
 };
 
 const FRAME_DURATION: Duration = Duration::from_micros(1_000_000 / 60);
+
+pub enum TitlePosition {
+    Center,
+    CenterBottom,
+}
 
 pub struct Window {
     pub canvas: Canvas<SdlWindow>,
@@ -76,26 +80,38 @@ impl Window {
         }
     }
 
-    pub fn render_title(&mut self) -> anyhow::Result<()> {
+    pub fn render_title(
+        &mut self,
+        position: TitlePosition,
+    ) -> anyhow::Result<()> {
         if let Some(title) = self.title.as_ref() {
             let text_surface = self
                 .font
                 .render(title.as_str())
                 .blended(Color::WHITE)
                 .map_err(|e| anyhow!("{e}"))?;
-            let text_surface_rot = text_surface.rotate_90deg(1).unwrap();
             let text_texture =
-                text_surface_rot.as_texture(&self.texture_creator)?;
+                text_surface.as_texture(&self.texture_creator)?;
             let (canvas_width, canvas_height) =
                 self.canvas.output_size().map_err(|e| anyhow!("{e}"))?;
             let text_texture_query = text_texture.query();
             let value_space_px = 20;
-            // Render the title centred at the bottom of the window.
+            let x_position =
+                (canvas_width as i32 - text_texture_query.width as i32) / 2;
+            let y_position = match position {
+                TitlePosition::Center => {
+                    (canvas_height as i32 - text_texture_query.height as i32)
+                        / 2
+                }
+                TitlePosition::CenterBottom => {
+                    canvas_height as i32
+                        - text_texture_query.height as i32
+                        - value_space_px
+                }
+            };
             let text_rect = Rect::new(
-                (canvas_width as i32 - text_texture_query.width as i32) / 2,
-                canvas_height as i32
-                    - text_texture_query.height as i32
-                    - value_space_px,
+                x_position,
+                y_position,
                 text_texture_query.width,
                 text_texture_query.height,
             );

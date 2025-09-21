@@ -297,6 +297,8 @@ pub struct Xy {
     widget: Widget,
     controller_x: u8,
     controller_y: u8,
+    axis_label_x: Option<String>,
+    axis_label_y: Option<String>,
     sig: Sig<
         Zip<
             MidiController01<SigShared<MidiChannelUdp>>,
@@ -307,7 +309,11 @@ pub struct Xy {
 }
 
 impl Xy {
-    pub fn new(title: String) -> Sig<SigShared<Self>> {
+    pub fn new(
+        title: String,
+        axis_label_x: Option<String>,
+        axis_label_y: Option<String>,
+    ) -> Sig<SigShared<Self>> {
         let mut xys_by_title = XYS_BY_TITLE.lock().unwrap();
         if let Some(xy) = xys_by_title.get(&title) {
             xy.clone()
@@ -335,6 +341,8 @@ impl Xy {
                 controller_y,
                 sig,
                 channel_index,
+                axis_label_x,
+                axis_label_y,
             };
             let child = match s.command().spawn() {
                 Ok(child) => child,
@@ -352,7 +360,7 @@ impl Xy {
 
     fn command(&self) -> Command {
         let mut command = Command::new(PROGRAM_NAME);
-        let args = vec![
+        let mut args = vec![
             format!(
                 "--server={}",
                 sig_server_local_socket_address().to_string()
@@ -363,6 +371,12 @@ impl Xy {
             format!("--controller-x={}", self.controller_x),
             format!("--controller-y={}", self.controller_y),
         ];
+        if let Some(axis_label_x) = self.axis_label_x.as_ref() {
+            args.push(format!("--axis-label-x={}", axis_label_x));
+        }
+        if let Some(axis_label_y) = self.axis_label_y.as_ref() {
+            args.push(format!("--axis-label-y={}", axis_label_y));
+        }
         command.args(args);
         command
     }
@@ -389,6 +403,19 @@ mod xy_builder {
         #[build_ty = "Sig<SigShared<Xy>>"]
         pub struct Props {
             title: String,
+            #[default = None]
+            axis_label_x_: Option<String>,
+            #[default = None]
+            axis_label_y_: Option<String>,
+        }
+    }
+
+    impl Props {
+        pub fn axis_label_x(self, axis_label_x: impl AsRef<str>) -> Self {
+            self.axis_label_x_(Some(axis_label_x.as_ref().to_string()))
+        }
+        pub fn axis_label_y(self, axis_label_y: impl AsRef<str>) -> Self {
+            self.axis_label_y_(Some(axis_label_y.as_ref().to_string()))
         }
     }
 

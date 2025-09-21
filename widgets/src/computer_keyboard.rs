@@ -1,4 +1,4 @@
-use crate::window::Window;
+use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
 use caw_computer_keyboard::Key;
 use caw_keyboard::Note;
@@ -163,7 +163,7 @@ impl ComputerKeyboard {
     fn render(&mut self) -> anyhow::Result<()> {
         self.window.canvas.set_draw_color(Color::BLACK);
         self.window.canvas.clear();
-        self.window.render_title()?;
+        self.window.render_title(TitlePosition::CenterBottom)?;
         self.render_note()?;
         self.window.canvas.present();
         Ok(())

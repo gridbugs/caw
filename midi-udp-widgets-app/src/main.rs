@@ -5,7 +5,7 @@
 use caw_keyboard::{Note, note};
 use caw_midi::MidiEvent;
 use caw_midi_udp_client::*;
-use caw_widgets::{Button, ComputerKeyboard, Knob, Xy};
+use caw_widgets::{AxisLabels, Button, ComputerKeyboard, Knob, Xy};
 use clap::{Parser, Subcommand};
 
 #[derive(Subcommand)]
@@ -24,6 +24,10 @@ enum Command {
         controller_x: u8,
         #[arg(long, default_value_t = 1)]
         controller_y: u8,
+        #[arg(long)]
+        axis_label_x: Option<String>,
+        #[arg(long)]
+        axis_label_y: Option<String>,
     },
     ComputerKeyboard {
         #[arg(long, default_value_t = note::B_2)]
@@ -89,8 +93,14 @@ fn main() {
         Command::Xy {
             controller_x,
             controller_y,
+            axis_label_x,
+            axis_label_y,
         } => {
-            let mut xy = Xy::new(cli.title.as_deref()).unwrap();
+            let axis_labels = AxisLabels {
+                x: axis_label_x,
+                y: axis_label_y,
+            };
+            let mut xy = Xy::new(cli.title.as_deref(), axis_labels).unwrap();
             loop {
                 xy.tick().unwrap();
                 let (x, y) = xy.value_midi();
