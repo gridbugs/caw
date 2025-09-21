@@ -1,4 +1,5 @@
-use caw_midi_udp_client::{MidiEvent, MidiMessage, MidiUdpClient};
+use caw_midi::MidiEvent;
+use caw_midi_udp_client::{MidiMessage, MidiUdpClient};
 use clap::Parser;
 
 #[derive(Parser, Debug)]

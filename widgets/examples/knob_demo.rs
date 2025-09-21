@@ -1,3 +1,4 @@
+use caw_midi::MidiEvent;
 use caw_midi_udp_client::*;
 use caw_widgets::*;
 use clap::Parser;
