@@ -58,15 +58,20 @@ fn main() {
     match cli.command {
         Command::Button => {
             let mut button = Button::new(cli.title.as_deref()).unwrap();
+            let mut prev_pressed = false;
             loop {
                 button.tick().unwrap();
-                let key = Note::default().to_midi_index().into();
-                let message = if button.pressed() {
-                    MidiMessage::NoteOn { key, vel: 0.into() }
-                } else {
-                    MidiMessage::NoteOff { key, vel: 0.into() }
-                };
-                client.send(MidiEvent { channel, message }).unwrap();
+                let pressed = button.pressed();
+                if pressed != prev_pressed {
+                    let key = Note::default().to_midi_index().into();
+                    let message = if button.pressed() {
+                        MidiMessage::NoteOn { key, vel: 0.into() }
+                    } else {
+                        MidiMessage::NoteOff { key, vel: 0.into() }
+                    };
+                    client.send(MidiEvent { channel, message }).unwrap();
+                    prev_pressed = pressed;
+                }
             }
         }
         Command::Knob {
@@ -110,27 +115,42 @@ fn main() {
                 y: axis_label_y,
             };
             let mut xy = Xy::new(cli.title.as_deref(), axis_labels).unwrap();
-            loop {
-                xy.tick().unwrap();
-                let (x, y) = xy.value_midi();
+            let send_x = |value| {
                 client
                     .send(MidiEvent {
                         channel,
                         message: MidiMessage::Controller {
                             controller: controller_x.into(),
-                            value: x,
+                            value,
                         },
                     })
                     .unwrap();
+            };
+            let send_y = |value| {
                 client
                     .send(MidiEvent {
                         channel,
                         message: MidiMessage::Controller {
                             controller: controller_y.into(),
-                            value: y,
+                            value,
                         },
                     })
                     .unwrap();
+            };
+            let (mut prev_x, mut prev_y) = xy.value_midi();
+            send_x(prev_x);
+            send_y(prev_y);
+            loop {
+                xy.tick().unwrap();
+                let (x, y) = xy.value_midi();
+                if x != prev_x {
+                    send_x(x);
+                    prev_x = x;
+                }
+                if y != prev_y {
+                    send_y(y);
+                    prev_y = y;
+                }
             }
         }
         Command::ComputerKeyboard { start_note } => {
