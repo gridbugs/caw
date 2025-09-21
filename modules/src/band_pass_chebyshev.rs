@@ -199,6 +199,8 @@ where
     buf: Vec<f32>,
 }
 
+const SAFETY: f32 = 2.;
+
 impl<S, C, W, M, R> SigT for BandPassChebyshevCentered<S, C, W, M, R>
 where
     S: SigT<Item = f32>,
@@ -235,13 +237,14 @@ where
             let lower_cutoff_hz =
                 (mid_cutoff_hz - (width_cutoff_hz / 2.0)).max(min_cutoff_hz);
             let upper_cutoff_hz = lower_cutoff_hz + width_cutoff_hz;
-            *out = self.state.run(
+            *out = (self.state.run(
                 sample as f64,
                 ctx.sample_rate_hz as f64,
                 lower_cutoff_hz as f64,
                 upper_cutoff_hz as f64,
                 resonance as f64,
-            ) as f32;
+            ) as f32)
+                .clamp(-SAFETY, SAFETY);
         }
         &self.buf
     }

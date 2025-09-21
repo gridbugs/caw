@@ -3,8 +3,8 @@ use anyhow::anyhow;
 use caw_persistent::PersistentData;
 use midly::num::u7;
 use sdl2::{
-    gfx::rotozoom::RotozoomSurface, mouse::MouseButton, pixels::Color,
-    rect::Rect,
+    gfx::rotozoom::RotozoomSurface, keyboard::Scancode, mouse::MouseButton,
+    pixels::Color, rect::Rect,
 };
 use serde::{Deserialize, Serialize};
 use std::time::Instant;
@@ -31,6 +31,7 @@ pub struct AxisLabels {
 pub struct Xy {
     window: Window,
     state: State,
+    space_pressed: bool,
     axis_labels: AxisLabels,
 }
 
@@ -51,6 +52,7 @@ impl Xy {
         Ok(Self {
             window,
             state,
+            space_pressed: false,
             axis_labels,
         })
     }
@@ -63,6 +65,14 @@ impl Xy {
                 self.window.title.as_ref(),
             );
             match event {
+                Event::KeyDown { scancode, .. } => match scancode {
+                    Some(Scancode::Space) => self.space_pressed = true,
+                    _ => (),
+                },
+                Event::KeyUp { scancode, .. } => match scancode {
+                    Some(Scancode::Space) => self.space_pressed = false,
+                    _ => (),
+                },
                 Event::MouseButtonDown { x, y, .. } => {
                     self.state.x_px = x.clamp(0, WIDTH_PX as i32) as u32;
                     self.state.y_px = y.clamp(0, HEIGHT_PX as i32) as u32;
@@ -228,5 +238,9 @@ impl Xy {
             ((x * u7::max_value().as_int() as f32) as u8).into(),
             ((y * u7::max_value().as_int() as f32) as u8).into(),
         )
+    }
+
+    pub fn is_space_pressed(&self) -> bool {
+        self.space_pressed
     }
 }

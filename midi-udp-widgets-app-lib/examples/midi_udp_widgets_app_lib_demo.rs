@@ -8,7 +8,7 @@ fn sig() -> Sig<impl SigT<Item = f32>> {
         adsr_linear_01(button("env gate").build().gate_to_trig_rising_edge())
             .release_s(0.5)
             .build();
-    let (chorus_depth_01, chorus_lfo_rate_01) = xy("chorus").build().unzip();
+    let (chorus_depth_01, chorus_lfo_rate_01) = xy("chorus").build();
     super_saw(60.)
         .build()
         .filter(

@@ -2,7 +2,7 @@ mod low_level;
 
 pub mod oscillator;
 pub use oscillator::{
-    oscillator,
+    oscillator, pulse, saw, sine, triangle,
     waveform::{self, *},
 };
 
@@ -57,9 +57,10 @@ pub mod high_pass {
 
 pub mod band_pass_butterworth;
 pub use band_pass_butterworth::band_pass_butterworth;
+pub use band_pass_butterworth::band_pass_butterworth_centered;
 
 pub mod band_pass_chebyshev;
-pub use band_pass_chebyshev::band_pass_chebyshev;
+pub use band_pass_chebyshev::band_pass_chebyshev_centered;
 
 pub mod band_pass {
     pub use super::band_pass_butterworth as butterworth;

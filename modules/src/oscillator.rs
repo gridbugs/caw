@@ -38,17 +38,14 @@ pub mod waveform {
     pub struct Pulse;
     impl Waveform for Pulse {
         fn sample(&self, state_01: f32, pulse_width_01: f32) -> f32 {
-            if state_01 < pulse_width_01 {
-                -1.0
-            } else {
-                1.0
-            }
+            if state_01 < pulse_width_01 { -1.0 } else { 1.0 }
         }
 
         const PULSE: bool = true;
     }
 }
 
+use crate::{Pulse, Saw, Sine, Triangle};
 pub use waveform::Waveform;
 
 pub struct Oscillator<W, F, P, R, T>
@@ -177,6 +174,242 @@ builder! {
         #[generic_with_constraint = "Waveform"]
         #[generic_name = "W"]
         waveform: _,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "F"]
+        freq_hz: _,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[default = 0.5]
+        #[generic_name = "P"]
+        pulse_width_01: f32,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[default = 0.0]
+        #[generic_name = "R"]
+        reset_offset_01: f32,
+        #[generic_with_constraint = "SigT<Item = bool>"]
+        #[default = false]
+        #[generic_name = "T"]
+        reset_trig: bool,
+    }
+}
+
+pub struct OscillatorSaw<F, R, T>(Oscillator<Saw, F, f32, R, T>)
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>;
+
+impl<F, R, T> SigT for OscillatorSaw<F, R, T>
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample_non_pulse(ctx);
+        &self.0.buf
+    }
+}
+
+impl<F, R, T> OscillatorSaw<F, R, T>
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    fn new(freq_hz: F, reset_offset_01: R, reset_trig: T) -> Sig<Self> {
+        Sig(Self(
+            Oscillator::new(Saw, freq_hz, 0., reset_offset_01, reset_trig).0,
+        ))
+    }
+}
+
+builder! {
+    #[constructor = "saw"]
+    #[constructor_doc = "A signal which oscillates with a saw wave at a given freq_hzuency."]
+    #[build_fn = "OscillatorSaw::new"]
+    #[build_ty = "Sig<OscillatorSaw<F, R, T>>"]
+    #[generic_setter_type_name = "X"]
+    pub struct OscillatorSawBuilder {
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "F"]
+        freq_hz: _,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[default = 0.0]
+        #[generic_name = "R"]
+        reset_offset_01: f32,
+        #[generic_with_constraint = "SigT<Item = bool>"]
+        #[default = false]
+        #[generic_name = "T"]
+        reset_trig: bool,
+    }
+}
+
+pub struct OscillatorSine<F, R, T>(Oscillator<Sine, F, f32, R, T>)
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>;
+
+impl<F, R, T> SigT for OscillatorSine<F, R, T>
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample_non_pulse(ctx);
+        &self.0.buf
+    }
+}
+
+impl<F, R, T> OscillatorSine<F, R, T>
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    fn new(freq_hz: F, reset_offset_01: R, reset_trig: T) -> Sig<Self> {
+        Sig(Self(
+            Oscillator::new(Sine, freq_hz, 0., reset_offset_01, reset_trig).0,
+        ))
+    }
+}
+
+builder! {
+    #[constructor = "sine"]
+    #[constructor_doc = "A signal which oscillates with a sine wave at a given freq_hzuency."]
+    #[build_fn = "OscillatorSine::new"]
+    #[build_ty = "Sig<OscillatorSine<F, R, T>>"]
+    #[generic_setter_type_name = "X"]
+    pub struct OscillatorSineBuilder {
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "F"]
+        freq_hz: _,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[default = 0.0]
+        #[generic_name = "R"]
+        reset_offset_01: f32,
+        #[generic_with_constraint = "SigT<Item = bool>"]
+        #[default = false]
+        #[generic_name = "T"]
+        reset_trig: bool,
+    }
+}
+
+pub struct OscillatorTriangle<F, R, T>(Oscillator<Triangle, F, f32, R, T>)
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>;
+
+impl<F, R, T> SigT for OscillatorTriangle<F, R, T>
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample_non_pulse(ctx);
+        &self.0.buf
+    }
+}
+
+impl<F, R, T> OscillatorTriangle<F, R, T>
+where
+    F: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    fn new(freq_hz: F, reset_offset_01: R, reset_trig: T) -> Sig<Self> {
+        Sig(Self(
+            Oscillator::new(Triangle, freq_hz, 0., reset_offset_01, reset_trig)
+                .0,
+        ))
+    }
+}
+
+builder! {
+    #[constructor = "triangle"]
+    #[constructor_doc = "A signal which oscillates with a triangle wave at a given freq_hzuency."]
+    #[build_fn = "OscillatorTriangle::new"]
+    #[build_ty = "Sig<OscillatorTriangle<F, R, T>>"]
+    #[generic_setter_type_name = "X"]
+    pub struct OscillatorTriangleBuilder {
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "F"]
+        freq_hz: _,
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[default = 0.0]
+        #[generic_name = "R"]
+        reset_offset_01: f32,
+        #[generic_with_constraint = "SigT<Item = bool>"]
+        #[default = false]
+        #[generic_name = "T"]
+        reset_trig: bool,
+    }
+}
+
+pub struct OscillatorPulse<F, P, R, T>(Oscillator<Pulse, F, P, R, T>)
+where
+    F: SigT<Item = f32>,
+    P: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>;
+
+impl<F, P, R, T> SigT for OscillatorPulse<F, P, R, T>
+where
+    F: SigT<Item = f32>,
+    P: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    type Item = f32;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.0.sample_pulse(ctx);
+        &self.0.buf
+    }
+}
+
+impl<F, P, R, T> OscillatorPulse<F, P, R, T>
+where
+    F: SigT<Item = f32>,
+    P: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+    T: SigT<Item = bool>,
+{
+    fn new(
+        freq_hz: F,
+        pulse_width_01: P,
+        reset_offset_01: R,
+        reset_trig: T,
+    ) -> Sig<Self> {
+        Sig(Self(
+            Oscillator::new(
+                Pulse,
+                freq_hz,
+                pulse_width_01,
+                reset_offset_01,
+                reset_trig,
+            )
+            .0,
+        ))
+    }
+}
+
+builder! {
+    #[constructor = "pulse"]
+    #[constructor_doc = "A signal which oscillates with a pulse wave at a given freq_hzuency."]
+    #[build_fn = "OscillatorPulse::new"]
+    #[build_ty = "Sig<OscillatorPulse<F, P, R, T>>"]
+    #[generic_setter_type_name = "X"]
+    pub struct OscillatorPulseBuilder {
         #[generic_with_constraint = "SigT<Item = f32>"]
         #[generic_name = "F"]
         freq_hz: _,

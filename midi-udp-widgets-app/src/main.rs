@@ -2,11 +2,14 @@
 //! UDP socket to a server (specified as a command-line argument). A caw synthesizer is expected to
 //! run a UDP server which receives MIDI over UDP.
 
+use std::time::{Duration, Instant};
+
 use caw_keyboard::{Note, note};
 use caw_midi::MidiEvent;
 use caw_midi_udp_client::*;
 use caw_widgets::{AxisLabels, Button, ComputerKeyboard, Knob, Xy};
 use clap::{Parser, Subcommand};
+use midly::num::u7;
 
 #[derive(Subcommand)]
 enum Command {
@@ -18,6 +21,8 @@ enum Command {
         initial_value: f32,
         #[arg(long, default_value_t = 0.2)]
         sensitivity: f32,
+        #[arg(long)]
+        space_controller: Option<u8>,
     },
     Xy {
         #[arg(long, default_value_t = 0)]
@@ -28,6 +33,8 @@ enum Command {
         axis_label_x: Option<String>,
         #[arg(long)]
         axis_label_y: Option<String>,
+        #[arg(long)]
+        space_controller: Option<u8>,
     },
     ComputerKeyboard {
         #[arg(long, default_value_t = note::B_2)]
@@ -51,10 +58,18 @@ struct Cli {
     title: Option<String>,
 }
 
+/// How long to spam the connection before switching to only sending updates when a value changes.
+/// This allows the widget to be created before the server is ready to start receiving messages
+/// without the server missing the initial state message as long as the server becomes ready within
+/// this duration..
+const SPAM_DURATION: Duration = Duration::from_millis(1000);
+
 fn main() {
     let cli = Cli::parse();
     let client = MidiUdpClient::new(cli.server).unwrap();
     let channel: u4 = cli.channel.into();
+    let spam_end = Instant::now() + SPAM_DURATION;
+    let is_spam = || Instant::now() < spam_end;
     match cli.command {
         Command::Button => {
             let mut button = Button::new(cli.title.as_deref()).unwrap();
@@ -62,7 +77,7 @@ fn main() {
             loop {
                 button.tick().unwrap();
                 let pressed = button.pressed();
-                if pressed != prev_pressed {
+                if is_spam() || pressed != prev_pressed {
                     let key = Note::default().to_midi_index().into();
                     let message = if button.pressed() {
                         MidiMessage::NoteOn { key, vel: 0.into() }
@@ -78,6 +93,7 @@ fn main() {
             controller,
             initial_value,
             sensitivity,
+            space_controller,
         } => {
             let mut knob =
                 Knob::new(cli.title.as_deref(), initial_value, sensitivity)
@@ -95,12 +111,33 @@ fn main() {
             };
             let mut prev_value = knob.value_midi();
             send(prev_value);
+            let mut prev_space = false;
             loop {
                 knob.tick().unwrap();
                 let value = knob.value_midi();
-                if value != prev_value {
+                if is_spam() || value != prev_value {
                     send(value);
                     prev_value = value;
+                }
+                let space = knob.is_space_pressed();
+                if let Some(space_controller) = space_controller {
+                    if is_spam() || space != prev_space {
+                        client
+                            .send(MidiEvent {
+                                channel,
+                                message: MidiMessage::Controller {
+                                    controller: space_controller.into(),
+                                    value: if space {
+                                        u7::max_value()
+                                    } else {
+                                        0.into()
+                                    },
+                                },
+                            })
+                            .unwrap();
+
+                        prev_space = space;
+                    }
                 }
             }
         }
@@ -109,6 +146,7 @@ fn main() {
             controller_y,
             axis_label_x,
             axis_label_y,
+            space_controller,
         } => {
             let axis_labels = AxisLabels {
                 x: axis_label_x,
@@ -137,19 +175,41 @@ fn main() {
                     })
                     .unwrap();
             };
+            xy.tick().unwrap();
             let (mut prev_x, mut prev_y) = xy.value_midi();
             send_x(prev_x);
             send_y(prev_y);
+            let mut prev_space = false;
             loop {
                 xy.tick().unwrap();
                 let (x, y) = xy.value_midi();
-                if x != prev_x {
+                if is_spam() || x != prev_x {
                     send_x(x);
                     prev_x = x;
                 }
-                if y != prev_y {
+                if is_spam() || y != prev_y {
                     send_y(y);
                     prev_y = y;
+                }
+                let space = xy.is_space_pressed();
+                if let Some(space_controller) = space_controller {
+                    if is_spam() || space != prev_space {
+                        client
+                            .send(MidiEvent {
+                                channel,
+                                message: MidiMessage::Controller {
+                                    controller: space_controller.into(),
+                                    value: if space {
+                                        u7::max_value()
+                                    } else {
+                                        0.into()
+                                    },
+                                },
+                            })
+                            .unwrap();
+
+                        prev_space = space;
+                    }
                 }
             }
         }

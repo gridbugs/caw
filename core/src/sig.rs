@@ -824,12 +824,12 @@ where
         Sig(SigAbs(self.0))
     }
 
-    pub fn is_positive(self) -> Sig<impl SigT<Item = bool>> {
-        self.map(|x| x > 0.0)
+    pub fn is_positive(self) -> Sig<IsPositive<S>> {
+        Sig(IsPositive(self.0))
     }
 
-    pub fn is_negative(self) -> Sig<impl SigT<Item = bool>> {
-        self.map(|x| x < 0.0)
+    pub fn is_negative(self) -> Sig<IsNegative<S>> {
+        Sig(IsNegative(self.0))
     }
 }
 
@@ -958,6 +958,13 @@ where
             prev = current;
             ret
         })
+    }
+
+    pub fn or<O>(self, other: O) -> Sig<impl SigT<Item = bool>>
+    where
+        O: SigT<Item = bool>,
+    {
+        self.zip(other).map(|(s, o)| s || o)
     }
 }
 
@@ -1333,6 +1340,36 @@ where
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
         MapBuf::new(self.0.sample(ctx), signed_to_01)
+    }
+}
+
+pub struct IsPositive<S>(S)
+where
+    S: SigT<Item = f32>;
+
+impl<S> SigT for IsPositive<S>
+where
+    S: SigT<Item = f32>,
+{
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        MapBuf::new(self.0.sample(ctx), |x| x > 0.0)
+    }
+}
+
+pub struct IsNegative<S>(S)
+where
+    S: SigT<Item = f32>;
+
+impl<S> SigT for IsNegative<S>
+where
+    S: SigT<Item = f32>,
+{
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        MapBuf::new(self.0.sample(ctx), |x| x < 0.0)
     }
 }
 

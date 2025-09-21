@@ -9,6 +9,7 @@ homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 
 [dependencies]
+midly = "0.5"
 caw_widgets = { version = "0.4", path = "../widgets" }
 caw_midi = { version = "0.4", path = "../midi" }
 caw_midi_udp_client = { version = "0.1", path = "../midi-udp-client" }

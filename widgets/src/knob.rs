@@ -28,6 +28,7 @@ pub struct Knob {
     title: Option<String>,
     window: Window,
     state: State,
+    space_pressed: bool,
     sensitivity: f32,
 }
 
@@ -49,6 +50,7 @@ impl Knob {
             title: title.map(|s| s.to_string()),
             window,
             state,
+            space_pressed: false,
             sensitivity,
         })
     }
@@ -73,10 +75,18 @@ impl Knob {
                         Some(Scancode::Num8) => 0.8,
                         Some(Scancode::Num9) => 0.9,
                         Some(Scancode::Num0) => 1.0,
+                        Some(Scancode::Space) => {
+                            self.space_pressed = true;
+                            continue;
+                        }
                         _ => continue,
                     };
                     self.state.value_01 = value_01;
                 }
+                Event::KeyUp { scancode, .. } => match scancode {
+                    Some(Scancode::Space) => self.space_pressed = false,
+                    _ => (),
+                },
                 Event::MouseWheel { precise_y, .. } => {
                     let multiplier = 0.1;
                     self.state.value_01 = (self.state.value_01
@@ -203,5 +213,9 @@ impl Knob {
 
     pub fn value_midi(&self) -> u7 {
         ((self.value_01() * u7::max_value().as_int() as f32) as u8).into()
+    }
+
+    pub fn is_space_pressed(&self) -> bool {
+        self.space_pressed
     }
 }
