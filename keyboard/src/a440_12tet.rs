@@ -5,12 +5,13 @@
 //! note is G_9. Thus the 9th octave does not contain all notes. C is considered the first note in
 //! each octave.
 use caw_core::{Buf, ConstBuf, Sig, SigCtx, SigT};
+use serde::{Deserialize, Serialize};
 use std::{fmt::Display, str::FromStr};
 
 /// Octaves go from -1 to 8. Some notes in the 9th octave can be constructed, however the regular
 /// `Note::new` function can't be passed the 9th octave since that would permit construction of
 /// non-MIDI notes (those in the 9th octave above G_9).
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct Octave {
     /// To make the math easier octaves are represented by the index of the first note of the
     /// octave (c) divided by 12. Unfortunately this means that the first octave, named octave "-1"
@@ -85,7 +86,7 @@ pub const OCTAVE_7: Octave = Octave::_7;
 pub const OCTAVE_8: Octave = Octave::_8;
 
 /// A note without an octave
-#[derive(Debug, Clone, Copy, PartialEq, PartialOrd)]
+#[derive(Debug, Clone, Copy, PartialEq, PartialOrd, Serialize, Deserialize)]
 pub struct NoteName {
     relative_midi_index: u8,
 }
@@ -215,7 +216,18 @@ pub fn semitone_ratio(num_semitones: f32) -> f32 {
 pub const TONE_RATIO: f32 = 1.122_462;
 
 /// Definition of notes based on MIDI tuned to A_440
-#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
+#[derive(
+    Debug,
+    Clone,
+    Copy,
+    PartialEq,
+    Eq,
+    PartialOrd,
+    Ord,
+    Hash,
+    Serialize,
+    Deserialize,
+)]
 pub struct Note {
     midi_index: u8,
 }
@@ -384,8 +396,10 @@ impl Default for Note {
 pub mod chord {
     use super::{Note, NoteName, Octave, note_name};
     use caw_core::{Buf, ConstBuf, SigCtx, SigT};
+    use serde::{Deserialize, Serialize};
     use smallvec::{SmallVec, smallvec};
 
+    #[derive(Clone, Debug)]
     pub struct Notes(SmallVec<[Note; 4]>);
 
     impl Notes {
@@ -400,7 +414,7 @@ pub mod chord {
         }
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum Third {
         Major,
         Minor,
@@ -408,19 +422,19 @@ pub mod chord {
         Sus4,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum Fifth {
         Perfect,
         Diminished,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub enum Seventh {
         Major,
         Minor,
     }
 
-    #[derive(Clone, Copy, Debug)]
+    #[derive(Clone, Copy, Debug, Serialize, Deserialize)]
     pub struct ChordType {
         pub third: Option<Third>,
         pub fifth: Option<Fifth>,

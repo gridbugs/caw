@@ -25,19 +25,16 @@ fn main() {
     let length = 16;
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
-        let (note, gate) = key_looper(
-            voice.gated_note(),
-            clock.clone(),
-            space_button.clone(),
-            length,
-        )
-        .ungated();
-        let cutoff_hz = value_looper(
-            cutoff_hz.clone(),
-            clock.clone(),
-            lpf_space.clone(),
-            length,
-        );
+        let (note, gate) = key_looper(voice.gated_note(), clock.clone())
+            .clearing(space_button.clone())
+            .length(length)
+            .name("keys")
+            .build()
+            .ungated();
+        let cutoff_hz =
+            value_looper(cutoff_hz.clone(), clock.clone(), lpf_space.clone())
+                .length(length)
+                .build();
         let env = adsr(gate)
             .key_press_trig(clock.clone())
             .a(tempo_s.clone() * knob("attack").build())

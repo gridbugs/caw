@@ -14,6 +14,9 @@ web = ["getrandom/wasm_js"]
 
 [dependencies]
 caw_core = { version = "0.5", path = "../core" }
+caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
+serde = { version = "1.0", features = ["serde_derive"] }
+caw_persistent = { version = "0.1", path = "../persistent" }
 rand = "0.9"
 getrandom = "0.3"
 itertools = "0.14"

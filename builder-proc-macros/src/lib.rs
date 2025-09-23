@@ -124,8 +124,6 @@ pub fn builder(input: TokenStream) -> TokenStream {
     let mut build_fn = Vec::new();
     let mut build_ty = Vec::new();
     let mut constructor = None;
-    let mut constructor_generics: Punctuated<GenericParam, Comma> =
-        Punctuated::new();
     let mut generic_setter_type_name = None;
     let mut constructor_doc = None;
     let mut constructor_where_predicates = Vec::new();
@@ -166,6 +164,35 @@ pub fn builder(input: TokenStream) -> TokenStream {
             }
             continue;
         }
+        if attr.path().is_ident("extra_generic") {
+            let list = attr.meta.require_list().expect("Expected list");
+            let args = list
+                .parse_args_with(
+                    Punctuated::<LitStr, Token![,]>::parse_terminated,
+                )
+                .expect("Failed to parse argument list");
+            assert!(
+                args.len() == 2,
+                "#[extra_generics(type, constraint)] expected 2 arguments, got {}.",
+                args.len()
+            );
+            let type_ident = args.get(0).unwrap();
+            let constraint = args.get(1).unwrap();
+            let type_ident: Ident =
+                type_ident.parse().expect("Expected identifier");
+            let constraint = constraint
+                .parse_with(
+                    Punctuated::<TypeParamBound, Token![+]>::parse_terminated,
+                )
+                .expect("Expected constraint");
+            let generic_type_param =
+                generic_type_param(type_ident, &constraint);
+            input
+                .generics
+                .params
+                .push(GenericParam::Type(generic_type_param));
+            continue;
+        }
         if attr.path().is_ident("generic_setter_type_name") {
             if let Some(s) = attr_lit_str(&attr) {
                 let ident: Ident = s.parse().expect("Expected identifier");
@@ -202,6 +229,7 @@ pub fn builder(input: TokenStream) -> TokenStream {
             exactly once, or not set at all."
         );
     }
+    let mut constructor_generics = input.generics.params.clone();
     for field in input.fields.iter_mut() {
         if let Some(ident) = field.ident.as_ref() {
             all_field_idents_in_order.push(ident.clone());
