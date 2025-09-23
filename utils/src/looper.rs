@@ -211,7 +211,7 @@ where
     N: SigT<Item = u32>,
     P: KeyLooperPersist<X>,
 {
-    pub fn name(
+    pub fn persist_with_name(
         self,
         name: impl AsRef<str>,
     ) -> KeyLooperBuilder<X, S, T, C, N, KeyLooperPersistWithName> {

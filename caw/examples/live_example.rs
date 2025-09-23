@@ -28,7 +28,7 @@ fn main() {
         let (note, gate) = key_looper(voice.gated_note(), clock.clone())
             .clearing(space_button.clone())
             .length(length)
-            .name("keys")
+            .persist_with_name("keys")
             .build()
             .ungated();
         let cutoff_hz =
