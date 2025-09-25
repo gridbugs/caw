@@ -1,6 +1,6 @@
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Sig, SigCtx, SigT};
-use caw_persist::Persist;
+use caw_persist::PersistData;
 use itertools::izip;
 use serde::{Deserialize, Serialize};
 
@@ -42,17 +42,22 @@ impl<T> Sequence<T> {
     }
 }
 
-const KEY_LOOPER_PERSIST: &'static str = "key_looper";
+impl<T> PersistData for Sequence<Option<T>>
+where
+    T: Serialize + for<'a> Deserialize<'a>,
+{
+    const NAME: &'static str = "sequence";
+}
 
 /// Driver for saving and loading a sequence state to a file.
-pub trait KeyLooperIo<T> {
+pub trait LooperIo<T> {
     fn load(&self) -> Sequence<Option<T>>;
     fn save(&self, sequence: &Sequence<Option<T>>);
 }
 
-/// Implementation of `KeyLooperIo` which doesn't actually save or load any data.
-pub struct KeyLooperIoNull;
-impl<T> KeyLooperIo<T> for KeyLooperIoNull {
+/// Implementation of `LooperIo` which doesn't actually save or load any data.
+pub struct LooperIoNull;
+impl<T> LooperIo<T> for LooperIoNull {
     fn load(&self) -> Sequence<Option<T>> {
         Sequence::new_with(1, || None)
     }
@@ -60,14 +65,14 @@ impl<T> KeyLooperIo<T> for KeyLooperIoNull {
     fn save(&self, _sequence: &Sequence<Option<T>>) {}
 }
 
-/// Implementation of `KeyLooperIo` which saves state into a file of a given name.
-pub struct KeyLooperIoWithName(pub String);
-impl<T> KeyLooperIo<T> for KeyLooperIoWithName
+/// Implementation of `LooperIo` which saves state into a file of a given name.
+pub struct LooperIoWithName(pub String);
+impl<T> LooperIo<T> for LooperIoWithName
 where
     T: Serialize + for<'a> Deserialize<'a>,
 {
     fn load(&self) -> Sequence<Option<T>> {
-        if let Some(sequence) = KEY_LOOPER_PERSIST.load_(&self.0) {
+        if let Some(sequence) = Sequence::load_(&self.0) {
             sequence
         } else {
             Sequence::new_with(1, || None)
@@ -75,7 +80,7 @@ where
     }
 
     fn save(&self, sequence: &Sequence<Option<T>>) {
-        KEY_LOOPER_PERSIST.save_(sequence, &self.0)
+        sequence.save_(&self.0)
     }
 }
 
@@ -86,7 +91,7 @@ where
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    I: KeyLooperIo<X>,
+    I: LooperIo<X>,
 {
     sig: S,
     last_value: Option<X>,
@@ -105,7 +110,7 @@ where
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    I: KeyLooperIo<X>,
+    I: LooperIo<X>,
 {
     type Item = S::Item;
 
@@ -154,7 +159,7 @@ where
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    I: KeyLooperIo<X>,
+    I: LooperIo<X>,
 {
     fn new(sig: S, tick: T, clearing: C, length: N, io: I) -> Sig<Self> {
         Sig(KeyLooper {
@@ -192,10 +197,10 @@ builder! {
         #[generic_name = "N"]
         #[default = 16]
         length: u32,
-        #[generic_with_constraint = "KeyLooperIo<V>"]
-        #[default = KeyLooperIoNull]
+        #[generic_with_constraint = "LooperIo<V>"]
+        #[default = LooperIoNull]
         #[generic_name = "I"]
-        io: KeyLooperIoNull,
+        io: LooperIoNull,
     }
 }
 
@@ -206,12 +211,12 @@ where
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    I: KeyLooperIo<X>,
+    I: LooperIo<X>,
 {
     pub fn persist_with_name(
         self,
         name: impl AsRef<str>,
-    ) -> KeyLooperBuilder<X, S, T, C, N, KeyLooperIoWithName> {
+    ) -> KeyLooperBuilder<X, S, T, C, N, LooperIoWithName> {
         let Self {
             sig,
             trig,
@@ -224,18 +229,19 @@ where
             trig,
             clearing,
             length,
-            io: KeyLooperIoWithName(name.as_ref().to_string()),
+            io: LooperIoWithName(format!("key_looper_{}", name.as_ref())),
         }
     }
 }
 
-pub struct ValueLooper<S, T, R, N>
+pub struct ValueLooper<S, T, R, N, I>
 where
     S: SigT,
     S::Item: Clone,
     T: SigT<Item = bool>,
     R: SigT<Item = bool>,
     N: SigT<Item = u32>,
+    I: LooperIo<S::Item>,
 {
     sig: S,
     tick: T,
@@ -243,15 +249,17 @@ where
     length: N,
     sequence: Sequence<Option<S::Item>>,
     buf: Vec<S::Item>,
+    io: I,
 }
 
-impl<S, T, R, N> SigT for ValueLooper<S, T, R, N>
+impl<S, T, R, N, I> SigT for ValueLooper<S, T, R, N, I>
 where
     S: SigT,
     S::Item: Clone,
     T: SigT<Item = bool>,
     R: SigT<Item = bool>,
     N: SigT<Item = u32>,
+    I: LooperIo<S::Item>,
 {
     type Item = S::Item;
 
@@ -261,6 +269,7 @@ where
         let tick = self.tick.sample(ctx);
         let recording = self.recording.sample(ctx);
         let length = self.length.sample(ctx);
+        let mut changed_this_frame = false;
         for (sample, tick, recording, length) in izip! {
             sig.iter(),
             tick.iter(),
@@ -275,32 +284,39 @@ where
             let out = match (recording, stored.clone()) {
                 (true, _) | (_, None) => {
                     *stored = Some(sample.clone());
+                    changed_this_frame = true;
                     sample
                 }
                 (_, Some(stored)) => stored,
             };
             self.buf.push(out);
         }
+        if changed_this_frame {
+            self.io.save(&self.sequence);
+        }
         &self.buf
     }
 }
 
-impl<S, T, R, N> ValueLooper<S, T, R, N>
+impl<S, T, R, N, I> ValueLooper<S, T, R, N, I>
 where
     S: SigT,
     S::Item: Clone,
     T: SigT<Item = bool>,
     R: SigT<Item = bool>,
     N: SigT<Item = u32>,
+    I: LooperIo<S::Item>,
 {
-    fn new(sig: S, tick: T, recording: R, length: N) -> Sig<Self> {
+    fn new(sig: S, tick: T, recording: R, length: N, io: I) -> Sig<Self> {
+        let sequence = io.load();
         Sig(ValueLooper {
             sig,
             tick,
             recording,
             length,
-            sequence: Sequence::new_with(1, || None),
+            sequence,
             buf: Vec::new(),
+            io,
         })
     }
 }
@@ -310,7 +326,7 @@ builder! {
     #[constructor_doc = "A looper for values such as knob positions"]
     #[generic_setter_type_name = "X"]
     #[build_fn = "ValueLooper::new"]
-    #[build_ty = "Sig<ValueLooper<S, T, R, N>>"]
+    #[build_ty = "Sig<ValueLooper<S, T, R, N, I>>"]
     pub struct ValueLooperBuilder {
         #[generic_with_constraint = "SigT"]
         #[generic_name = "S"]
@@ -325,5 +341,39 @@ builder! {
         #[generic_name = "N"]
         #[default = 16]
         length: u32,
+        #[generic_with_constraint = "LooperIo<S::Item>"]
+        #[default = LooperIoNull]
+        #[generic_name = "I"]
+        io: LooperIoNull,
+    }
+}
+
+impl<S, T, R, N, I> ValueLooperBuilder<S, T, R, N, I>
+where
+    S: SigT<Item = f32>,
+    S::Item: Clone + Serialize + for<'a> Deserialize<'a>,
+    T: SigT<Item = bool>,
+    R: SigT<Item = bool>,
+    N: SigT<Item = u32>,
+    I: LooperIo<S::Item>,
+{
+    pub fn persist_with_name(
+        self,
+        name: impl AsRef<str>,
+    ) -> ValueLooperBuilder<S, T, R, N, LooperIoWithName> {
+        let Self {
+            sig,
+            trig,
+            recording,
+            length,
+            ..
+        } = self;
+        ValueLooperBuilder {
+            sig,
+            trig,
+            recording,
+            length,
+            io: LooperIoWithName(format!("value_looper_{}", name.as_ref())),
+        }
     }
 }

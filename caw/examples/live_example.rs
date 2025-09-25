@@ -33,6 +33,7 @@ fn main() {
             .ungated();
         let cutoff_hz =
             value_looper(cutoff_hz.clone(), clock.clone(), lpf_space.clone())
+                .persist_with_name("low_pass")
                 .length(length)
                 .build();
         let env = adsr(gate)
