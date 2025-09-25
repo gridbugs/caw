@@ -22,7 +22,7 @@ members = [
     "midi-udp-widgets-app-lib",
     "modules",
     "patches",
-    "persistent",
+    "persist",
     "player",
     "sdl2",
     "utils",

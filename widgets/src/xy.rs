@@ -1,6 +1,6 @@
 use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
-use caw_persistent::PersistentData;
+use caw_persist::PersistData;
 use midly::num::u7;
 use sdl2::{
     gfx::rotozoom::RotozoomSurface, keyboard::Scancode, mouse::MouseButton,
@@ -18,7 +18,7 @@ struct State {
     y_px: u32,
 }
 
-impl PersistentData for State {
+impl PersistData for State {
     const NAME: &'static str = "xy_state";
 }
 

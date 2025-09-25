@@ -14,4 +14,4 @@ serde = { version = "1.0", features = ["serde_derive"] }
 anyhow = "1"
 sdl2 = { version = "0.38", features = ["ttf"] }
 lazy_static = "1.5"
-caw_persistent = { version = "0.1", path = "../persistent" }
+caw_persist = { version = "0.1", path = "../persist" }

@@ -18,7 +18,7 @@ caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
 caw_keyboard = { version = "0.4", path = "../keyboard" }
 caw_sdl2 = { version = "0.1", path = "../sdl2" }
 caw_window_utils = { version = "0.1", path = "../window-utils" }
-caw_persistent = { version = "0.1", path = "../persistent" }
+caw_persist = { version = "0.1", path = "../persist" }
 itertools = "0.14"
 log = "0.4"
 serde = { version = "1.0", features = ["serde_derive"] }

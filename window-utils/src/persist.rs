@@ -1,4 +1,4 @@
-use caw_persistent::PersistentData;
+use caw_persist::PersistData;
 use serde::{Deserialize, Serialize};
 
 #[derive(Serialize, Deserialize, Clone, Copy, Debug)]
@@ -7,7 +7,7 @@ pub struct WindowPosition {
     pub y: i32,
 }
 
-impl PersistentData for WindowPosition {
+impl PersistData for WindowPosition {
     const NAME: &'static str = "window_position";
 }
 
@@ -17,6 +17,6 @@ pub struct WindowSize {
     pub height: u32,
 }
 
-impl PersistentData for WindowSize {
+impl PersistData for WindowSize {
     const NAME: &'static str = "window_size";
 }

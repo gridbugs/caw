@@ -1,5 +1,5 @@
 [package]
-name = "caw_persistent"
+name = "caw_persist"
 version = "0.1.0"
 edition = "2024"
 description = "Helpers for persisting data within the CAW synthesizer framework"

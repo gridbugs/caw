@@ -1,6 +1,6 @@
 use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
-use caw_persistent::PersistentData;
+use caw_persist::PersistData;
 use line_2d::Coord;
 use midly::num::u7;
 use sdl2::{
@@ -20,7 +20,7 @@ struct State {
     value_01: f32,
 }
 
-impl PersistentData for State {
+impl PersistData for State {
     const NAME: &'static str = "knob_state";
 }
 

@@ -75,51 +75,63 @@ where
     }
 }
 
-/// The type itself knows how to save and load itself
-pub trait PersistentData: Serialize + for<'a> Deserialize<'a> {
-    const NAME: &'static str;
-
-    fn save(&self, title: impl AsRef<str>) -> anyhow::Result<()> {
-        save(Self::NAME, self, title)
-    }
-
-    /// Like `save` but prints a warning on failure rather than returning an error value.
-    fn save_(&self, title: impl AsRef<str>) {
-        save_(Self::NAME, self, title)
-    }
-
-    fn load(title: impl AsRef<str>) -> anyhow::Result<Self> {
-        load(Self::NAME, title)
-    }
-
-    /// Like `load` but prints a warning on failure rather than returning an error value.
-    fn load_(title: impl AsRef<str>) -> Option<Self> {
-        load_(Self::NAME, title)
-    }
-}
-
-/// Knows how to save and load some type `T`
-pub trait PersistentWitness<T>
+/// Implement this when there may be multiple different directories where values of the type will
+/// be persisted. It's probably more convenient to just use the `&'static str` impl of this trait
+/// in such a case.
+pub trait Persist<T>
 where
     T: Serialize + for<'a> Deserialize<'a>,
 {
-    const NAME: &'static str;
+    fn name(&self) -> &'static str;
 
     fn save(&self, data: &T, title: impl AsRef<str>) -> anyhow::Result<()> {
-        save(Self::NAME, data, title)
+        save(self.name(), data, title)
     }
 
     /// Like `save` but prints a warning on failure rather than returning an error value.
     fn save_(&self, data: &T, title: impl AsRef<str>) {
-        save_(Self::NAME, data, title)
+        save_(self.name(), data, title)
     }
 
     fn load(&self, title: impl AsRef<str>) -> anyhow::Result<T> {
-        load(Self::NAME, title)
+        load(self.name(), title)
     }
 
     /// Like `load` but prints a warning on failure rather than returning an error value.
     fn load_(&self, title: impl AsRef<str>) -> Option<T> {
-        load_(Self::NAME, title)
+        load_(self.name(), title)
+    }
+}
+
+impl<T> Persist<T> for &'static str
+where
+    T: Serialize + for<'a> Deserialize<'a>,
+{
+    fn name(&self) -> &'static str {
+        self
+    }
+}
+
+/// Implement this when the type uniquely determines the directory where values of that type will
+/// be persisted.
+pub trait PersistData: Serialize + for<'a> Deserialize<'a> {
+    const NAME: &'static str;
+
+    fn save(&self, title: impl AsRef<str>) -> anyhow::Result<()> {
+        Self::NAME.save(self, title)
+    }
+
+    /// Like `save` but prints a warning on failure rather than returning an error value.
+    fn save_(&self, title: impl AsRef<str>) {
+        Self::NAME.save_(self, title)
+    }
+
+    fn load(title: impl AsRef<str>) -> anyhow::Result<Self> {
+        Self::NAME.load(title)
+    }
+
+    /// Like `load` but prints a warning on failure rather than returning an error value.
+    fn load_(title: impl AsRef<str>) -> Option<Self> {
+        Self::NAME.load_(title)
     }
 }

@@ -1,6 +1,6 @@
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Sig, SigCtx, SigT};
-use caw_persistent::PersistentWitness;
+use caw_persist::Persist;
 use itertools::izip;
 use serde::{Deserialize, Serialize};
 
@@ -42,21 +42,17 @@ impl<T> Sequence<T> {
     }
 }
 
-struct KeyLooperPersistentWitness;
-impl<T> PersistentWitness<Sequence<Option<T>>> for KeyLooperPersistentWitness
-where
-    T: Serialize + for<'a> Deserialize<'a>,
-{
-    const NAME: &'static str = "key_looper";
-}
+const KEY_LOOPER_PERSIST: &'static str = "key_looper";
 
-pub trait KeyLooperPersist<T> {
+/// Driver for saving and loading a sequence state to a file.
+pub trait KeyLooperIo<T> {
     fn load(&self) -> Sequence<Option<T>>;
     fn save(&self, sequence: &Sequence<Option<T>>);
 }
 
-pub struct KeyLooperPersistNone;
-impl<T> KeyLooperPersist<T> for KeyLooperPersistNone {
+/// Implementation of `KeyLooperIo` which doesn't actually save or load any data.
+pub struct KeyLooperIoNull;
+impl<T> KeyLooperIo<T> for KeyLooperIoNull {
     fn load(&self) -> Sequence<Option<T>> {
         Sequence::new_with(1, || None)
     }
@@ -64,13 +60,14 @@ impl<T> KeyLooperPersist<T> for KeyLooperPersistNone {
     fn save(&self, _sequence: &Sequence<Option<T>>) {}
 }
 
-pub struct KeyLooperPersistWithName(pub String);
-impl<T> KeyLooperPersist<T> for KeyLooperPersistWithName
+/// Implementation of `KeyLooperIo` which saves state into a file of a given name.
+pub struct KeyLooperIoWithName(pub String);
+impl<T> KeyLooperIo<T> for KeyLooperIoWithName
 where
     T: Serialize + for<'a> Deserialize<'a>,
 {
     fn load(&self) -> Sequence<Option<T>> {
-        if let Some(sequence) = KeyLooperPersistentWitness.load_(&self.0) {
+        if let Some(sequence) = KEY_LOOPER_PERSIST.load_(&self.0) {
             sequence
         } else {
             Sequence::new_with(1, || None)
@@ -78,18 +75,18 @@ where
     }
 
     fn save(&self, sequence: &Sequence<Option<T>>) {
-        KeyLooperPersistentWitness.save_(sequence, &self.0)
+        KEY_LOOPER_PERSIST.save_(sequence, &self.0)
     }
 }
 
-pub struct KeyLooper<X, S, T, C, N, P>
+pub struct KeyLooper<X, S, T, C, N, I>
 where
     X: Clone,
     S: SigT<Item = Option<X>>,
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    P: KeyLooperPersist<X>,
+    I: KeyLooperIo<X>,
 {
     sig: S,
     last_value: Option<X>,
@@ -98,17 +95,17 @@ where
     length: N,
     sequence: Sequence<S::Item>,
     buf: Vec<S::Item>,
-    persist: P,
+    io: I,
 }
 
-impl<X, S, T, C, N, P> SigT for KeyLooper<X, S, T, C, N, P>
+impl<X, S, T, C, N, I> SigT for KeyLooper<X, S, T, C, N, I>
 where
     X: Clone,
     S: SigT<Item = Option<X>>,
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    P: KeyLooperPersist<X>,
+    I: KeyLooperIo<X>,
 {
     type Item = S::Item;
 
@@ -144,31 +141,31 @@ where
             *out = self.sequence.current().clone();
         }
         if changed_this_frame {
-            self.persist.save(&self.sequence);
+            self.io.save(&self.sequence);
         }
         &self.buf
     }
 }
 
-impl<X, S, T, C, N, P> KeyLooper<X, S, T, C, N, P>
+impl<X, S, T, C, N, I> KeyLooper<X, S, T, C, N, I>
 where
     X: Clone,
     S: SigT<Item = Option<X>>,
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    P: KeyLooperPersist<X>,
+    I: KeyLooperIo<X>,
 {
-    fn new(sig: S, tick: T, clearing: C, length: N, persist: P) -> Sig<Self> {
+    fn new(sig: S, tick: T, clearing: C, length: N, io: I) -> Sig<Self> {
         Sig(KeyLooper {
             sig,
             last_value: None,
             tick,
             clearing,
             length,
-            sequence: persist.load(),
+            sequence: io.load(),
             buf: Vec::new(),
-            persist,
+            io,
         })
     }
 }
@@ -178,7 +175,7 @@ builder! {
     #[constructor_doc = "A looper for key presses"]
     #[generic_setter_type_name = "X"]
     #[build_fn = "KeyLooper::new"]
-    #[build_ty = "Sig<KeyLooper<V, S, T, C, N, P>>"]
+    #[build_ty = "Sig<KeyLooper<V, S, T, C, N, I>>"]
     #[extra_generic("V", "Clone")]
     pub struct KeyLooperBuilder {
         #[generic_with_constraint = "SigT<Item = Option<V>>"]
@@ -195,26 +192,26 @@ builder! {
         #[generic_name = "N"]
         #[default = 16]
         length: u32,
-        #[generic_with_constraint = "KeyLooperPersist<V>"]
-        #[default = KeyLooperPersistNone]
-        #[generic_name = "P"]
-        persist: KeyLooperPersistNone,
+        #[generic_with_constraint = "KeyLooperIo<V>"]
+        #[default = KeyLooperIoNull]
+        #[generic_name = "I"]
+        io: KeyLooperIoNull,
     }
 }
 
-impl<X, S, T, C, N, P> KeyLooperBuilder<X, S, T, C, N, P>
+impl<X, S, T, C, N, I> KeyLooperBuilder<X, S, T, C, N, I>
 where
     X: Clone + Serialize + for<'a> Deserialize<'a>,
     S: SigT<Item = Option<X>>,
     T: SigT<Item = bool>,
     C: SigT<Item = bool>,
     N: SigT<Item = u32>,
-    P: KeyLooperPersist<X>,
+    I: KeyLooperIo<X>,
 {
     pub fn persist_with_name(
         self,
         name: impl AsRef<str>,
-    ) -> KeyLooperBuilder<X, S, T, C, N, KeyLooperPersistWithName> {
+    ) -> KeyLooperBuilder<X, S, T, C, N, KeyLooperIoWithName> {
         let Self {
             sig,
             trig,
@@ -227,7 +224,7 @@ where
             trig,
             clearing,
             length,
-            persist: KeyLooperPersistWithName(name.as_ref().to_string()),
+            io: KeyLooperIoWithName(name.as_ref().to_string()),
         }
     }
 }
