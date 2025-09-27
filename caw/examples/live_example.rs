@@ -45,9 +45,28 @@ fn main() {
             .build()
             .exp_01(1.)
             .shared();
-        let voice = (super_saw(note.freq_hz()).build() * env.clone()).filter(
-            low_pass::default(10. + (env.clone() * cutoff_hz * 15000.))
-                .q(res.clone()),
+        let voice = (saw(note.freq_hz())
+            .reset_offset_01(channel.circle_phase_offset_01())
+            .build()
+            * env.clone())
+        .filter(
+            low_pass::default(
+                10. + (env.clone()
+                    * cutoff_hz
+                    * 15000.
+                    * knob("cutoff_scale").build()),
+            )
+            .q(res.clone()),
+        )
+        .filter(band_pass_chebyshev_centered(
+            knob("mid").build() * 10_000.,
+            knob("width").build() * 4.,
+        ))
+        .filter(
+            compressor()
+                .ratio(0.05)
+                .threshold(1.0)
+                .scale(knob("distort").build() * 100.),
         );
         voice
             .viz_oscilloscope_stereo("voice", channel, Default::default())

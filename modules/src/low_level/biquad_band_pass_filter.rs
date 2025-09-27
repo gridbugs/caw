@@ -92,6 +92,8 @@ pub mod butterworth {
         ) -> f64 {
             let lower_half_power_frequency_hz =
                 lower_half_power_frequency_hz.max(0.0);
+            let upper_half_power_frequency_hz =
+                upper_half_power_frequency_hz.min(20_000.);
             let upper_half_power_frequency_hz = upper_half_power_frequency_hz
                 .max(lower_half_power_frequency_hz);
             if self.buffer.entries.is_empty() {
@@ -199,6 +201,8 @@ pub mod chebyshev {
             if self.buffer.entries.is_empty() {
                 return sample;
             }
+            let lower_cutoff_hz = lower_cutoff_hz.max(0.);
+            let upper_cutoff_hz = upper_cutoff_hz.min(20_000.);
             let epsilon = epsilon.max(EPSILON_MIN);
             if lower_cutoff_hz != self.prev_lower_cutoff_hz
                 || upper_cutoff_hz != self.prev_upper_cutoff_hz
