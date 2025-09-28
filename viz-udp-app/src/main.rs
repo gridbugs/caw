@@ -208,6 +208,91 @@ impl App {
         }
     }
 
+    fn tick_oscilloscope_time_domain_single_stereo(
+        canvas: &mut Canvas<Window>,
+        screen_size: Coord,
+        scope_state: &ScopeState,
+        ui_state: &OscilloscopeUiState,
+        rgb: Rgb24,
+    ) {
+        // A zero crossing of the left channel will be centered in an attempt to stabalize the
+        // visualization over time.
+        let num_samples_to_draw = screen_size.x as usize;
+        // Take the mean so it can be used to identify the relative 0 crossing in case the waveform
+        // has drifted above 0 mean.
+        let left_mean = {
+            let sum = scope_state.samples.iter().map(|(x, _)| x).sum::<f32>();
+            sum / (scope_state.samples.len()) as f32
+        };
+        let mut samples_to_scan_for_zero_crossing = scope_state
+            .samples
+            .iter()
+            .map(|(x, _)| *x)
+            .enumerate()
+            .rev()
+            // skip half a screen worth of samples
+            .skip(num_samples_to_draw / 2);
+        let mut zero_crossing_index =
+            scope_state.samples.len() - num_samples_to_draw / 2;
+        if let Some((_, mut prev)) = samples_to_scan_for_zero_crossing.next() {
+            for (i, sample) in samples_to_scan_for_zero_crossing {
+                if prev > left_mean && sample <= left_mean {
+                    zero_crossing_index = i;
+                    break;
+                }
+                prev = sample;
+            }
+        }
+        // Subtract half the screen width so that the crossing point is in the centre of the
+        // screen.
+        let left_most_sample = zero_crossing_index - num_samples_to_draw / 2;
+        let make_sample_pair_iter =
+            || scope_state.samples.iter().skip(left_most_sample);
+        let sample_left_iter = make_sample_pair_iter().map(|(x, _)| x);
+        let sample_right_iter = make_sample_pair_iter().map(|(_, x)| x);
+        canvas.set_draw_color(Color::RGBA(rgb.r, rgb.g, rgb.b, 255));
+        let mut prev = None;
+        for (x, sample) in sample_left_iter.enumerate() {
+            let x = x as i32;
+            let y = screen_size.y
+                - ((sample * ui_state.scale) as i32
+                    + ((2 * screen_size.y) / 3));
+            let coord = Coord { x, y };
+            if let Some(prev) = prev {
+                for Coord { x, y } in line_2d::coords_between(prev, coord) {
+                    let rect = Rect::new(
+                        x,
+                        y,
+                        ui_state.line_width,
+                        ui_state.line_width,
+                    );
+                    let _ = canvas.fill_rect(rect);
+                }
+            }
+            prev = Some(coord);
+        }
+        let mut prev = None;
+        for (x, sample) in sample_right_iter.enumerate() {
+            let x = x as i32;
+            let y = screen_size.y
+                - ((sample * ui_state.scale) as i32
+                    + ((1 * screen_size.y) / 3));
+            let coord = Coord { x, y };
+            if let Some(prev) = prev {
+                for Coord { x, y } in line_2d::coords_between(prev, coord) {
+                    let rect = Rect::new(
+                        x,
+                        y,
+                        ui_state.line_width,
+                        ui_state.line_width,
+                    );
+                    let _ = canvas.fill_rect(rect);
+                }
+            }
+            prev = Some(coord);
+        }
+    }
+
     fn run_oscilloscope(
         mut self,
         args: OscilloscopeCommand,
@@ -322,65 +407,13 @@ impl App {
                     );
                 }
                 OscilloscopeStyle::TimeDomainStereo => {
-                    let num_samples_to_draw = screen_size.x as usize;
-                    let make_sample_pair_iter = || {
-                        scope_state
-                            .samples
-                            .iter()
-                            .rev()
-                            .take(num_samples_to_draw)
-                            .rev()
-                    };
-                    let sample_left_iter =
-                        make_sample_pair_iter().map(|(x, _)| x);
-                    let sample_right_iter =
-                        make_sample_pair_iter().map(|(_, x)| x);
-                    self.canvas
-                        .set_draw_color(Color::RGBA(rgb.r, rgb.g, rgb.b, 255));
-                    let mut prev = None;
-                    for (x, sample) in sample_left_iter.enumerate() {
-                        let x = x as i32;
-                        let y = screen_size.y
-                            - ((sample * ui_state.scale) as i32
-                                + (screen_size.y / 3));
-                        let coord = Coord { x, y };
-                        if let Some(prev) = prev {
-                            for Coord { x, y } in
-                                line_2d::coords_between(prev, coord)
-                            {
-                                let rect = Rect::new(
-                                    x,
-                                    y,
-                                    ui_state.line_width,
-                                    ui_state.line_width,
-                                );
-                                let _ = self.canvas.fill_rect(rect);
-                            }
-                        }
-                        prev = Some(coord);
-                    }
-                    let mut prev = None;
-                    for (x, sample) in sample_right_iter.enumerate() {
-                        let x = x as i32;
-                        let y = screen_size.y
-                            - ((sample * ui_state.scale) as i32
-                                + ((2 * screen_size.y) / 3));
-                        let coord = Coord { x, y };
-                        if let Some(prev) = prev {
-                            for Coord { x, y } in
-                                line_2d::coords_between(prev, coord)
-                            {
-                                let rect = Rect::new(
-                                    x,
-                                    y,
-                                    ui_state.line_width,
-                                    ui_state.line_width,
-                                );
-                                let _ = self.canvas.fill_rect(rect);
-                            }
-                        }
-                        prev = Some(coord);
-                    }
+                    Self::tick_oscilloscope_time_domain_single_stereo(
+                        &mut self.canvas,
+                        screen_size,
+                        &scope_state,
+                        &ui_state,
+                        rgb,
+                    );
                 }
                 OscilloscopeStyle::Xy => {
                     let mut coord_iter =

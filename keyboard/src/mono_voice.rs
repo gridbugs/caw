@@ -46,6 +46,15 @@ where
         } = self;
         note.gated(key_down_gate)
     }
+
+    pub fn triggered_note(self) -> Sig<impl SigT<Item = Option<crate::Note>>> {
+        let Self {
+            note,
+            key_press_trig,
+            ..
+        } = self;
+        note.gated(key_press_trig)
+    }
 }
 
 /// Extracts a sequence of notes from a sequence of key events.

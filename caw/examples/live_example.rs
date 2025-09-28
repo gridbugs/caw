@@ -25,7 +25,7 @@ fn main() {
     let length = 16;
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
-        let (note, gate) = key_looper(voice.gated_note(), clock.clone())
+        let (note, gate) = key_looper(voice.triggered_note(), clock.clone())
             .clearing(space_button.clone())
             .length(length)
             .persist_with_name("keys")
@@ -38,10 +38,10 @@ fn main() {
                 .build();
         let env = adsr(gate)
             .key_press_trig(clock.clone())
-            .a(tempo_s.clone() * knob("attack").build())
-            .r(tempo_s.clone() * knob("release").build())
+            .a(tempo_s.clone() * knob("attack").build() * 4.)
+            .r(tempo_s.clone() * knob("release").build() * 4.)
             .s(knob("sustain").build())
-            .d(tempo_s.clone() * knob("decay").build())
+            .d(tempo_s.clone() * knob("decay").build() * 4.)
             .build()
             .exp_01(1.)
             .shared();
@@ -58,15 +58,18 @@ fn main() {
             )
             .q(res.clone()),
         )
-        .filter(band_pass_chebyshev_centered(
-            knob("mid").build() * 10_000.,
-            knob("width").build() * 4.,
-        ))
+        .filter_enable(
+            true,
+            band_pass::centered::default(
+                knob("mid").build() * 1_000.,
+                knob("width").build() * 4.,
+            ),
+        )
         .filter(
             compressor()
                 .ratio(0.05)
                 .threshold(1.0)
-                .scale(knob("distort").build() * 100.),
+                .scale(knob("distort").build() * 10.),
         );
         voice
             .viz_oscilloscope_stereo("voice", channel, Default::default())

@@ -23,6 +23,20 @@ builder! {
     }
 }
 
+impl<L, U, R> Props<L, U, R>
+where
+    L: SigT<Item = f32>,
+    U: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+{
+    pub fn q<X>(self, resonance: X) -> Props<L, U, X>
+    where
+        X: SigT<Item = f32>,
+    {
+        self.resonance(resonance)
+    }
+}
+
 impl<L, U, R> Filter for Props<L, U, R>
 where
     L: SigT<Item = f32>,
@@ -155,6 +169,21 @@ builder! {
         resonance: f32,
         #[default = 1]
         filter_order_half: usize,
+    }
+}
+
+impl<C, W, M, R> PropsCenteredBuilder<C, W, M, R>
+where
+    C: SigT<Item = f32>,
+    W: SigT<Item = f32>,
+    M: SigT<Item = f32>,
+    R: SigT<Item = f32>,
+{
+    pub fn q<X>(self, resonance: X) -> PropsCenteredBuilder<C, W, M, X>
+    where
+        X: SigT<Item = f32>,
+    {
+        self.resonance(resonance)
     }
 }
 

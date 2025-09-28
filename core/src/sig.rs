@@ -689,6 +689,27 @@ where
     {
         self.zip(other).map(|(x, _)| x)
     }
+
+    pub fn filter_enable<E, F>(
+        self,
+        enable: E,
+        filter: F,
+    ) -> impl SigT<Item = S::Item>
+    where
+        E: SigT<Item = bool>,
+        F: Filter<ItemIn = S::Item>,
+        F::Out<Sig<SigShared<S>>>: SigT<Item = S::Item>,
+    {
+        let shared = self.shared();
+        let filtered = shared.clone().filter(filter);
+        Sig(enable)
+            .zip3(shared, filtered)
+            .map(
+                |(enable, shared, filtered)| {
+                    if enable { filtered } else { shared }
+                },
+            )
+    }
 }
 
 impl<S, A, B> Sig<S>
