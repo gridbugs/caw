@@ -1,4 +1,3 @@
-use crate::arith::signed_to_01;
 use std::{
     fmt::Debug,
     iter,
@@ -389,6 +388,53 @@ where
         ConstBuf {
             value: self.0.clone(),
             count: ctx.num_samples,
+        }
+    }
+}
+
+/// A signal whose value changes as a result of calling its `set` method.
+#[derive(Default)]
+pub struct Variable<T>(Arc<RwLock<T>>);
+
+impl<T> Variable<T> {
+    pub fn new(value: T) -> Self {
+        Self(Arc::new(RwLock::new(value)))
+    }
+
+    pub fn set(&self, value: T) {
+        *self.0.write().unwrap() = value;
+    }
+}
+
+impl<T> Sig<Variable<T>>
+where
+    T: Clone,
+{
+    pub fn set(&self, value: T) {
+        self.0.set(value)
+    }
+}
+
+pub fn variable<T: Clone>(value: T) -> Sig<Variable<T>> {
+    Sig(Variable::new(value))
+}
+
+impl<T> Clone for Variable<T> {
+    fn clone(&self) -> Self {
+        Self(Arc::clone(&self.0))
+    }
+}
+
+impl<T> SigT for Variable<T>
+where
+    T: Clone,
+{
+    type Item = T;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        ConstBuf {
+            count: ctx.num_samples,
+            value: self.0.read().unwrap().clone(),
         }
     }
 }
@@ -1043,7 +1089,7 @@ struct OptionFirstSome<T>
 where
     T: Clone,
 {
-    sigs: Vec<SigBoxed<Option<T>>>,
+    sigs: Vec<Sig<SigBoxed<Option<T>>>>,
     tmp_buf: Vec<Option<T>>,
     out_buf: Vec<Option<T>>,
 }
@@ -1072,7 +1118,7 @@ where
 }
 
 pub fn sig_option_first_some<T: Clone>(
-    s: impl IntoIterator<Item = SigBoxed<Option<T>>>,
+    s: impl IntoIterator<Item = Sig<SigBoxed<Option<T>>>>,
 ) -> Sig<impl SigT<Item = Option<T>>> {
     Sig(OptionFirstSome {
         sigs: s.into_iter().collect(),
@@ -1367,7 +1413,7 @@ where
     type Item = f32;
 
     fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        MapBuf::new(self.0.sample(ctx), signed_to_01)
+        MapBuf::new(self.0.sample(ctx), crate::arith::signed_to_01)
     }
 }
 
@@ -1486,12 +1532,20 @@ where
     }
 
     /// Call a supplied function on the `SigT` implementation inside `self`.
-    pub fn with_inner<T, F>(&self, mut f: F) -> T
+    pub fn with_inner<T, F>(&self, f: F) -> T
     where
-        F: FnMut(&S) -> T,
+        F: FnOnce(&S) -> T,
     {
         let inner_cached = self.shared_cached_sig.read().unwrap();
         f(&inner_cached.sig)
+    }
+
+    pub fn with_inner_mut<T, F>(&self, f: F) -> T
+    where
+        F: FnOnce(&mut S) -> T,
+    {
+        let mut inner_cached = self.shared_cached_sig.write().unwrap();
+        f(&mut inner_cached.sig)
     }
 }
 
@@ -1596,208 +1650,6 @@ where
 {
     pub fn from_buf_fn(f: F) -> Self {
         Self(SigBufFn { f, buf: Vec::new() })
-    }
-}
-
-#[derive(Default)]
-pub struct SigVar<T>(Arc<RwLock<T>>);
-
-impl<T> SigVar<T> {
-    pub fn new(value: T) -> Self {
-        Self(Arc::new(RwLock::new(value)))
-    }
-
-    pub fn set(&self, value: T) {
-        *self.0.write().unwrap() = value;
-    }
-}
-
-impl<T> Sig<SigVar<T>>
-where
-    T: Clone,
-{
-    pub fn set(&self, value: T) {
-        self.0.set(value)
-    }
-}
-
-pub fn sig_var<T: Clone>(value: T) -> Sig<SigVar<T>> {
-    Sig(SigVar::new(value))
-}
-
-impl<T> Clone for SigVar<T> {
-    fn clone(&self) -> Self {
-        Self(Arc::clone(&self.0))
-    }
-}
-
-impl<T> SigT for SigVar<T>
-where
-    T: Clone,
-{
-    type Item = T;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        ConstBuf {
-            count: ctx.num_samples,
-            value: self.0.read().unwrap().clone(),
-        }
-    }
-}
-
-pub struct SigBoxedVarUnshared<T: Clone> {
-    sig_boxed: Arc<RwLock<SigBoxed<T>>>,
-    buf: Vec<T>,
-}
-
-impl<T: Clone> Clone for SigBoxedVarUnshared<T> {
-    fn clone(&self) -> Self {
-        Self {
-            sig_boxed: Arc::clone(&self.sig_boxed),
-            buf: Vec::new(),
-        }
-    }
-}
-
-impl<T: Clone> SigBoxedVarUnshared<T> {
-    pub fn new<S>(sig: S) -> Self
-    where
-        S: SigT<Item = T> + Sync + Send + 'static,
-    {
-        SigBoxedVarUnshared {
-            sig_boxed: Arc::new(RwLock::new(sig_boxed(sig).0)),
-            buf: Vec::new(),
-        }
-    }
-
-    pub fn set<S>(&self, sig: S)
-    where
-        S: SigT<Item = T> + Sync + Send + 'static,
-    {
-        *self.sig_boxed.write().unwrap() = sig_boxed(sig).0;
-    }
-}
-
-impl<T: Clone> Sig<SigBoxedVarUnshared<T>> {
-    pub fn set<S>(&self, sig: S)
-    where
-        S: SigT<Item = T> + Sync + Send + 'static,
-    {
-        self.0.set(sig);
-    }
-}
-
-impl<T> SigBoxedVarUnshared<T>
-where
-    T: Clone + Sync + Send + 'static,
-{
-    pub fn new_const(value: T) -> Self {
-        SigBoxedVarUnshared {
-            sig_boxed: Arc::new(RwLock::new(sig_boxed(Const(value)).0)),
-            buf: Vec::new(),
-        }
-    }
-}
-
-impl<T> SigBoxedVarUnshared<T>
-where
-    T: Clone + Default + Sync + Send + 'static,
-{
-    pub fn new_default() -> Self {
-        Self::new_const(T::default())
-    }
-}
-
-impl<T: Clone> SigT for SigBoxedVarUnshared<T> {
-    type Item = T;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        let mut unlocked = self.sig_boxed.write().unwrap();
-        unlocked.sample_into_buf(ctx, &mut self.buf);
-        &self.buf
-    }
-}
-
-impl<T: Clone> SigSampleIntoBufT for SigBoxedVarUnshared<T> {
-    type Item = T;
-
-    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
-        self.sig_boxed.write().unwrap().sample_into_buf(ctx, buf);
-    }
-
-    fn sample_into_slice(
-        &mut self,
-        ctx: &SigCtx,
-        stride: usize,
-        offset: usize,
-        out: &mut [Self::Item],
-    ) {
-        self.sig_boxed
-            .write()
-            .unwrap()
-            .sample_into_slice(ctx, stride, offset, out);
-    }
-}
-
-pub fn sig_boxed_var<S>(sig: S) -> Sig<SigBoxedVar<S::Item>>
-where
-    S: SigT + Sync + Send + 'static,
-{
-    Sig(SigBoxedVar::new(sig))
-}
-
-#[derive(Clone)]
-pub struct SigBoxedVar<T: Clone>(Sig<SigShared<SigBoxedVarUnshared<T>>>);
-
-impl<T: Clone> SigT for SigBoxedVar<T> {
-    type Item = T;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        self.0.sample(ctx)
-    }
-}
-
-impl<T: Clone> SigBoxedVar<T> {
-    pub fn new<S>(sig: S) -> Self
-    where
-        S: SigT<Item = T> + Sync + Send + 'static,
-    {
-        Self(sig_shared(SigBoxedVarUnshared::new(sig)))
-    }
-
-    pub fn set<S>(&self, sig: S)
-    where
-        S: SigT<Item = T> + Sync + Send + 'static,
-    {
-        let sig_cached = self.0.0.shared_cached_sig.write().unwrap();
-        sig_cached.sig.set(sig);
-    }
-}
-
-impl<T: Clone> Sig<SigBoxedVar<T>> {
-    pub fn set<S>(&self, sig: S)
-    where
-        S: SigT<Item = T> + Sync + Send + 'static,
-    {
-        self.0.set(sig);
-    }
-}
-
-impl<T: Clone> SigSampleIntoBufT for SigBoxedVar<T> {
-    type Item = T;
-
-    fn sample_into_buf(&mut self, ctx: &SigCtx, buf: &mut Vec<Self::Item>) {
-        self.0.sample_into_buf(ctx, buf);
-    }
-
-    fn sample_into_slice(
-        &mut self,
-        ctx: &SigCtx,
-        stride: usize,
-        offset: usize,
-        out: &mut [Self::Item],
-    ) {
-        self.0.sample_into_slice(ctx, stride, offset, out);
     }
 }
 

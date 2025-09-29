@@ -3,7 +3,7 @@ use std::thread;
 
 fn main() {
     env_logger::init();
-    let volume = sv_default();
+    let volume = cell_default();
     let out: LiveStereoOut = live_stereo_viz_udp(oscilloscope::Config {
         ..Default::default()
     })
@@ -14,16 +14,18 @@ fn main() {
         .axis_label_x("cutoff_hz")
         .axis_label_y("resonance")
         .build();
-    let cutoff_hz = sv(cutoff_hz);
-    let res = sv(res * 2.);
-    let clock = sv(periodic_trig_s(tempo_s.clone())
-        .build()
-        .viz_blink("clock".to_string(), Default::default()));
+    let cutoff_hz = cell(cutoff_hz);
+    let res = cell(res * 2.);
+    let clock = cell(
+        periodic_trig_s(tempo_s.clone())
+            .build()
+            .viz_blink("clock".to_string(), Default::default()),
+    );
     let keyboard = computer_keyboard("keys").start_note(note::B_1).build_();
     let space_button = keyboard.space_button().shared();
     let key_events = keyboard.key_events().shared();
     let (drum_bits, drum_space) = num_keys_bits_7_with_space("drums").build();
-    let length = 8;
+    let length = 16;
     let drum_bits_loop = value_looper(drum_bits, clock.clone(), drum_space)
         .persist_with_name("drums")
         .length(length)

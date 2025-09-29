@@ -1,5 +1,5 @@
 pub use caw_computer_keyboard::{Key, Keyboard as KeyboardGeneric};
-use caw_core::{Sig, SigT, SigVar, sig_var};
+use caw_core::{Sig, SigT, Variable, variable};
 use sdl2::{keyboard::Scancode, mouse::MouseButton as SdlMouseButton};
 
 #[derive(Debug, Clone, Copy)]
@@ -37,9 +37,9 @@ impl<P: Clone, B: Clone> MouseGeneric<P, B> {
     }
 }
 
-pub type KeySig = Sig<SigVar<bool>>;
+pub type KeySig = Sig<Variable<bool>>;
 pub type Keyboard = KeyboardGeneric<KeySig>;
-pub type Mouse = MouseGeneric<Sig<SigVar<f32>>, Sig<SigVar<bool>>>;
+pub type Mouse = MouseGeneric<Sig<Variable<f32>>, Sig<Variable<bool>>>;
 
 #[derive(Clone)]
 pub struct Input {
@@ -49,9 +49,9 @@ pub struct Input {
 
 impl Input {
     pub(crate) fn new() -> Self {
-        let mk_key = |_| sig_var(false);
-        let mk_position = || sig_var(0.0);
-        let mk_button = || sig_var(false);
+        let mk_key = |_| variable(false);
+        let mk_position = || variable(0.0);
+        let mk_button = || variable(false);
         Self {
             keyboard: KeyboardGeneric::new(mk_key),
             mouse: MouseGeneric {

@@ -1,4 +1,4 @@
-use caw_core::{Sig, SigBoxedVar, Stereo, StereoPair, svf32};
+use caw_core::{CellF32, Stereo, StereoPair, cell_f32};
 use caw_player::{
     PlayerConfig, PlayerVisualizationData, VisualizationDataPolicy, play_stereo,
 };
@@ -6,15 +6,14 @@ use caw_viz_udp_app_lib::{SendStatus, oscilloscope};
 use lazy_static::lazy_static;
 use std::{sync::Mutex, thread, time::Duration};
 
+pub type LiveStereoOut = StereoPair<CellF32>;
+
 lazy_static! {
-    static ref OUT: StereoPair<Sig<SigBoxedVar<f32>>> =
-        Stereo::new_fn(|| svf32(0.0));
+    static ref OUT: LiveStereoOut = Stereo::new_fn(|| cell_f32(0.0));
     static ref VISUALIZATION_DATA: Mutex<PlayerVisualizationData> =
         Default::default();
     static ref INITIALIZED: Mutex<bool> = Mutex::new(false);
 }
-
-pub type LiveStereoOut = StereoPair<Sig<SigBoxedVar<f32>>>;
 
 pub fn live_stereo_viz(
     visualization_data_policy: VisualizationDataPolicy,
