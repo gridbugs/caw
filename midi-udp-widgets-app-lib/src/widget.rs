@@ -1,6 +1,6 @@
 use crate::server::{self, MidiChannelUdp};
 use caw_core::Sig;
-use caw_midi::MidiController01;
+use caw_midi::{MidiController01, MidiControllerBool, MidiControllerU7};
 use midly::num::u4;
 use std::{collections::HashMap, process::Command, sync::Mutex};
 
@@ -73,3 +73,5 @@ impl<T: Clone> ByTitle<T> {
 }
 
 pub type MidiController01Udp = MidiController01<MidiChannelUdp>;
+pub type MidiControllerU7Udp = MidiControllerU7<MidiChannelUdp>;
+pub type MidiControllerBoolUdp = MidiControllerBool<MidiChannelUdp>;

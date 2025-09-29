@@ -1,14 +1,14 @@
 use crate::{
     midi,
-    widget::{ByTitle, MidiController01Udp, Widget},
+    widget::{ByTitle, MidiController01Udp, MidiControllerBoolUdp, Widget},
 };
-use caw_core::{IsPositive, Sig, SigShared};
+use caw_core::{Sig, SigShared};
 use caw_midi::MidiMessagesT;
 use lazy_static::lazy_static;
 
 pub type KnobWithSpace = (
     Sig<SigShared<MidiController01Udp>>,
-    Sig<SigShared<IsPositive<MidiController01Udp>>>,
+    Sig<SigShared<MidiControllerBoolUdp>>,
 );
 
 lazy_static! {
@@ -45,10 +45,7 @@ fn new_knob_with_space(
         let value = controllers
             .get_with_initial_value_01(controller.into(), initial_value_01)
             .shared();
-        let space = controllers
-            .get_with_initial_value_01(space_controller.into(), 0.0)
-            .is_positive()
-            .shared();
+        let space = controllers.get_bool(space_controller.into()).shared();
         (value, space)
     })
 }

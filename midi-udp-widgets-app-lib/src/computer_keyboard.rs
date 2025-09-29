@@ -44,7 +44,7 @@ impl ComputerKeyboard {
     }
 }
 
-mod computer_keyboard_builder {
+mod builder {
     use super::*;
     use caw_builder_proc_macros::builder;
     use caw_core::{Sig, SigShared};
@@ -75,4 +75,4 @@ mod computer_keyboard_builder {
     }
 }
 
-pub use computer_keyboard_builder::computer_keyboard;
+pub use builder::computer_keyboard;

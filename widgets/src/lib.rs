@@ -6,10 +6,12 @@
 mod button;
 mod computer_keyboard;
 mod knob;
+mod num_keys_bits_7;
 mod window;
 mod xy;
 
 pub use button::*;
 pub use computer_keyboard::*;
 pub use knob::*;
+pub use num_keys_bits_7::*;
 pub use xy::*;

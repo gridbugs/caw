@@ -22,7 +22,34 @@ fn main() {
     let keyboard = computer_keyboard("keys").start_note(note::B_1).build_();
     let space_button = keyboard.space_button().shared();
     let key_events = keyboard.key_events().shared();
-    let length = 16;
+    let (drum_bits, drum_space) = num_keys_bits_7_with_space("drums").build();
+    let length = 8;
+    let drum_bits_loop = value_looper(drum_bits, clock.clone(), drum_space)
+        .persist_with_name("drums")
+        .length(length)
+        .build()
+        .shared();
+    let drums = (vec![
+        clock
+            .clone()
+            .and(drum_bits_loop.clone().map(|x| x & (1 << 0) != 0))
+            .trig(drum::kick())
+            .boxed(),
+        clock
+            .clone()
+            .and(drum_bits_loop.clone().map(|x| x & (1 << 1) != 0))
+            .trig(drum::snare())
+            .boxed(),
+        clock
+            .clone()
+            .and(drum_bits_loop.clone().map(|x| x & (1 << 2) != 0))
+            .trig(drum::hat_closed())
+            .boxed(),
+    ]
+    .into_iter()
+    .sum::<Sig<_>>()
+        * knob("drum vol").build())
+    .shared();
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
         let (note, gate) = key_looper(voice.triggered_note(), clock.clone())
@@ -82,6 +109,7 @@ fn main() {
                     .feedback_ratio(0.5),
             )
             .filter(reverb::default().room_size(0.9).damping(0.1))
+            + drums.clone()
     });
     thread::park();
 }

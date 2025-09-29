@@ -350,7 +350,7 @@ builder! {
 
 impl<S, T, R, N, I> ValueLooperBuilder<S, T, R, N, I>
 where
-    S: SigT<Item = f32>,
+    S: SigT,
     S::Item: Clone + Serialize + for<'a> Deserialize<'a>,
     T: SigT<Item = bool>,
     R: SigT<Item = bool>,

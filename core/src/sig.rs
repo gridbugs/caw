@@ -773,7 +773,7 @@ where
     }
 }
 
-pub fn sig_boxed<S>(sig: S) -> SigBoxed<S::Item>
+pub fn sig_boxed<S>(sig: S) -> Sig<SigBoxed<S::Item>>
 where
     S: SigT + Send + Sync + 'static,
 {
@@ -784,11 +784,11 @@ impl<S> Sig<S>
 where
     S: SigT + Send + Sync + 'static,
 {
-    pub fn boxed(self) -> SigBoxed<S::Item> {
-        SigBoxed {
+    pub fn boxed(self) -> Sig<SigBoxed<S::Item>> {
+        Sig(SigBoxed {
             sig: Arc::new(RwLock::new(self)),
             buf: Vec::new(),
-        }
+        })
     }
 }
 
@@ -986,6 +986,13 @@ where
         O: SigT<Item = bool>,
     {
         self.zip(other).map(|(s, o)| s || o)
+    }
+
+    pub fn and<O>(self, other: O) -> Sig<impl SigT<Item = bool>>
+    where
+        O: SigT<Item = bool>,
+    {
+        self.zip(other).map(|(s, o)| s && o)
     }
 }
 
@@ -1658,7 +1665,7 @@ impl<T: Clone> SigBoxedVarUnshared<T> {
         S: SigT<Item = T> + Sync + Send + 'static,
     {
         SigBoxedVarUnshared {
-            sig_boxed: Arc::new(RwLock::new(sig_boxed(sig))),
+            sig_boxed: Arc::new(RwLock::new(sig_boxed(sig).0)),
             buf: Vec::new(),
         }
     }
@@ -1667,7 +1674,7 @@ impl<T: Clone> SigBoxedVarUnshared<T> {
     where
         S: SigT<Item = T> + Sync + Send + 'static,
     {
-        *self.sig_boxed.write().unwrap() = sig_boxed(sig);
+        *self.sig_boxed.write().unwrap() = sig_boxed(sig).0;
     }
 }
 
@@ -1686,7 +1693,7 @@ where
 {
     pub fn new_const(value: T) -> Self {
         SigBoxedVarUnshared {
-            sig_boxed: Arc::new(RwLock::new(sig_boxed(Const(value)))),
+            sig_boxed: Arc::new(RwLock::new(sig_boxed(Const(value)).0)),
             buf: Vec::new(),
         }
     }

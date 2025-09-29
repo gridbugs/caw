@@ -159,6 +159,73 @@ where
     }
 }
 
+pub struct MidiControllerU7<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    index: u7,
+    state: u8,
+    messages: SigShared<M>,
+    buf: Vec<u8>,
+}
+
+impl<M> SigT for MidiControllerU7<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    type Item = u8;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, 0);
+        let messages = self.messages.sample(ctx);
+        for (out, messages) in self.buf.iter_mut().zip(messages.iter()) {
+            for message in messages {
+                if let MidiMessage::Controller { controller, value } = message {
+                    if controller == self.index {
+                        self.state = value.as_int();
+                    }
+                }
+            }
+            *out = self.state;
+        }
+        &self.buf
+    }
+}
+
+/// A bool which is true if the controller has a non-zero value
+pub struct MidiControllerBool<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    index: u7,
+    state: bool,
+    messages: SigShared<M>,
+    buf: Vec<bool>,
+}
+
+impl<M> SigT for MidiControllerBool<M>
+where
+    M: SigT<Item = MidiMessages>,
+{
+    type Item = bool;
+
+    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
+        self.buf.resize(ctx.num_samples, false);
+        let messages = self.messages.sample(ctx);
+        for (out, messages) in self.buf.iter_mut().zip(messages.iter()) {
+            for message in messages {
+                if let MidiMessage::Controller { controller, value } = message {
+                    if controller == self.index {
+                        self.state = value.as_int() > 0;
+                    }
+                }
+            }
+            *out = self.state;
+        }
+        &self.buf
+    }
+}
+
 /// A signal representing the state of a single midi key
 pub struct MidiKeyPress<M>
 where
@@ -218,8 +285,42 @@ where
         })
     }
 
+    pub fn get_with_initial_value_u7(
+        &self,
+        index: u8,
+        initial_value: u8,
+    ) -> Sig<MidiControllerU7<M>> {
+        Sig(MidiControllerU7 {
+            index: index.into(),
+            state: initial_value.into(),
+            messages: self.messages.clone().0,
+            buf: Vec::new(),
+        })
+    }
+
+    pub fn get_with_initial_value_bool(
+        &self,
+        index: u8,
+        initial_value: bool,
+    ) -> Sig<MidiControllerBool<M>> {
+        Sig(MidiControllerBool {
+            index: index.into(),
+            state: initial_value,
+            messages: self.messages.clone().0,
+            buf: Vec::new(),
+        })
+    }
+
     pub fn get_01(&self, index: u8) -> Sig<MidiController01<M>> {
         self.get_with_initial_value_01(index, 0.0)
+    }
+
+    pub fn get_u7(&self, index: u8) -> Sig<MidiControllerU7<M>> {
+        self.get_with_initial_value_u7(index, 0)
+    }
+
+    pub fn get_bool(&self, index: u8) -> Sig<MidiControllerBool<M>> {
+        self.get_with_initial_value_bool(index, false)
     }
 
     pub fn volume(&self) -> Sig<MidiController01<M>> {

@@ -7,7 +7,9 @@ use std::time::{Duration, Instant};
 use caw_keyboard::{Note, note};
 use caw_midi::MidiEvent;
 use caw_midi_udp_client::*;
-use caw_widgets::{AxisLabels, Button, ComputerKeyboard, Knob, Xy};
+use caw_widgets::{
+    AxisLabels, Button, ComputerKeyboard, Knob, NumKeysBits7, Xy,
+};
 use clap::{Parser, Subcommand};
 use midly::num::u7;
 
@@ -39,6 +41,12 @@ enum Command {
     ComputerKeyboard {
         #[arg(long, default_value_t = note::B_2)]
         start_note: Note,
+    },
+    NumKeysBits7 {
+        #[arg(short, long, default_value_t = 0)]
+        controller: u8,
+        #[arg(long)]
+        space_controller: Option<u8>,
     },
 }
 
@@ -223,6 +231,55 @@ fn main() {
                 for message in buf.drain(..) {
                     let midi_event = MidiEvent { channel, message };
                     client.send(midi_event).unwrap();
+                }
+            }
+        }
+        Command::NumKeysBits7 {
+            controller,
+            space_controller,
+        } => {
+            let mut num_keys_bits_7 =
+                NumKeysBits7::new(cli.title.as_deref()).unwrap();
+            num_keys_bits_7.tick().unwrap();
+            let send = |value| {
+                client
+                    .send(MidiEvent {
+                        channel,
+                        message: MidiMessage::Controller {
+                            controller: controller.into(),
+                            value,
+                        },
+                    })
+                    .unwrap()
+            };
+            let mut prev = num_keys_bits_7.value();
+            let mut prev_space = false;
+            loop {
+                num_keys_bits_7.tick().unwrap();
+                let value = num_keys_bits_7.value();
+                if is_spam() || value != prev {
+                    send(value);
+                    prev = value;
+                }
+                let space = num_keys_bits_7.is_space_pressed();
+                if let Some(space_controller) = space_controller {
+                    if is_spam() || space != prev_space {
+                        client
+                            .send(MidiEvent {
+                                channel,
+                                message: MidiMessage::Controller {
+                                    controller: space_controller.into(),
+                                    value: if space {
+                                        u7::max_value()
+                                    } else {
+                                        0.into()
+                                    },
+                                },
+                            })
+                            .unwrap();
+
+                        prev_space = space;
+                    }
                 }
             }
         }

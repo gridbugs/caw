@@ -24,7 +24,7 @@ fn new_button(title: String) -> Sig<SigShared<Button>> {
     })
 }
 
-mod button_builder {
+mod builder {
     use super::*;
     use caw_builder_proc_macros::builder;
     use caw_core::{Sig, SigShared};
@@ -45,4 +45,4 @@ mod button_builder {
     }
 }
 
-pub use button_builder::button;
+pub use builder::button;
