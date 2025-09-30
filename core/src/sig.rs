@@ -473,18 +473,6 @@ impl SigT for bool {
     }
 }
 
-pub struct SigConst<T: Clone>(T);
-impl<T: Clone> SigT for SigConst<T> {
-    type Item = T;
-
-    fn sample(&mut self, ctx: &SigCtx) -> impl Buf<Self::Item> {
-        ConstBuf {
-            value: self.0.clone(),
-            count: ctx.num_samples,
-        }
-    }
-}
-
 /// Wrapper type for the `SigT` trait to simplify some trait implementations for signals. For
 /// example this allows arithmetic traits like `std::ops::Add` to be implemented for signals.
 #[derive(Clone)]
