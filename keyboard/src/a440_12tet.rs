@@ -209,11 +209,22 @@ pub fn freq_hz_of_midi_index(midi_index: u8) -> f32 {
         ))
 }
 
+/// The ratio between a pair of notes one semitone apart:
+/// 2.0.powf(1.0 / 12.0)
+pub const SEMITONE_RATIO: f32 = 1.0594630943592953;
+
+/// The ratio between a pair of notes one tone (ie. two semitones) apart.
+pub const TONE_RATIO: f32 = SEMITONE_RATIO * SEMITONE_RATIO;
+
 pub fn semitone_ratio(num_semitones: f32) -> f32 {
     2.0_f32.powf(num_semitones / (NOTES_PER_OCTAVE as f32))
 }
 
-pub const TONE_RATIO: f32 = 1.122_462;
+pub fn semitone_ratio_sig(
+    num_semitones: impl SigT<Item = f32>,
+) -> Sig<impl SigT<Item = f32>> {
+    Sig(num_semitones).map(semitone_ratio)
+}
 
 /// Definition of notes based on MIDI tuned to A_440
 #[derive(

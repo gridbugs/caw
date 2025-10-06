@@ -50,8 +50,8 @@ fn main() {
     ]
     .into_iter()
     .sum::<Sig<_>>()
-        * knob("drum vol").build())
-    .shared();
+        * 0.5) //knob("drum vol").build())
+        .shared();
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
         let (note, gate) = key_looper(voice.triggered_note(), clock.clone())
@@ -60,6 +60,12 @@ fn main() {
             .persist_with_name("keys")
             .build()
             .ungated();
+        let vib_hz = knob("vibrato").build() * 20.;
+        let max = semitone_ratio_sig(knob("vib scale").build() * 4.).shared();
+        let min = (1.0 / max.clone()).shared();
+        let vib = sine(vib_hz).build().signed_to_range(min, max);
+        let lfo =
+            sine(10.0).build().signed_to_01() * knob("lfo").build() * 1000.;
         let cutoff_hz =
             value_looper(cutoff_hz.clone(), clock.clone(), lpf_space.clone())
                 .persist_with_name("low_pass")
@@ -68,19 +74,19 @@ fn main() {
         let env = adsr(gate)
             .key_press_trig(clock.clone())
             .a(tempo_s.clone() * knob("attack").build() * 4.)
-            .r(tempo_s.clone() * knob("release").build() * 4.)
+            //   .r(tempo_s.clone() * knob("release").build() * 4.)
             .s(knob("sustain").build())
             .d(tempo_s.clone() * knob("decay").build() * 4.)
             .build()
             .exp_01(1.)
             .shared();
-        let voice = (saw(note.freq_hz())
+        let voice = (saw(note.freq_hz() * vib)
             .reset_offset_01(channel.circle_phase_offset_01())
             .build()
             * env.clone())
         .filter(
             low_pass::default(
-                10. + (env.clone()
+                lfo + (env.clone()
                     * cutoff_hz
                     * 15000.
                     * knob("cutoff_scale").build()),
@@ -88,7 +94,7 @@ fn main() {
             .q(res.clone()),
         )
         .filter_enable(
-            true,
+            switch("band pass").build(),
             band_pass::centered::default(
                 knob("mid").build() * 1_000.,
                 knob("width").build() * 4.,
@@ -111,6 +117,7 @@ fn main() {
                     .feedback_ratio(0.5),
             )
             .filter(reverb::default().room_size(0.9).damping(0.1))
+            .filter(high_pass::default(1.))
             + drums.clone()
     });
     thread::park();

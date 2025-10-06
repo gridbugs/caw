@@ -13,6 +13,7 @@ documentation = "https://docs.rs/caw_widgets"
 anyhow = "1.0"
 sdl2 = { version = "0.38", features = ["gfx"] }
 line_2d = "0.5"
+coord_2d = "0.3"
 midly = "0.5"
 caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
 caw_keyboard = { version = "0.4", path = "../keyboard" }

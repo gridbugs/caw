@@ -1,6 +1,9 @@
 pub mod button;
 pub use button::button;
 
+pub mod switch;
+pub use switch::switch;
+
 pub mod knob;
 pub use knob::{knob, knob_with_space};
 

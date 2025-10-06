@@ -8,7 +8,7 @@ use caw_keyboard::{Note, note};
 use caw_midi::MidiEvent;
 use caw_midi_udp_client::*;
 use caw_widgets::{
-    AxisLabels, Button, ComputerKeyboard, Knob, NumKeysBits7, Xy,
+    AxisLabels, Button, ComputerKeyboard, Knob, NumKeysBits7, Switch, Xy,
 };
 use clap::{Parser, Subcommand};
 use midly::num::u7;
@@ -16,6 +16,7 @@ use midly::num::u7;
 #[derive(Subcommand)]
 enum Command {
     Button,
+    Switch,
     Knob {
         #[arg(short, long, default_value_t = 0)]
         controller: u8,
@@ -81,6 +82,24 @@ fn main() {
     match cli.command {
         Command::Button => {
             let mut button = Button::new(cli.title.as_deref()).unwrap();
+            let mut prev_pressed = false;
+            loop {
+                button.tick().unwrap();
+                let pressed = button.pressed();
+                if is_spam() || pressed != prev_pressed {
+                    let key = Note::default().to_midi_index().into();
+                    let message = if button.pressed() {
+                        MidiMessage::NoteOn { key, vel: 0.into() }
+                    } else {
+                        MidiMessage::NoteOff { key, vel: 0.into() }
+                    };
+                    client.send(MidiEvent { channel, message }).unwrap();
+                    prev_pressed = pressed;
+                }
+            }
+        }
+        Command::Switch => {
+            let mut button = Switch::new(cli.title.as_deref()).unwrap();
             let mut prev_pressed = false;
             loop {
                 button.tick().unwrap();

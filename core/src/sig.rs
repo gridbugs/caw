@@ -875,6 +875,20 @@ where
         Sig(SignedTo01(self.0))
     }
 
+    pub fn signed_to_range<L, U>(
+        self,
+        lower: L,
+        upper: U,
+    ) -> Sig<impl SigT<Item = f32>>
+    where
+        U: SigT<Item = f32>,
+        L: SigT<Item = f32>,
+    {
+        let lower = sig_shared(lower);
+        let delta = Sig(upper) - lower.clone();
+        lower + (self.signed_to_01() * delta)
+    }
+
     pub fn abs(self) -> Sig<SigAbs<S>> {
         Sig(SigAbs(self.0))
     }
