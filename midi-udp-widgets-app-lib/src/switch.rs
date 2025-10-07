@@ -15,12 +15,18 @@ lazy_static! {
 }
 
 fn new_switch(title: String) -> Sig<SigShared<Switch>> {
+    let (channel, key) = midi::alloc_key();
+    let note = Note::from_midi_index(key);
     BY_TITLE.get_or_insert(title.as_str(), || {
-        let widget =
-            Widget::new(title.clone(), midi::alloc_channel(), "switch", vec![])
-                .unwrap();
+        let widget = Widget::new(
+            title.clone(),
+            channel,
+            "switch",
+            vec![format!("--note={}", note)],
+        )
+        .unwrap();
         // The choice of note here is arbitrary.
-        sig_shared(widget.channel().key_press(Note::default()))
+        sig_shared(widget.channel().key_press(note))
     })
 }
 

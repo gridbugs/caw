@@ -50,8 +50,8 @@ fn main() {
     ]
     .into_iter()
     .sum::<Sig<_>>()
-        * 0.5) //knob("drum vol").build())
-        .shared();
+        * knob("drum vol").build())
+    .shared();
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
         let (note, gate) = key_looper(voice.triggered_note(), clock.clone())

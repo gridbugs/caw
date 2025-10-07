@@ -26,13 +26,12 @@ fn new_xy_with_space(
     axis_label_y: Option<String>,
 ) -> XyWithSpace {
     BY_TITLE.get_or_insert(title.as_str(), || {
-        let channel = midi::alloc_channel();
-        let controller_x = midi::alloc_controller(channel);
-        let controller_y = midi::alloc_controller(channel);
-        let space_controller = midi::alloc_controller(channel);
+        let (channel, controller_x, controller_y) = midi::alloc_controller_2();
+        let (space_channel, space_controller) = midi::alloc_controller();
         let mut args = vec![
             format!("--controller-x={}", controller_x),
             format!("--controller-y={}", controller_y),
+            format!("--space-channel={}", space_channel),
             format!("--space-controller={}", space_controller),
         ];
         if let Some(axis_label_x) = axis_label_x.as_ref() {

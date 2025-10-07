@@ -1,11 +1,22 @@
 use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
+use caw_persist::PersistData;
 use coord_2d::Coord;
 use sdl2::{event::WindowEvent, keyboard::Scancode, pixels::Color, rect::Rect};
+use serde::{Deserialize, Serialize};
 use std::time::Instant;
 
 const WIDTH_PX: u32 = 128;
 const HEIGHT_PX: u32 = 128;
+
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
+struct State {
+    pressed: bool,
+}
+
+impl PersistData for State {
+    const NAME: &'static str = "switch_state";
+}
 
 struct UiButton {
     rect: Rect,
@@ -81,7 +92,7 @@ struct UiButtons {
 
 pub struct Switch {
     window: Window,
-    pressed: bool,
+    state: State,
     ui_buttons: UiButtons,
     mouse_position: Coord,
 }
@@ -89,13 +100,18 @@ pub struct Switch {
 impl Switch {
     pub fn new(title: Option<&str>) -> anyhow::Result<Self> {
         let window = Window::new(title, WIDTH_PX, HEIGHT_PX)?;
+        let state = if let Some(state) = title.and_then(|t| State::load_(t)) {
+            state
+        } else {
+            State { pressed: false }
+        };
         let height = 20;
         let width = 80;
         let padding_y = 8;
         let padding_x = ((WIDTH_PX - width) / 2) as i32;
         Ok(Self {
             window,
-            pressed: false,
+            state,
             ui_buttons: UiButtons {
                 on: UiButton {
                     rect: Rect::new(padding_x, padding_y, width, height),
@@ -125,6 +141,7 @@ impl Switch {
     }
 
     fn handle_events(&mut self) {
+        let prev_state = self.state;
         for event in self.window.event_pump.poll_iter() {
             use sdl2::event::Event;
             Window::handle_event_common(
@@ -138,15 +155,15 @@ impl Switch {
                 Event::KeyDown {
                     scancode: Some(Scancode::Space),
                     ..
-                } => self.pressed = !self.pressed,
+                } => self.state.pressed = !self.state.pressed,
                 Event::MouseButtonDown { x, y, .. } => {
                     let coord = Coord::new(x, y);
                     if self.ui_buttons.on.contains(coord) {
-                        self.pressed = true;
+                        self.state.pressed = true;
                     } else if self.ui_buttons.off.contains(coord) {
-                        self.pressed = false;
+                        self.state.pressed = false;
                     } else if self.ui_buttons.toggle.contains(coord) {
-                        self.pressed = !self.pressed;
+                        self.state.pressed = !self.state.pressed;
                     }
                 }
                 Event::Window {
@@ -155,14 +172,19 @@ impl Switch {
                 } => {
                     let coord = self.mouse_position;
                     if self.ui_buttons.on.contains(coord) {
-                        self.pressed = true;
+                        self.state.pressed = true;
                     } else if self.ui_buttons.off.contains(coord) {
-                        self.pressed = false;
+                        self.state.pressed = false;
                     } else if self.ui_buttons.toggle.contains(coord) {
-                        self.pressed = !self.pressed;
+                        self.state.pressed = !self.state.pressed;
                     }
                 }
                 _ => (),
+            }
+        }
+        if let Some(title) = self.window.title.as_ref() {
+            if prev_state != self.state {
+                self.state.save_(title);
             }
         }
     }
@@ -171,7 +193,7 @@ impl Switch {
         self.window.canvas.set_draw_color(Color::BLACK);
         self.window.canvas.clear();
         self.window.render_title(TitlePosition::CenterBottom)?;
-        let (on_background, off_background) = if self.pressed {
+        let (on_background, off_background) = if self.state.pressed {
             (Some((0, 128, 0).into()), None)
         } else {
             (None, Some((128, 0, 0).into()))
@@ -210,6 +232,6 @@ impl Switch {
     }
 
     pub fn pressed(&self) -> bool {
-        self.pressed
+        self.state.pressed
     }
 }

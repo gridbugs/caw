@@ -30,6 +30,7 @@ impl Widget {
         log::info!(
             "Launching subprocess for {subcommand} \"{title}\" on channel {channel_index}"
         );
+        log::debug!("Running command: {:?}", command);
         match command.spawn() {
             Ok(_child) => (),
             Err(e) => anyhow::bail!(

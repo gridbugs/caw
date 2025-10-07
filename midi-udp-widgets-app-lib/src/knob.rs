@@ -26,9 +26,8 @@ fn new_knob_with_space(
     sensitivity: f32,
 ) -> KnobWithSpace {
     BY_TITLE.get_or_insert(title.as_str(), || {
-        let channel = midi::alloc_channel();
-        let controller = midi::alloc_controller(channel);
-        let space_controller = midi::alloc_controller(channel);
+        let (channel, controller) = midi::alloc_controller();
+        let (space_channel, space_controller) = midi::alloc_controller();
         let widget = Widget::new(
             title.clone(),
             channel,
@@ -37,6 +36,7 @@ fn new_knob_with_space(
                 format!("--controller={}", controller),
                 format!("--initial-value={}", initial_value_01),
                 format!("--sensitivity={}", sensitivity),
+                format!("--space-channel={}", space_channel),
                 format!("--space-controller={}", space_controller),
             ],
         )

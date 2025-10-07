@@ -22,15 +22,15 @@ lazy_static! {
 
 fn new_num_keys_bits_7_with_space(title: String) -> NumKeysBits7WithSpace {
     BY_TITLE.get_or_insert(title.as_str(), || {
-        let channel = midi::alloc_channel();
-        let controller = midi::alloc_controller(channel);
-        let space_controller = midi::alloc_controller(channel);
+        let (channel, controller) = midi::alloc_controller();
+        let (space_channel, space_controller) = midi::alloc_controller();
         let widget = Widget::new(
             title.clone(),
             channel,
             "num-keys-bits7",
             vec![
                 format!("--controller={}", controller),
+                format!("--space-channel={}", space_channel),
                 format!("--space-controller={}", space_controller),
             ],
         )

@@ -15,7 +15,7 @@ const HEIGHT_PX: u32 = 128;
 
 const RANGE_RADS: f32 = (std::f32::consts::PI * 3.0) / 2.0;
 
-#[derive(Serialize, Deserialize)]
+#[derive(Serialize, Deserialize, PartialEq, Clone, Copy, Debug)]
 struct State {
     value_01: f32,
 }
@@ -56,6 +56,7 @@ impl Knob {
     }
 
     fn handle_events(&mut self) {
+        let prev_state = self.state;
         for event in self.window.event_pump.poll_iter() {
             Window::handle_event_common(
                 event.clone(),
@@ -107,7 +108,9 @@ impl Knob {
             }
         }
         if let Some(title) = self.title.as_ref() {
-            self.state.save_(title);
+            if prev_state != self.state {
+                self.state.save_(title);
+            }
         }
     }
 

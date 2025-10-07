@@ -15,8 +15,14 @@ use midly::num::u7;
 
 #[derive(Subcommand)]
 enum Command {
-    Button,
-    Switch,
+    Button {
+        #[arg(long)]
+        note: Note,
+    },
+    Switch {
+        #[arg(long)]
+        note: Note,
+    },
     Knob {
         #[arg(short, long, default_value_t = 0)]
         controller: u8,
@@ -24,6 +30,8 @@ enum Command {
         initial_value: f32,
         #[arg(long, default_value_t = 0.2)]
         sensitivity: f32,
+        #[arg(long)]
+        space_channel: Option<u8>,
         #[arg(long)]
         space_controller: Option<u8>,
     },
@@ -37,6 +45,8 @@ enum Command {
         #[arg(long)]
         axis_label_y: Option<String>,
         #[arg(long)]
+        space_channel: Option<u8>,
+        #[arg(long)]
         space_controller: Option<u8>,
     },
     ComputerKeyboard {
@@ -46,6 +56,8 @@ enum Command {
     NumKeysBits7 {
         #[arg(short, long, default_value_t = 0)]
         controller: u8,
+        #[arg(long)]
+        space_channel: Option<u8>,
         #[arg(long)]
         space_controller: Option<u8>,
     },
@@ -80,14 +92,14 @@ fn main() {
     let spam_end = Instant::now() + SPAM_DURATION;
     let is_spam = || Instant::now() < spam_end;
     match cli.command {
-        Command::Button => {
+        Command::Button { note } => {
             let mut button = Button::new(cli.title.as_deref()).unwrap();
             let mut prev_pressed = false;
             loop {
                 button.tick().unwrap();
                 let pressed = button.pressed();
                 if is_spam() || pressed != prev_pressed {
-                    let key = Note::default().to_midi_index().into();
+                    let key = note.to_midi_index().into();
                     let message = if button.pressed() {
                         MidiMessage::NoteOn { key, vel: 0.into() }
                     } else {
@@ -98,14 +110,14 @@ fn main() {
                 }
             }
         }
-        Command::Switch => {
+        Command::Switch { note } => {
             let mut button = Switch::new(cli.title.as_deref()).unwrap();
             let mut prev_pressed = false;
             loop {
                 button.tick().unwrap();
                 let pressed = button.pressed();
                 if is_spam() || pressed != prev_pressed {
-                    let key = Note::default().to_midi_index().into();
+                    let key = note.to_midi_index().into();
                     let message = if button.pressed() {
                         MidiMessage::NoteOn { key, vel: 0.into() }
                     } else {
@@ -120,6 +132,7 @@ fn main() {
             controller,
             initial_value,
             sensitivity,
+            space_channel,
             space_controller,
         } => {
             let mut knob =
@@ -151,7 +164,9 @@ fn main() {
                     if is_spam() || space != prev_space {
                         client
                             .send(MidiEvent {
-                                channel,
+                                channel: space_channel
+                                    .map(|x| x.into())
+                                    .unwrap_or(channel),
                                 message: MidiMessage::Controller {
                                     controller: space_controller.into(),
                                     value: if space {
@@ -173,6 +188,7 @@ fn main() {
             controller_y,
             axis_label_x,
             axis_label_y,
+            space_channel,
             space_controller,
         } => {
             let axis_labels = AxisLabels {
@@ -223,7 +239,9 @@ fn main() {
                     if is_spam() || space != prev_space {
                         client
                             .send(MidiEvent {
-                                channel,
+                                channel: space_channel
+                                    .map(|x| x.into())
+                                    .unwrap_or(channel),
                                 message: MidiMessage::Controller {
                                     controller: space_controller.into(),
                                     value: if space {
@@ -255,6 +273,7 @@ fn main() {
         }
         Command::NumKeysBits7 {
             controller,
+            space_channel,
             space_controller,
         } => {
             let mut num_keys_bits_7 =
@@ -263,7 +282,9 @@ fn main() {
             let send = |value| {
                 client
                     .send(MidiEvent {
-                        channel,
+                        channel: space_channel
+                            .map(|x| x.into())
+                            .unwrap_or(channel),
                         message: MidiMessage::Controller {
                             controller: controller.into(),
                             value,
