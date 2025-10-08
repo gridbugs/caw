@@ -25,7 +25,7 @@ fn main() {
     let space_button = keyboard.space_button().shared();
     let key_events = keyboard.key_events().shared();
     let (drum_bits, drum_space) = num_keys_bits_7_with_space("drums").build();
-    let length = 16;
+    let length = 32;
     let drum_bits_loop = value_looper(drum_bits, clock.clone(), drum_space)
         .persist_with_name("drums")
         .length(length)
@@ -54,7 +54,7 @@ fn main() {
     .shared();
     out.set_channel(|channel| {
         let voice = key_events.clone().mono_voice();
-        let (note, gate) = key_looper(voice.triggered_note(), clock.clone())
+        let (note, gate) = key_looper(voice.gated_note(), clock.clone())
             .clearing(space_button.clone())
             .length(length)
             .persist_with_name("keys")
@@ -64,23 +64,40 @@ fn main() {
         let max = semitone_ratio_sig(knob("vib scale").build() * 4.).shared();
         let min = (1.0 / max.clone()).shared();
         let vib = sine(vib_hz).build().signed_to_range(min, max);
-        let lfo =
-            sine(10.0).build().signed_to_01() * knob("lfo").build() * 1000.;
         let cutoff_hz =
             value_looper(cutoff_hz.clone(), clock.clone(), lpf_space.clone())
                 .persist_with_name("low_pass")
                 .length(length)
                 .build();
-        let env = adsr(gate)
-            .key_press_trig(clock.clone())
-            .a(tempo_s.clone() * knob("attack").build() * 4.)
-            //   .r(tempo_s.clone() * knob("release").build() * 4.)
-            .s(knob("sustain").build())
-            .d(tempo_s.clone() * knob("decay").build() * 4.)
-            .build()
-            .exp_01(1.)
+        let env = adsr(
+            (gate & clock.clone())
+                .trig_to_gate(tempo_s.clone() * knob("duration").build()),
+        )
+        .key_press_trig(clock.clone())
+        .a(tempo_s.clone() * knob("attack").build() * 4.)
+        .r(tempo_s.clone() * knob("release").build() * 4.)
+        .s(knob("sustain").build())
+        .d(tempo_s.clone() * knob("decay").build() * 4.)
+        .build()
+        .exp_01(1.)
+        .shared();
+        let (glide_enable, glide_enable_record) =
+            button_with_space("glide enable").build();
+        let note_freq = (note.freq_hz() * vib)
+            .filter_enable(
+                value_looper(glide_enable, clock.clone(), glide_enable_record)
+                    .persist_with_name("glide")
+                    .length(length)
+                    .build(),
+                low_pass::butterworth(10. * knob("glide").build()),
+            )
             .shared();
-        let voice = (saw(note.freq_hz() * vib)
+        let lfo = sine(knob("lfo rate").build() * note_freq.clone())
+            .build()
+            .signed_to_01()
+            * knob("lfo amp").build()
+            * 2_000.;
+        let voice = (saw(note_freq)
             .reset_offset_01(channel.circle_phase_offset_01())
             .build()
             * env.clone())

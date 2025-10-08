@@ -16,10 +16,18 @@ use midly::num::u7;
 #[derive(Subcommand)]
 enum Command {
     Button {
+        /// Buttons are implemented with midi key presses. The note determines which key will
+        /// represent this button.
         #[arg(long)]
         note: Note,
+        #[arg(long)]
+        space_channel: Option<u8>,
+        #[arg(long)]
+        space_controller: Option<u8>,
     },
     Switch {
+        /// Switches are implemented with midi key presses. The note determines which key will
+        /// represent this switch.
         #[arg(long)]
         note: Note,
     },
@@ -92,9 +100,14 @@ fn main() {
     let spam_end = Instant::now() + SPAM_DURATION;
     let is_spam = || Instant::now() < spam_end;
     match cli.command {
-        Command::Button { note } => {
+        Command::Button {
+            note,
+            space_channel,
+            space_controller,
+        } => {
             let mut button = Button::new(cli.title.as_deref()).unwrap();
             let mut prev_pressed = false;
+            let mut prev_space = false;
             loop {
                 button.tick().unwrap();
                 let pressed = button.pressed();
@@ -107,6 +120,27 @@ fn main() {
                     };
                     client.send(MidiEvent { channel, message }).unwrap();
                     prev_pressed = pressed;
+                }
+                let space = button.is_space_pressed();
+                if let Some(space_controller) = space_controller {
+                    if is_spam() || space != prev_space {
+                        client
+                            .send(MidiEvent {
+                                channel: space_channel
+                                    .map(|x| x.into())
+                                    .unwrap_or(channel),
+                                message: MidiMessage::Controller {
+                                    controller: space_controller.into(),
+                                    value: if space {
+                                        u7::max_value()
+                                    } else {
+                                        0.into()
+                                    },
+                                },
+                            })
+                            .unwrap();
+                        prev_space = space;
+                    }
                 }
             }
         }
@@ -177,7 +211,6 @@ fn main() {
                                 },
                             })
                             .unwrap();
-
                         prev_space = space;
                     }
                 }

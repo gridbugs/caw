@@ -1,6 +1,6 @@
 use crate::window::{TitlePosition, Window};
 use anyhow::anyhow;
-use sdl2::{pixels::Color, rect::Rect};
+use sdl2::{keyboard::Scancode, pixels::Color, rect::Rect};
 use std::time::Instant;
 
 const WIDTH_PX: u32 = 128;
@@ -9,6 +9,7 @@ const HEIGHT_PX: u32 = 128;
 pub struct Button {
     window: Window,
     pressed: bool,
+    space_pressed: bool,
 }
 
 impl Button {
@@ -17,6 +18,7 @@ impl Button {
         Ok(Self {
             window,
             pressed: false,
+            space_pressed: false,
         })
     }
 
@@ -33,6 +35,18 @@ impl Button {
                 }
                 Event::MouseButtonUp { .. } => {
                     self.pressed = false;
+                }
+                Event::KeyDown {
+                    scancode: Some(Scancode::Space),
+                    ..
+                } => {
+                    self.space_pressed = true;
+                }
+                Event::KeyUp {
+                    scancode: Some(Scancode::Space),
+                    ..
+                } => {
+                    self.space_pressed = false;
                 }
                 _ => (),
             }
@@ -87,5 +101,9 @@ impl Button {
 
     pub fn pressed(&self) -> bool {
         self.pressed
+    }
+
+    pub fn is_space_pressed(&self) -> bool {
+        self.space_pressed
     }
 }

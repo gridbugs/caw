@@ -728,7 +728,7 @@ where
         self,
         enable: E,
         filter: F,
-    ) -> impl SigT<Item = S::Item>
+    ) -> Sig<impl SigT<Item = S::Item>>
     where
         E: SigT<Item = bool>,
         F: Filter<ItemIn = S::Item>,

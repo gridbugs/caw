@@ -1,5 +1,5 @@
 pub mod button;
-pub use button::button;
+pub use button::{button, button_with_space};
 
 pub mod switch;
 pub use switch::switch;
