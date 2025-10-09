@@ -25,8 +25,7 @@ struct UiButton {
 
 impl UiButton {
     fn contains(&self, mouse_position: Coord) -> bool {
-        self.rect
-            .contains_point((mouse_position.x, mouse_position.y))
+        self.rect.contains_point(mouse_position)
     }
 
     fn render(
@@ -38,10 +37,7 @@ impl UiButton {
         let background = match background {
             Some(background) => background,
             None => {
-                let x = if self
-                    .rect
-                    .contains_point((mouse_position.x, mouse_position.y))
-                {
+                let x = if self.rect.contains_point(mouse_position) {
                     128
                 } else {
                     64
