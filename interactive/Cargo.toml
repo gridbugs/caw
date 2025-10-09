@@ -32,7 +32,7 @@ caw_audio_file = { path = "../audio-file" }
 caw_widgets = { path = "../widgets" }
 env_logger = "0.11"
 rand = "0.9"
-wide = "0.7"
+wide = "0.8"
 clap = { version = "4", features = ["derive"] }
 
 [[example]]
