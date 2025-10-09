@@ -25,7 +25,7 @@ impl Default for BevyInput {
 impl BevyInput {
     pub fn update(
         input: Res<BevyInput>,
-        evr_kbd: EventReader<KeyboardInput>,
+        evr_kbd: MessageReader<KeyboardInput>,
         window: Query<&Window, With<PrimaryWindow>>,
     ) {
         update_input(input, evr_kbd, window);
@@ -117,7 +117,7 @@ fn update_mouse_position(
 
 fn update_input(
     input: Res<BevyInput>,
-    mut evr_kbd: EventReader<KeyboardInput>,
+    mut evr_kbd: MessageReader<KeyboardInput>,
     window: Query<&Window, With<PrimaryWindow>>,
 ) {
     let window = window.single().expect("There is more than one window!");

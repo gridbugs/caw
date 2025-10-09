@@ -9,6 +9,6 @@ documentation = "https://docs.rs/caw_bevy"
 edition = "2024"
 
 [dependencies]
-bevy = { version = "0.16", default-features = false, features = [ "bevy_window" ] }
+bevy = { version = "0.17", default-features = false, features = [ "bevy_window" ] }
 caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
 caw_core = { version = "0.5", path = "../core" }
