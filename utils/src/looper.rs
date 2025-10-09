@@ -283,8 +283,12 @@ where
             let stored = self.sequence.current_mut();
             let out = match (recording, stored.clone()) {
                 (true, _) | (_, None) => {
-                    *stored = Some(sample.clone());
-                    changed_this_frame = true;
+                    // Even if we're not recording, still record if there is no current stored
+                    // value just so we have something to return.
+                    if tick {
+                        *stored = Some(sample.clone());
+                        changed_this_frame = true;
+                    }
                     sample
                 }
                 (_, Some(stored)) => stored,
