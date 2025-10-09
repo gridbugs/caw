@@ -110,6 +110,7 @@ struct Cli {
 struct OscilloscopeUiState {
     style: OscilloscopeStyle,
     scale: f32,
+    time_scale: f32,
     line_width: u32,
     alpha_scale: u8,
 }
@@ -151,7 +152,8 @@ impl App {
         ui_state: &OscilloscopeUiState,
         rgb: Rgb24,
     ) {
-        let num_samples_to_draw = screen_size.x as usize;
+        let num_samples_to_draw =
+            (screen_size.x as f32 / ui_state.time_scale).ceil() as usize;
         // Take the mean so it can be used to identify the relative 0 crossing in case the waveform
         // has drifted above 0 mean.
         let mean = {
@@ -189,7 +191,7 @@ impl App {
         canvas.set_draw_color(Color::RGBA(rgb.r, rgb.g, rgb.b, 255));
         let mut prev = None;
         for (x, sample) in sample_mean_iter.enumerate() {
-            let x = x as i32;
+            let x = (x as f32 * ui_state.time_scale) as i32;
             let y = screen_size.y
                 - ((sample * ui_state.scale) as i32 + (screen_size.y / 2));
             let coord = Coord { x, y };
@@ -217,7 +219,8 @@ impl App {
     ) {
         // A zero crossing of the left channel will be centered in an attempt to stabalize the
         // visualization over time.
-        let num_samples_to_draw = screen_size.x as usize;
+        let num_samples_to_draw =
+            (screen_size.x as f32 / ui_state.time_scale).ceil() as usize;
         // Take the mean so it can be used to identify the relative 0 crossing in case the waveform
         // has drifted above 0 mean.
         let left_mean = {
@@ -253,7 +256,7 @@ impl App {
         canvas.set_draw_color(Color::RGBA(rgb.r, rgb.g, rgb.b, 255));
         let mut prev = None;
         for (x, sample) in sample_left_iter.enumerate() {
-            let x = x as i32;
+            let x = (x as f32 * ui_state.time_scale) as i32;
             let y = screen_size.y
                 - ((sample * ui_state.scale) as i32
                     + ((2 * screen_size.y) / 3));
@@ -273,7 +276,7 @@ impl App {
         }
         let mut prev = None;
         for (x, sample) in sample_right_iter.enumerate() {
-            let x = x as i32;
+            let x = (x as f32 * ui_state.time_scale) as i32;
             let y = screen_size.y
                 - ((sample * ui_state.scale) as i32
                     + ((1 * screen_size.y) / 3));
@@ -314,6 +317,7 @@ impl App {
                 OscilloscopeUiState {
                     style: args.style,
                     scale: args.scale,
+                    time_scale: 1.,
                     line_width: args.line_width,
                     alpha_scale: args.alpha_scale,
                 }
@@ -323,13 +327,21 @@ impl App {
             for event in self.event_pump.poll_iter() {
                 Self::handle_event_common(event.clone(), self.title.as_str());
                 match event {
-                    Event::MouseWheel { y, .. } => {
+                    Event::MouseWheel { x, y, .. } => {
                         let ratio = 1.1;
                         if y > 0 {
                             ui_state.scale *= ratio;
                         } else if y < 0 {
                             ui_state.scale /= ratio;
                         }
+                        let time_ratio = 1.1;
+                        if x > 0 {
+                            ui_state.time_scale *= time_ratio;
+                        } else if x < 0 {
+                            ui_state.time_scale /= time_ratio;
+                        }
+                        ui_state.time_scale =
+                            ui_state.time_scale.clamp(0.1, 10.);
                         ui_state.save_(&self.title);
                     }
                     Event::KeyDown {
