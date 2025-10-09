@@ -1,6 +1,6 @@
 [package]
 name = "caw_keyboard"
-version = "0.4.1"
+version = "0.5.0"
 description = "Abstract representation of a (musical) keyboard for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -14,7 +14,7 @@ web = ["getrandom/wasm_js"]
 
 [dependencies]
 serde = { version = "1.0", features = ["serde_derive"] }
-caw_core = { version = "0.5", path = "../core" }
+caw_core = { version = "0.6", path = "../core" }
 smallvec = ">=1.6.1,<2"
 log = "0.4"
 rand = "0.9"

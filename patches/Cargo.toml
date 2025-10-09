@@ -1,6 +1,6 @@
 [package]
 name = "caw_patches"
-version = "0.4.0"
+version = "0.5.0"
 description = "Collection of common patches for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -10,7 +10,7 @@ documentation = "https://docs.rs/caw_patches"
 edition = "2024"
 
 [dependencies]
-caw_modules = { version = "0.4", path = "../modules" }
-caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
-caw_core = { version = "0.5", path = "../core" }
-caw_utils = { version = "0.4", path = "../utils" }
+caw_modules = { version = "0.5", path = "../modules" }
+caw_builder_proc_macros = { version = "0.2", path = "../builder-proc-macros" }
+caw_core = { version = "0.6", path = "../core" }
+caw_utils = { version = "0.5", path = "../utils" }

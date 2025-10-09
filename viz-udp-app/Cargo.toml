@@ -1,6 +1,6 @@
 [package]
 name = "caw_viz_udp_app"
-version = "0.2.0"
+version = "0.3.0"
 edition = "2024"
 description = "App for visualizing audio data from the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -14,7 +14,7 @@ anyhow = "1.0"
 sdl2 = { version = "0.38" }
 line_2d = "0.5"
 clap = { version = "4", features = ["derive"] }
-caw_viz_udp_app_lib = { version = "0.1", path = "../viz-udp-app-lib" }
+caw_viz_udp_app_lib = { version = "0.2", path = "../viz-udp-app-lib" }
 log = "0.4"
 caw_window_utils = { version = "0.1", path = "../window-utils" }
 caw_persist = { version = "0.1", path = "../persist" }

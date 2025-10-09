@@ -1,6 +1,6 @@
 [package]
 name = "caw_bevy"
-version = "0.2.0"
+version = "0.3.0"
 description = "Helpers for controlling a caw syntesizer from bevy"
 license = "MIT"
 homepage = "https://github.com/gridbugs/caw.git"
@@ -10,5 +10,5 @@ edition = "2024"
 
 [dependencies]
 bevy = { version = "0.17", default-features = false, features = [ "bevy_window" ] }
-caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
-caw_core = { version = "0.5", path = "../core" }
+caw_computer_keyboard = { version = "0.5", path = "../computer-keyboard" }
+caw_core = { version = "0.6", path = "../core" }

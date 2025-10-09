@@ -1,6 +1,6 @@
 [package]
 name = "caw_viz_udp_app_lib"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Library for launching and interacting with instances of caw_viz_udp_app"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -13,5 +13,5 @@ documentation = "https://docs.rs/viz_udp_app_lib"
 anyhow = "1.0"
 log = "0.4"
 lazy_static = "1.5"
-caw_core = { version = "0.5", path = "../core" }
-caw_modules = { version = "0.4", path = "../modules" }
+caw_core = { version = "0.6", path = "../core" }
+caw_modules = { version = "0.5", path = "../modules" }

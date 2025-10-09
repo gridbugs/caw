@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_udp_widgets_app_lib"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Library for launching instances of caw_midi_udp_widgets_app as signals of MIDI commands"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -10,11 +10,11 @@ repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_midi_udp_widgets_app_lib"
 
 [dependencies]
-caw_midi_udp = { version = "0.1", path = "../midi-udp" }
-caw_core = { version = "0.5", path = "../core" }
-caw_midi = { version = "0.4", path = "../midi" }
-caw_builder_proc_macros = { version = "0.1", path = "../builder-proc-macros" }
-caw_keyboard = { version = "0.4", path = "../keyboard" }
+caw_midi_udp = { version = "0.2", path = "../midi-udp" }
+caw_core = { version = "0.6", path = "../core" }
+caw_midi = { version = "0.5", path = "../midi" }
+caw_builder_proc_macros = { version = "0.2", path = "../builder-proc-macros" }
+caw_keyboard = { version = "0.5", path = "../keyboard" }
 lazy_static = "1.5"
 anyhow = "1.0"
 midly = "0.5"

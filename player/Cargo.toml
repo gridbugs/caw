@@ -1,6 +1,6 @@
 [package]
 name = "caw_player"
-version = "0.8.0"
+version = "0.9.0"
 description = "Play audio from the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -13,7 +13,7 @@ edition = "2024"
 web = ["cpal/wasm-bindgen"]
 
 [dependencies]
-caw_core = { version = "0.5", path = "../core" }
+caw_core = { version = "0.6", path = "../core" }
 anyhow = "1.0"
 cpal = "0.16"
 log = "0.4"

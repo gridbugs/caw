@@ -1,6 +1,6 @@
 [package]
 name = "caw_live"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "Helpers for live-coding performances with CAW"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -10,7 +10,7 @@ repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_live"
 
 [dependencies]
-caw_core = { version = "0.5", path = "../core" }
-caw_player = { version = "0.8", path = "../player" }
-caw_viz_udp_app_lib = { version = "0.1", path = "../viz-udp-app-lib" }
+caw_core = { version = "0.6", path = "../core" }
+caw_player = { version = "0.9", path = "../player" }
+caw_viz_udp_app_lib = { version = "0.2", path = "../viz-udp-app-lib" }
 lazy_static = "1.5"

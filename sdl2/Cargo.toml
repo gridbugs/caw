@@ -2,7 +2,7 @@
 name = "caw_sdl2"
 version = "0.1.0"
 edition = "2024"
-description = "Helpers for interfacing with sdl2"
+description = "Helpers for interfacing with sdl2 in the CAW synthesizer framework"
 license = "MIT"
 homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
@@ -10,4 +10,4 @@ documentation = "https://docs.rs/caw_sdl2"
 
 [dependencies]
 sdl2 = "0.38"
-caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
+caw_computer_keyboard = { version = "0.5", path = "../computer-keyboard" }

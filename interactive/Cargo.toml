@@ -1,6 +1,6 @@
 [package]
 name = "caw_interactive"
-version = "0.8.0"
+version = "0.9.0"
 description = "Interactive keyboard and mouse control, and visualization for the caw synthesizer framework"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
@@ -11,9 +11,9 @@ edition = "2024"
 
 [dependencies]
 anyhow = "1.0"
-caw_player = { version = "0.8", path = "../player" }
-caw_core = { version = "0.5", path = "../core" }
-caw_computer_keyboard = { version = "0.4", path = "../computer-keyboard" }
+caw_player = { version = "0.9", path = "../player" }
+caw_core = { version = "0.6", path = "../core" }
+caw_computer_keyboard = { version = "0.5", path = "../computer-keyboard" }
 caw_sdl2 = { version = "0.1", path = "../sdl2" }
 line_2d = "0.5"
 rgb_int = "0.1"

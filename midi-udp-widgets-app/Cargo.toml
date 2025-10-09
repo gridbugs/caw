@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_udp_widgets_app"
-version = "0.3.0"
+version = "0.4.0"
 edition = "2024"
 description = "App for launching widgets that communicate with a caw synthesizer by sending midi commands over UDP"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -10,8 +10,8 @@ repository = "https://github.com/gridbugs/caw.git"
 
 [dependencies]
 midly = "0.5"
-caw_widgets = { version = "0.4", path = "../widgets" }
-caw_midi = { version = "0.4", path = "../midi" }
-caw_midi_udp_client = { version = "0.1", path = "../midi-udp-client" }
-caw_keyboard = { version = "0.4", path = "../keyboard" }
+caw_widgets = { version = "0.5", path = "../widgets" }
+caw_midi = { version = "0.5", path = "../midi" }
+caw_midi_udp_client = { version = "0.2", path = "../midi-udp-client" }
+caw_keyboard = { version = "0.5", path = "../keyboard" }
 clap = { version = "4", features = ["derive"] }

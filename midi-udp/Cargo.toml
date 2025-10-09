@@ -1,6 +1,6 @@
 [package]
 name = "caw_midi_udp"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
 description = "A caw signal of MIDI events backed by a UDP/IP server which can receive serialized MIDI events"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
@@ -11,8 +11,8 @@ documentation = "https://docs.rs/caw_midi_udp"
 
 [dependencies]
 anyhow = "1.0"
-caw_core = { version = "0.5", path = "../core" }
-caw_midi = { version = "0.4", path = "../midi" }
+caw_core = { version = "0.6", path = "../core" }
+caw_midi = { version = "0.5", path = "../midi" }
 midly = "0.5"
 log = "0.4"
 
