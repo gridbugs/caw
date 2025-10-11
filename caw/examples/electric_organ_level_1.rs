@@ -102,7 +102,7 @@ fn virtual_key_events(
     let trig = Sig(trig);
     trig.divide(32).map_mut(move |t| {
         let inversion = Inversion::InOctave {
-            octave_base: note::A2,
+            octave_base: note::A_2,
         };
         let mut events = KeyEvents::empty();
         if t {
@@ -151,7 +151,7 @@ fn virtual_key_events(
 fn virtual_key_events_bass(
     trig: impl SigT<Item = bool>,
 ) -> Sig<impl SigT<Item = KeyEvents>> {
-    let notes = [note::C2, note::B2, note::F2, note::G2];
+    let notes = [note::C_2, note::B_2, note::F_2, note::G_2];
     struct State {
         index: usize,
     }
