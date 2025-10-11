@@ -74,4 +74,12 @@ pub mod prelude {
 
     #[cfg(feature = "caw_viz_udp_app_lib")]
     pub use super::viz_udp_app_lib::*;
+
+    /// Shorthand for `Default::default`
+    pub fn default<T>() -> T
+    where
+        T: Default,
+    {
+        Default::default()
+    }
 }

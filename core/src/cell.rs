@@ -164,7 +164,25 @@ where
     cell(T::default())
 }
 
-impl<T> Stereo<Cell<T>, Cell<T>>
+pub type StereoCell<T> = Stereo<Cell<T>, Cell<T>>;
+pub type StereoCellF32 = StereoCell<f32>;
+
+pub fn stereo_cell_fn<S, F>(mut f: F) -> StereoCell<S::Item>
+where
+    S: SigT + Sync + Send + 'static,
+    F: FnMut() -> S,
+{
+    Stereo::new_fn(|| cell(f()))
+}
+
+pub fn stereo_cell_default<T>() -> StereoCell<T>
+where
+    T: SigT<Item = T> + Clone + Default + Sync + Send + 'static,
+{
+    stereo_cell_fn(T::default)
+}
+
+impl<T> StereoCell<T>
 where
     T: Clone,
 {
@@ -183,9 +201,19 @@ where
     {
         self.as_ref().with_channel(|channel, s| s.set(f(channel)));
     }
+
+    pub fn set_stereo<U, V>(&self, stereo: Stereo<U, V>)
+    where
+        U: SigT<Item = T> + Sync + Send + 'static,
+        V: SigT<Item = T> + Sync + Send + 'static,
+    {
+        let ref_ = self.as_ref();
+        ref_.left.set(stereo.left);
+        ref_.right.set(stereo.right);
+    }
 }
 
-impl Stereo<Cell<f32>, Cell<f32>> {
+impl StereoCellF32 {
     pub fn with_volume<V>(self, volume: V) -> Self
     where
         V: SigT<Item = f32> + Sync + Send + 'static,

@@ -475,6 +475,9 @@ pub mod chord {
             }
         }
 
+        /// Sets the 7th note of the chord to be the appropriate note for a major 7th chord unless
+        /// the chord has a minor 3rd note in which case this method sets the 7th note of the chord
+        /// to be the appropriate note for a minor 7th chord.
         pub const fn infer_7(self) -> Self {
             let seventh = Some(match self.third {
                 Some(Third::Minor) => Seventh::Minor,
@@ -585,13 +588,14 @@ pub mod chord {
 
     #[derive(Clone, Copy, Debug)]
     pub enum Inversion {
+        /// The root note of the chord will be in the specified octave. The notes of the chord will
+        /// be chosen such that `lowest_position` is the lowest note of the chord.
         WithRootOctave {
             root_octave: Octave,
             lowest_position: ChordPosition,
         },
-        InOctave {
-            octave_base: Note,
-        },
+        /// Play all the notes of the chord within this octave.
+        InOctave { octave_base: Note },
     }
 
     impl Default for Inversion {

@@ -6,6 +6,11 @@ pub fn white() -> Sig<impl SigT<Item = f32>> {
     Sig::from_fn(move |_| rng.random::<f32>() * 2. - 1.)
 }
 
+pub fn white_01() -> Sig<impl SigT<Item = f32>> {
+    let mut rng = StdRng::from_os_rng();
+    Sig::from_fn(move |_| rng.random::<f32>())
+}
+
 /// Approximation of brown noise made by integrating white noise with a leaky integrator and
 /// hand-tuning.
 pub fn brown() -> Sig<impl SigT<Item = f32>> {

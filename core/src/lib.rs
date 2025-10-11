@@ -8,6 +8,9 @@ pub use sig::{
     sig_shared, variable,
 };
 pub mod cell;
-pub use cell::{Cell, CellF32, cell, cell_default, cell_f32};
+pub use cell::{
+    Cell, CellF32, StereoCell, StereoCellF32, cell, cell_default, cell_f32,
+    stereo_cell_default, stereo_cell_fn,
+};
 pub mod stereo;
 pub use stereo::{Channel, Stereo, StereoPair};

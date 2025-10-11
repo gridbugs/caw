@@ -744,6 +744,11 @@ where
                 },
             )
     }
+
+    /// A signal with the same values as `self` but every value is wrapped in `Some`.
+    pub fn some(self) -> Sig<impl SigT<Item = Option<S::Item>>> {
+        self.map(Some)
+    }
 }
 
 impl<S, A, B> Sig<S>
@@ -1011,6 +1016,11 @@ where
         self.divide_with_offset(by, 0)
     }
 
+    /// On a gate or trigger signal, this method returns a signal where each "on" value includes a
+    /// count of the number of times the signal has transitioned from off to on. This "counting
+    /// gate" can be used to generate beats with divided clocks where the offset of the divided
+    /// signal remains fixed, even when a divided signal is "restarted" part-way through a cycle,
+    /// such as is the case for live-coding sessions (e.g. in Jupyter).
     pub fn counted(self) -> Sig<impl SigT<Item = Option<u64>>> {
         let mut prev = false;
         let mut count = 0;
@@ -1140,6 +1150,10 @@ where
     {
         self.zip(other).map(|(s, o)| s.or(o))
     }
+
+    pub fn is_some(self) -> Sig<impl SigT<Item = bool>> {
+        self.map(|o| o.is_some())
+    }
 }
 
 impl<T, S> Sig<S>
@@ -1163,6 +1177,16 @@ where
             None => (prev_value.clone(), false),
         })
         .unzip()
+    }
+
+    pub fn or_last_some(self) -> Sig<impl SigT<Item = T>> {
+        let mut prev = Default::default();
+        self.map_mut(move |o| {
+            if let Some(x) = o {
+                prev = x;
+            }
+            prev.clone()
+        })
     }
 }
 

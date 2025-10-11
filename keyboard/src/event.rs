@@ -408,21 +408,41 @@ impl ArpState {
         }
     }
 
-    fn insert_note(&mut self, note: Note) {
+    fn insert_note(&mut self, note: Note, shape: &ArpShape) {
         if let Some(index) = self.store.insert(note) {
-            if self.index > index {
-                self.index += 1;
+            match shape {
+                ArpShape::Indices(_) => {
+                    // If the shape is a list of indices then the `index` field refers to and index
+                    // into _that_ list rather than the store, so don't touch it.
+                }
+                _ => {
+                    // If the note referred to by the current index has moved in the store, adjust
+                    // the index to point to that note again.
+                    if self.index > index {
+                        self.index += 1;
+                    }
+                }
             }
         }
     }
-    fn remove_note(&mut self, note: Note) {
+    fn remove_note(&mut self, note: Note, shape: &ArpShape) {
         if let Some(index) = self.store.remove(note) {
-            if self.index > index {
-                self.index -= 1;
+            match shape {
+                ArpShape::Indices(_) => {
+                    // If the shape is a list of indices then the `index` field refers to and index
+                    // into _that_ list rather than the store, so don't touch it.
+                }
+                _ => {
+                    // If the note referred to by the current index has moved in the store, adjust
+                    // the index to point to that note again.
+                    if self.index > index {
+                        self.index -= 1;
+                    }
+                }
             }
         }
     }
-    fn reset(&mut self, shape: ArpShape) {
+    fn reset(&mut self, shape: &ArpShape) {
         self.index = 0;
         use ArpShape::*;
         match shape {
@@ -450,7 +470,7 @@ impl ArpState {
         self.index -= 1;
         self.store.entries[self.index].note
     }
-    fn tick(&mut self, shape: ArpShape) {
+    fn tick(&mut self, shape: &ArpShape) {
         self.current_note = if self.store.entries.is_empty() {
             self.reset(shape);
             None
@@ -649,35 +669,35 @@ where
             let mut events = KeyEvents::empty();
             for event in key_events {
                 if event.pressed {
-                    state.insert_note(event.note);
+                    state.insert_note(event.note, &shape);
                     for i in 0..extend_octaves_high {
                         if let Some(note) =
                             event.note.add_octaves_checked(i as i8 + 1)
                         {
-                            state.insert_note(note);
+                            state.insert_note(note, &shape);
                         }
                     }
                     for i in 0..extend_octaves_low {
                         if let Some(note) =
                             event.note.add_octaves_checked(-(i as i8 + 1))
                         {
-                            state.insert_note(note);
+                            state.insert_note(note, &shape);
                         }
                     }
                 } else {
-                    state.remove_note(event.note);
+                    state.remove_note(event.note, &shape);
                     for i in 0..extend_octaves_high {
                         if let Some(note) =
                             event.note.add_octaves_checked(i as i8 + 1)
                         {
-                            state.remove_note(note);
+                            state.remove_note(note, &shape);
                         }
                     }
                     for i in 0..extend_octaves_low {
                         if let Some(note) =
                             event.note.add_octaves_checked(-(i as i8 + 1))
                         {
-                            state.remove_note(note);
+                            state.remove_note(note, &shape);
                         }
                     }
                 }
@@ -690,7 +710,7 @@ where
                         velocity_01: 0.0,
                     });
                 }
-                state.tick(shape);
+                state.tick(&shape);
                 if let Some(note) = state.current_note {
                     events.push(KeyEvent {
                         note,

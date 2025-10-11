@@ -1,4 +1,7 @@
-use std::fmt::Display;
+use std::{
+    fmt::Display,
+    ops::{Add, Mul},
+};
 
 use crate::{Buf, Sig, SigCtx, SigSampleIntoBufT, SigT, sig_ops::sig_add};
 
@@ -219,5 +222,48 @@ impl<S> Stereo<S, S> {
             left: f(&self.left),
             right: f(&self.right),
         }
+    }
+
+    pub fn map_pair_channel<O, F>(self, mut f: F) -> Stereo<O, O>
+    where
+        F: FnMut(S, Channel) -> O,
+    {
+        Stereo {
+            left: f(self.left, Channel::Left),
+            right: f(self.right, Channel::Right),
+        }
+    }
+
+    pub fn map_ref_pair_channel<O, F>(&self, mut f: F) -> Stereo<O, O>
+    where
+        F: FnMut(&S, Channel) -> O,
+    {
+        Stereo {
+            left: f(&self.left, Channel::Left),
+            right: f(&self.right, Channel::Right),
+        }
+    }
+}
+
+impl<LL, LR, RL, RR> Add<Stereo<RL, RR>> for Stereo<LL, LR>
+where
+    LL: Add<RL>,
+    LR: Add<RR>,
+{
+    type Output = Stereo<LL::Output, LR::Output>;
+    fn add(self, rhs: Stereo<RL, RR>) -> Self::Output {
+        Stereo::new(self.left + rhs.left, self.right + rhs.right)
+    }
+}
+
+impl<L, R, RHS> Mul<RHS> for Stereo<L, R>
+where
+    RHS: Clone,
+    L: Mul<RHS>,
+    R: Mul<RHS>,
+{
+    type Output = Stereo<L::Output, R::Output>;
+    fn mul(self, rhs: RHS) -> Self::Output {
+        Stereo::new(self.left * rhs.clone(), self.right * rhs)
     }
 }
