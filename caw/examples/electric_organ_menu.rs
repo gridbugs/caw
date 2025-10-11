@@ -193,7 +193,7 @@ fn virtual_key_events_bass(
     })
 }
 
-fn sig(_input: Input, channel: Channel) -> SigBoxed<f32> {
+fn sig(_input: Input, channel: Channel) -> Sig<SigBoxed<f32>> {
     let effects = Effects::new();
     let _hat_closed = 1 << 0;
     let snare = 1 << 1;
