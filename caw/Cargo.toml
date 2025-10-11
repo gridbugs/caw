@@ -1,6 +1,6 @@
 [package]
 name = "caw"
-version = "0.10.0"
+version = "0.10.1"
 description = "A framework for building software-defined modular synthesizers"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
