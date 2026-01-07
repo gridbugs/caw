@@ -10,7 +10,10 @@ fn main() {
         note,
         key_down_gate,
         ..
-    } = input.keyboard.opinionated_key_events(Note::B2).mono_voice();
+    } = input
+        .keyboard
+        .opinionated_key_events(Note::B_2)
+        .mono_voice();
     let env = adsr_linear_01(key_down_gate).attack_s(0.1).build();
     let sig = oscillator(Saw, note.freq_hz())
         .build()
