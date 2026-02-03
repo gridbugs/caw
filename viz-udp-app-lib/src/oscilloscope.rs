@@ -79,7 +79,9 @@ fn start_client_app(
         format!("--green={}", config.green),
         format!("--blue={}", config.blue),
     ]);
-    Ok(command.spawn()?)
+    Ok(command.spawn().map_err(|e| {
+        anyhow::anyhow!("Error trying to run {program_name}: {e}")
+    })?)
 }
 
 pub struct Server {
