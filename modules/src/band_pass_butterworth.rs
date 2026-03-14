@@ -1,4 +1,4 @@
-use crate::low_level::biquad_band_pass_filter::butterworth;
+use crate::low_level::butterworth_chebyshev::butterworth;
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
@@ -36,7 +36,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         BandPassButterworth {
-            state: butterworth::State::new(self.filter_order_half),
+            state: butterworth::BandPassState::new(self.filter_order_half),
             props: self,
             sig,
             buf: Vec::new(),
@@ -51,7 +51,7 @@ where
 {
     props: Props<L, U>,
     sig: S,
-    state: butterworth::State,
+    state: butterworth::BandPassState,
     buf: Vec<f32>,
 }
 
@@ -158,7 +158,7 @@ where
     {
         let props = self.build();
         BandPassButterworthCentered {
-            state: butterworth::State::new(props.filter_order_half),
+            state: butterworth::BandPassState::new(props.filter_order_half),
             props,
             sig,
             buf: Vec::new(),
@@ -174,7 +174,7 @@ where
 {
     props: PropsCentered<C, W, M>,
     sig: S,
-    state: butterworth::State,
+    state: butterworth::BandPassState,
     buf: Vec<f32>,
 }
 

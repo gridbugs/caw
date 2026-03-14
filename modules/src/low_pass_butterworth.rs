@@ -1,4 +1,4 @@
-use crate::low_level::biquad_filter::butterworth;
+use crate::low_level::butterworth_chebyshev::butterworth;
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;

@@ -1,4 +1,4 @@
-use crate::low_level::biquad_band_pass_filter::chebyshev;
+use crate::low_level::butterworth_chebyshev::chebyshev;
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Filter, SigCtx, SigT};
 use itertools::izip;
@@ -55,7 +55,7 @@ where
         S: SigT<Item = Self::ItemIn>,
     {
         BandPassChebyshev {
-            state: chebyshev::State::new(self.filter_order_half),
+            state: chebyshev::BandPassState::new(self.filter_order_half),
             props: self,
             sig,
             buf: Vec::new(),
@@ -71,7 +71,7 @@ where
 {
     props: Props<L, U, R>,
     sig: S,
-    state: chebyshev::State,
+    state: chebyshev::BandPassState,
     buf: Vec<f32>,
 }
 
@@ -207,7 +207,7 @@ where
     {
         let props = self.build();
         BandPassChebyshevCentered {
-            state: chebyshev::State::new(props.filter_order_half),
+            state: chebyshev::BandPassState::new(props.filter_order_half),
             props,
             sig,
             buf: Vec::new(),
@@ -224,7 +224,7 @@ where
 {
     props: PropsCentered<C, W, M, R>,
     sig: S,
-    state: chebyshev::State,
+    state: chebyshev::BandPassState,
     buf: Vec<f32>,
 }
 
