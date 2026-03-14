@@ -1,3 +1,4 @@
+pub mod biquad_filter;
 pub mod butterworth_chebyshev;
 pub mod diode_ladder;
 pub mod freeverb;

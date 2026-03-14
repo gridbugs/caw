@@ -32,7 +32,11 @@ pub use low_pass_chebyshev::low_pass_chebyshev;
 pub mod low_pass_diode_ladder;
 pub use low_pass_diode_ladder::low_pass_diode_ladder;
 
+pub mod low_pass_biquad;
+pub use low_pass_biquad::low_pass_biquad;
+
 pub mod low_pass {
+    pub use super::low_pass_biquad as biquad;
     pub use super::low_pass_butterworth as butterworth;
     pub use super::low_pass_chebyshev as chebyshev;
     pub use super::low_pass_diode_ladder as diode_ladder;
