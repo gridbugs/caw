@@ -21,9 +21,7 @@ pub mod sample_and_hold;
 pub use sample_and_hold::sample_and_hold;
 
 pub mod low_pass_moog_ladder;
-pub use low_pass_moog_ladder::{
-    low_pass_moog_ladder_huovilainen, low_pass_moog_ladder_oberheim,
-};
+pub use low_pass_moog_ladder::low_pass_moog_ladder_oberheim;
 
 pub mod low_pass_butterworth;
 pub use low_pass_butterworth::low_pass_butterworth;
@@ -38,13 +36,9 @@ pub mod low_pass {
     pub use super::low_pass_butterworth as butterworth;
     pub use super::low_pass_chebyshev as chebyshev;
     pub use super::low_pass_diode_ladder as diode_ladder;
-    pub mod moog_ladder {
-        pub use super::super::low_pass_moog_ladder_huovilainen as huovilainen;
-        pub use super::super::low_pass_moog_ladder_oberheim as oberheim;
-        pub use oberheim as default;
-    }
+    pub use super::low_pass_moog_ladder_oberheim as moog_ladder;
 
-    pub use moog_ladder::default;
+    pub use moog_ladder as default;
 }
 
 pub mod high_pass_butterworth;
