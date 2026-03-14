@@ -5,6 +5,7 @@ pub use oscillator::{
     oscillator, pulse, saw, sine, triangle,
     waveform::{self, *},
 };
+pub use saw as sawtooth;
 
 pub mod envelope_generator;
 pub use envelope_generator::adsr_linear_01;
@@ -30,9 +31,13 @@ pub use low_pass_butterworth::low_pass_butterworth;
 pub mod low_pass_chebyshev;
 pub use low_pass_chebyshev::low_pass_chebyshev;
 
+pub mod low_pass_diode_ladder;
+pub use low_pass_diode_ladder::low_pass_diode_ladder;
+
 pub mod low_pass {
     pub use super::low_pass_butterworth as butterworth;
     pub use super::low_pass_chebyshev as chebyshev;
+    pub use super::low_pass_diode_ladder as diode_ladder;
     pub mod moog_ladder {
         pub use super::super::low_pass_moog_ladder_huovilainen as huovilainen;
         pub use super::super::low_pass_moog_ladder_oberheim as oberheim;
