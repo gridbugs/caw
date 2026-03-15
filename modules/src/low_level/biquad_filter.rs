@@ -6,6 +6,7 @@ struct Params {
     resonance: f64,
 }
 
+#[derive(Debug)]
 struct Common {
     cos_omega: f64,
     alpha: f64,
@@ -20,6 +21,7 @@ impl Common {
         sample_rate_hz: f64,
     ) -> Self {
         let omega = (f64::consts::PI * 2.0 * cutoff_hz) / sample_rate_hz;
+        let omega = omega.clamp(1e-3, f64::consts::PI - 1e-3);
         let sin_omega = omega.sin();
         let cos_omega = omega.cos();
         let alpha = sin_omega / (2.0 * resonance);
@@ -63,12 +65,10 @@ impl FilterType for LowPass {
     }
 }
 
-#[derive(Default)]
+#[derive(Default, Debug)]
 struct State {
-    x1: f64,
-    x2: f64,
-    y1: f64,
-    y2: f64,
+    s1: f64,
+    s2: f64,
 }
 
 impl State {
@@ -77,13 +77,9 @@ impl State {
         sample: f64,
         &NormalizedCoefficients { b0, b1, b2, a1, a2 }: &NormalizedCoefficients,
     ) -> f64 {
-        let output = (b0 * sample) + (b1 * self.x1) + (b2 * self.x2)
-            - (a1 * self.y1)
-            - (a2 * self.y2);
-        self.x2 = self.x1;
-        self.x1 = sample;
-        self.y2 = self.y1;
-        self.y1 = output;
+        let output = b0 * sample + self.s1;
+        self.s1 = b1 * sample - a1 * output + self.s2;
+        self.s2 = b2 * sample - a2 * output;
         output
     }
 }
@@ -105,9 +101,9 @@ impl<T: FilterType> BiquadFilter<T> {
     ) -> f64 {
         // Resonance range
         const Q_MIN: f64 = 0.70710678;
-        const Q_MAX: f64 = 4.0;
+        const Q_MAX: f64 = 20.0;
         let params = Params {
-            cutoff_hz: cutoff_hz.clamp(0., 20_000.0),
+            cutoff_hz,
             resonance: Q_MIN + ((Q_MAX - Q_MIN) * resonance),
         };
         if params != self.params {

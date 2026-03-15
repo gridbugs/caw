@@ -49,7 +49,7 @@ impl Control {
         let k_res = 20.0 * q;
         let a_ = 1.0 + 0.5 * k_res;
         let comp = 1.0 + DIODELADDER_Q_COMP * qq + DIODELADDER_K_COMP * (k * q);
-        let cut_comp = 20.0f64.max(((cut_norm / comp) * nyquist).min(nyquist));
+        let cut_comp = 5.0f64.max(((cut_norm / comp) * nyquist).min(nyquist));
         let a = (TWO_PI / 2.0) * (cut_comp / nyquist);
         let a = 2.0 * (0.5 * a).sin() / (0.5 * a).cos();
         let ainv = 1.0 / a;
