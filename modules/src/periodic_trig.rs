@@ -1,5 +1,5 @@
 use caw_builder_proc_macros::builder;
-use caw_core::{sig_ops::sig_div, Buf, Sig, SigCtx, SigT};
+use caw_core::{Buf, Sig, SigCtx, SigT, sig_ops::sig_div};
 use itertools::izip;
 
 pub struct PeriodicTrig<P>
@@ -51,12 +51,26 @@ where
     }
 }
 
-impl<P> PeriodicTrig<Sig<sig_div::OpScalarSig<f32, P>>>
+impl<F> PeriodicTrig<Sig<sig_div::OpScalarSig<f32, F>>>
 where
-    P: SigT<Item = f32>,
+    F: SigT<Item = f32>,
 {
-    fn new_hz(freq_hz: P) -> Sig<Self> {
-        let period_s = 1.0 / Sig(freq_hz);
+    fn new_hz(freq_hz: F) -> Sig<Self> {
+        let period_s = Sig(freq_hz).hz_to_period_s();
+        Sig(Self {
+            period_s,
+            remaining_s: 0.0,
+            buf: Vec::new(),
+        })
+    }
+}
+
+impl<B> PeriodicTrig<Sig<sig_div::OpScalarSig<f32, B>>>
+where
+    B: SigT<Item = f32>,
+{
+    fn new_bpm(bpm: B) -> Sig<Self> {
+        let period_s = Sig(bpm).bpm_to_period_s();
         Sig(Self {
             period_s,
             remaining_s: 0.0,
@@ -82,11 +96,24 @@ builder! {
     #[constructor = "periodic_trig_hz"]
     #[constructor_doc = "A periodic trigger defined in terms of its frequency in Hertz"]
     #[build_fn = "PeriodicTrig::new_hz"]
-    #[build_ty = "Sig<PeriodicTrig<Sig<sig_div::OpScalarSig<f32, P>>>>"]
+    #[build_ty = "Sig<PeriodicTrig<Sig<sig_div::OpScalarSig<f32, F>>>>"]
     #[generic_setter_type_name = "X"]
     pub struct PropsBuilderHz {
         #[generic_with_constraint = "SigT<Item = f32>"]
-        #[generic_name = "P"]
+        #[generic_name = "F"]
+        freq_hz: _,
+    }
+}
+
+builder! {
+    #[constructor = "periodic_trig_bpm"]
+    #[constructor_doc = "A periodic trigger defined in terms of its beats per minute"]
+    #[build_fn = "PeriodicTrig::new_bpm"]
+    #[build_ty = "Sig<PeriodicTrig<Sig<sig_div::OpScalarSig<f32, B>>>>"]
+    #[generic_setter_type_name = "X"]
+    pub struct PropsBuilderBpm {
+        #[generic_with_constraint = "SigT<Item = f32>"]
+        #[generic_name = "B"]
         freq_hz: _,
     }
 }

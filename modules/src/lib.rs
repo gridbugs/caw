@@ -97,7 +97,7 @@ pub mod sample_playback;
 pub use sample_playback::sample_playback;
 
 pub mod periodic_trig;
-pub use periodic_trig::{periodic_trig_hz, periodic_trig_s};
+pub use periodic_trig::{periodic_trig_bpm, periodic_trig_hz, periodic_trig_s};
 
 pub mod periodic_gate;
 pub use periodic_gate::periodic_gate_s;

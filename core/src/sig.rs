@@ -844,6 +844,14 @@ impl<S> Sig<S>
 where
     S: SigT<Item = f32>,
 {
+    pub fn clamp<L, H>(self, low: L, high: H) -> Sig<impl SigT<Item = f32>>
+    where
+        L: SigT<Item = f32>,
+        H: SigT<Item = f32>,
+    {
+        self.zip3(low, high)
+            .map(|(x, low, high)| x.clamp(low, high))
+    }
     /// clamp `x` between +/- `max_unsigned`
     pub fn clamp_symetric<C>(
         self,
@@ -872,12 +880,34 @@ where
         self.zip(k).map(|(x, k)| crate::arith::exp_01(x, k))
     }
 
+    pub fn tanh(self) -> Sig<impl SigT<Item = f32>> {
+        self.map(|x| x.tanh())
+    }
+
+    pub fn mul_tanh<M>(self, mul_by: M) -> Sig<impl SigT<Item = f32>>
+    where
+        M: SigT<Item = f32>,
+    {
+        (self * Sig(mul_by)).tanh()
+    }
+
+    pub fn tanh_mul_clamped<M>(self, mul_by: M) -> Sig<impl SigT<Item = f32>>
+    where
+        M: SigT<Item = f32>,
+    {
+        (self.tanh() * Sig(mul_by)).clamp(-1.0, 1.0)
+    }
+
     pub fn inv_01(self) -> Sig<impl SigT<Item = f32>> {
         1.0 - self
     }
 
     pub fn signed_to_01(self) -> Sig<SignedTo01<S>> {
         Sig(SignedTo01(self.0))
+    }
+
+    pub fn signed_from_01(self) -> Sig<impl SigT<Item = f32>> {
+        self.map(|x| x * 2.0 - 1.0)
     }
 
     pub fn signed_to_range<L, U>(
@@ -904,6 +934,30 @@ where
 
     pub fn is_negative(self) -> Sig<IsNegative<S>> {
         Sig(IsNegative(self.0))
+    }
+
+    pub fn hz_to_period_s(
+        self,
+    ) -> Sig<crate::sig_ops::sig_div::OpScalarSig<f32, S>> {
+        1.0 / self
+    }
+
+    pub fn period_s_to_hz(
+        self,
+    ) -> Sig<crate::sig_ops::sig_div::OpScalarSig<f32, S>> {
+        1.0 / self
+    }
+
+    pub fn bpm_to_hz(
+        self,
+    ) -> Sig<crate::sig_ops::sig_div::OpSigScalar<S, f32>> {
+        self / 60.0
+    }
+
+    pub fn bpm_to_period_s(
+        self,
+    ) -> Sig<crate::sig_ops::sig_div::OpScalarSig<f32, S>> {
+        60.0 / self
     }
 }
 
