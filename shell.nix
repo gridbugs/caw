@@ -3,8 +3,8 @@
     overlays = [
       (import (
         builtins.fetchTarball {
-          url = "https://github.com/oxalica/rust-overlay/archive/8d6387ed6d8e6e6672fd3ed4b61b59d44b124d99.tar.gz";
-          sha256 = "sha256:0kdd7jpbyr1r578yfq95j317sk9dyrw0yxgnkiny2b43f4d6q46z";
+          url = "https://github.com/oxalica/rust-overlay/archive/84edd48f141b0c8910dffdd0296ddd577e829132.tar.gz";
+          sha256 = "sha256:0h8j7qz8wlf27cx32g5xbgsihpd3v5psnmz2yhlsjhjyrns4hsx1";
         }
       ))
     ];
