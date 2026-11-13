@@ -5,7 +5,6 @@ edition = "2024"
 description = "A caw signal of MIDI events backed by a UDP/IP server which can receive serialized MIDI events"
 authors = ["Stephen Sherratt <stephen@sherra.tt>"]
 license = "MIT"
-homepage = "https://github.com/gridbugs/caw.git"
 repository = "https://github.com/gridbugs/caw.git"
 documentation = "https://docs.rs/caw_midi_udp"
 
