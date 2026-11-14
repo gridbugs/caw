@@ -1,6 +1,6 @@
 use caw_core::*;
 use caw_interactive::{Input, Visualization, window::Window};
-use caw_keyboard::{IntoNoteFreqHz, KeyEventsT, MonoVoice, Note, note};
+use caw_keyboard::{Note, note};
 use caw_modules::*;
 use caw_utils::*;
 
@@ -106,10 +106,6 @@ fn sequence() -> Vec<Step> {
 fn sig(input: Input) -> StereoPair<Sig<impl SigT<Item = f32>>> {
     let y = cell(input.mouse().y_01());
     let x = cell(input.mouse().x_01());
-    let MonoVoice { note, .. } = input
-        .keyboard
-        .opinionated_key_events(Note::B_0)
-        .mono_voice();
     let bpm = Sig(111.0 * 4.0);
     let clock = cell(periodic_trig_bpm(bpm.clone()).build());
     let seq = sequence();
@@ -184,7 +180,8 @@ fn sig(input: Input) -> StereoPair<Sig<impl SigT<Item = f32>>> {
         )
         .attack_s(period_s.clone() * 0.0)
         .release_s(period_s.clone() * 2.0)
-        .build();
+        .build()
+        .shared();
 
         let accent_trigger = accent_mul
             .clone()
@@ -210,16 +207,17 @@ fn sig(input: Input) -> StereoPair<Sig<impl SigT<Item = f32>>> {
             .filter(
                 low_pass::diode_ladder(
                     (200.
-                        + base_filter_env * 4_000.
+                        + base_filter_env.clone() * 4_000.
                         + accent_filter_env * 4_000.)
                         * x.clone(),
                 )
                 .q(2.0 * y.clone()),
             )
             .filter(high_pass::default(100.0));
-        (base * (0.7 + (accent_amp_env * 0.3)))
+        ((base * (0.7 + (accent_amp_env * 0.3)))
             .filter(chorus())
             .mul_tanh(10.0)
+            * base_filter_env)
             .filter(reverb())
     })
 }

@@ -4,7 +4,7 @@ use caw_interactive::{
     window::{Visualization, Window},
 };
 use caw_modules::*;
-use rand::Rng;
+use rand::RngExt;
 use rgb_int::Rgb24;
 use std::{
     sync::{

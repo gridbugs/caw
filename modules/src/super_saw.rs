@@ -1,7 +1,7 @@
 use caw_builder_proc_macros::builder;
 use caw_core::{Buf, Sig, SigCtx, SigT};
 use itertools::izip;
-use rand::{Rng, SeedableRng, rngs::StdRng};
+use rand::{RngExt, SeedableRng, rngs::StdRng};
 use wide::f32x8;
 
 #[derive(Debug, Clone, Copy)]
@@ -119,9 +119,8 @@ where
                 }
             }
             SuperSawInit::Random => {
-                let mut rng = StdRng::from_os_rng();
                 for (x, mask) in state_01.iter_mut().zip(mask.iter()) {
-                    *x = rng.random::<[f32; 8]>().into();
+                    *x = rand::random::<[f32; 8]>().into();
                     *x *= mask;
                 }
             }

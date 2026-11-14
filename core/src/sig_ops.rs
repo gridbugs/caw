@@ -8,8 +8,8 @@ macro_rules! impl_op {
     ($sig_mod:ident, $trait:ident, $fn:ident) => {
         pub mod $sig_mod {
             use crate::{
-                sig::{MapBuf, MapBuf2},
                 Buf, Sig, SigCtx, SigT,
+                sig::{MapBuf, MapBuf2},
             };
             use std::ops::$trait;
 
@@ -184,7 +184,7 @@ where
         for buffered_signal in &mut self.sigs {
             let buf = buffered_signal.sample(ctx);
             for (out, sample) in self.buf.iter_mut().zip(buf.iter()) {
-                *out += sample;
+                *out = out.algebraic_add(sample);
             }
         }
         &self.buf
